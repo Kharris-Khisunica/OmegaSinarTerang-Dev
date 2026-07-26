@@ -1,0 +1,325 @@
+# Progress Tracker v2 — Website Operasional FMCG
+
+Pendamping `Development_Plan_v2_Website_Operasional_FMCG.md`.
+
+**Cara pakai:**
+1. Simpan file ini **di dalam repo** dan commit setiap hari. Ini audit trail proyek.
+2. Isi **Tgl Aktual** saat sub-item selesai & lolos DoD. Kalau kosong padahal tanggalnya lewat, itu drift.
+3. Update **§0 Papan Status** setiap pagi sebelum mulai kerja.
+4. Salin bagian "Modul Selesai" (§4) ke context prompt AI berikutnya.
+
+---
+
+## 0. Papan Status (update tiap pagi)
+
+| | |
+|---|---|
+| Hari ke- | `1` dari 34 |
+| Tanggal hari ini | `26 Juli 2026` |
+| Rencana Hari 34 | **29 Agustus 2026** |
+| Cut-over | **1 September 2026** |
+| **Drift kumulatif** | `0` hari (Hari 1 selesai 1 hari lebih cepat dari rencana 27 Jul) |
+| Buffer tersisa | Hari 15 · 31 · 33 → `3` dari 3 |
+
+**Aturan drift:**
+- Drift ≥ 1 hari → catat di §3, cari penyebabnya hari itu juga
+- Drift ≥ 2 hari → pakai buffer terdekat
+- Drift ≥ 3 hari → **jalankan daftar potong darurat** (plan v2 §9.3), jangan menunggu
+
+---
+
+## 1. Menunggu Klien (cek tiap hari)
+
+| Item | Dibutuhkan sebelum | Diminta tgl | Diterima tgl | Status |
+|---|---|---|---|---|
+| Format nota A4 & surat jalan | Hari 19 & 22 | | | ⏳ dijanjikan 27 Juli |
+| Format nomor surat jalan | Hari 21 | | | ⏳ |
+| Keputusan hosting final | **Hari 4** | | | ⏳ sementara mini PC |
+| Pengadaan mini PC + UPS | Hari 30 | | | ⏳ |
+| Data saldo awal stok + harga terakhir | Hari 32 | | | ⏳ |
+| Saldo awal kas & bank | Hari 32 | | | ⏳ |
+| Keputusan diskon supplier | Hari 11 | | | ⏳ kolom disiapkan |
+| Konfirmasi tarif PPN (konsultan pajak) | Hari 18 | | | ⏳ |
+| Input master data oleh klien (100 produk + 100 customer) | Hari 32 | | | ⏳ bisa mulai Hari 4 |
+| Repo dipindah ke akun klien | Hari 34 | | | ⏳ **sarankan hari ini** |
+
+> Item ⏳ yang melewati tanggal "dibutuhkan sebelum" otomatis jadi risiko jadwal. Catat di §3.
+
+---
+
+## 2. Checklist Harian
+
+Legenda: `[ ]` belum · `[~]` jalan · `[x]` selesai & lolos DoD · ⚠️ risiko tinggi · 🔒 blocker
+
+### Fase 1 — Fondasi (Hari 1–4) · 27–30 Juli
+
+**Hari 1** — Rencana: 27 Jul · Aktual: `26 Jul 2026`
+- [x] BE: scaffold NestJS modular + TypeORM + `pgcrypto` + git + env
+- [x] FE: scaffold Nuxt + Nuxt UI + layout (sidebar/topbar) + struktur `pages/`
+- **DoD:** `npm run dev` jalan di BE & FE, koneksi DB sukses, commit pertama masuk repo
+
+**Hari 2** — Rencana: 28 Jul · Aktual: `____`
+- [ ] BE: `users` + JWT/refresh + bcrypt + RBAC Guard + login/refresh/logout
+- [ ] BE: seed 3 user + **rate-limit login**
+- [ ] FE: login page + auth composable + route middleware + logout
+- **DoD:** 3 role bisa login, token tersimpan, halaman terproteksi menolak akses tanpa token
+
+**Hari 3** 🔒 — Rencana: 29 Jul · Aktual: `____`
+- [ ] BE: migration `products`(+conversions), `customers`, `suppliers`, `warehouses`, `tax_rates`
+- [ ] BE: migration `chart_of_accounts` + seed 11 akun
+- [ ] BE: migration `settings` + `document_counters` + **generator nomor** (`FOR UPDATE`)
+- [ ] FE: ⚠️ `<DataTable>` (list+search+pagination server-side)
+- [ ] FE: ⚠️ `<CrudFormPage>` (layout create/edit generik)
+- **DoD:** generator nomor menghasilkan `INV/2609/0001` dan reset benar saat ganti bulan; kedua komponen dipakai 1 halaman percontohan tanpa copy-paste
+
+**Hari 4** — Rencana: 30 Jul · Aktual: `____`
+- [ ] BE: CRUD Products (+konversi satuan 1 layar)
+- [ ] BE: CRUD Customers (+`is_pkp`, `ar_account_id`)
+- [ ] BE: CRUD Suppliers (auto-code + masking Operator) + Warehouses + Settings
+- [ ] FE: halaman Products, Customers, Settings
+- [ ] **Beri tahu klien: input master data boleh dimulai**
+- **DoD:** Operator melihat supplier ter-mask, Master melihat penuh; klien sudah bisa masuk & input produk
+
+### Fase 2 — Engine Inti (Hari 5–10) · 31 Juli–5 Agustus
+
+**Hari 5** — Rencana: 31 Jul · Aktual: `____`
+- [ ] BE: export generik ExcelJS + PDFKit
+- [ ] BE: `authorization_requests` + guard step-up + `expires_at` (TTL 15 menit)
+- [ ] FE: halaman Suppliers, Warehouses (pilih `warehouse_type`)
+- **DoD:** request step-up kedaluwarsa setelah 15 menit dan ditolak saat dieksekusi
+
+**Hari 6** 🔒 — Rencana: 1 Agu · Aktual: `____`
+- [ ] BE: `journal_entries` + `journal_entry_lines`
+- [ ] BE: **Journal Poster** + 5 validasi (min 2 baris, satu sisi > 0, balance, akun aktif, nomor)
+- [ ] FE: halaman COA (tree, view only)
+- **DoD:** posting tidak balance → error & rollback; `entry_number` format `JE/YYMM/NNNN`
+
+**Hari 7** 🔒 — Rencana: 2 Agu · Aktual: `____`
+- [ ] BE: `stock_movements`, `product_stock_balance`, `stock_cost_lots`, `stock_cost_consumptions`
+- [ ] BE: **Stock Recorder + FIFO + row-lock `SELECT ... FOR UPDATE`**
+- [ ] BE: penanganan stok minus (`stockWarning`, fallback cost lot terakhir)
+- [ ] FE: halaman Authorization Requests (antrian + modal approve)
+- **DoD:** konsumsi FIFO mengambil lot tertua; stok minus jalan dengan warning, tidak ditolak
+
+**Hari 8** ⚠️ — Rencana: 3 Agu · Aktual: `____`
+- [ ] BE: **integration test 4 invarian** (jurnal balance, FIFO urut, VOID simetris, stok rekonsiliasi)
+- [ ] BE: fungsi VOID generik + reversing journal
+- [ ] BE: wiring step-up end-to-end (dummy action)
+- [ ] FE: dashboard placeholder
+- [ ] **Minta review kode eksternal 2 jam** (engine sudah lengkap — ROI tertinggi)
+- **DoD:** 4 test hijau dan dijalankan otomatis; VOID membalik persis, bertanggal hari ini
+
+**Hari 9** — Rencana: 4 Agu · Aktual: `____`
+- [ ] BE: **Jurnal Manual** (Master only, blokir Persediaan/Piutang/Hutang)
+- [ ] BE: **alur Saldo Awal terpadu** (jurnal pembuka + lot FIFO dari angka yang sama)
+- [ ] FE: halaman Jurnal Manual + halaman Saldo Awal
+- **DoD:** jurnal manual ke Persediaan → 403; saldo awal menghasilkan lot yang nilainya = jurnal pembuka
+
+**Hari 10** — Rencana: 5 Agu · Aktual: `____`
+- [ ] BE: **Warehouse Mutation bercabang** (`CONSIGNMENT` tanpa movement, `STORE`/`BAD_STOCK` catat `transfer`)
+- [ ] BE: get-or-create gudang titip + validasi qty titip ≤ qty dibeli
+- [ ] FE: halaman Warehouse Mutation + riwayat
+- [ ] Uji manual CRUD end-to-end di browser
+- **DoD:** mutasi ke bad stock memindahkan lot dengan harga pokok sama; mutasi ke titip tidak membuat movement
+
+### Fase 3 — Pembelian (Hari 11–15) · 6–10 Agustus
+
+**Hari 11** — Rencana: 6 Agu · Aktual: `____`
+- [ ] BE: `purchase_invoices`(+lines), `goods_receipts`(+lines)
+- [ ] BE: `POST /purchase-invoices` (auto GR + Stock Recorder + Journal)
+- [ ] BE: alokasi `discount_amount` proporsional; `lot_date` = `receipt_date`
+- [ ] FE: form Purchase Invoice multi-baris (subtotal/total live)
+- **DoD:** 1 invoice 3 baris → jurnal balance, lot terbentuk benar, `total_amount` persis = nota supplier (tanpa pembulatan)
+
+**Hari 12** — Rencana: 7 Agu · Aktual: `____`
+- [ ] BE: edit invoice bersyarat (belum dibayar & lot belum terkonsumsi)
+- [ ] BE: VOID + reversing journal & stock
+- [ ] FE: detail Purchase Invoice + tombol edit/void
+- **DoD:** edit setelah lot terkonsumsi → ditolak dengan pesan jelas
+
+**Hari 13** — Rencana: 8 Agu · Aktual: `____`
+- [ ] BE: `purchase_returns`(+lines) + nomor `RB/YYMM/NNNN`
+- [ ] BE: endpoint retur + `settlement_type` (REDUCE_INVOICE / CASH)
+- [ ] FE: halaman Retur Pembelian + cetak A4
+- **DoD:** jurnal Hutang/Kas (D) / Persediaan (K), tanpa akun kontra; stok berkurang dari lot asal
+
+**Hari 14** — Rencana: 9 Agu · Aktual: `____`
+- [ ] BE: `operational_expenses` + CRUD + journal + VOID
+- [ ] FE: halaman Operational Expenses
+- **DoD:** VOID menghasilkan jurnal pembalik, baris asli tetap ada (tidak hard-delete)
+
+**Hari 15** — Rencana: 10 Agu · Aktual: `____` — **BUFFER**
+- [ ] BE: CRUD COA penuh Master (akun kas/bank + piutang custom)
+- [ ] FE: form tambah/ubah akun COA
+- [ ] Buffer: sisa pekerjaan Fase 3
+- **DoD:** Master bisa membuat akun kas baru dengan `is_cash_account = true` dan langsung terpilih di form pembayaran
+
+### Fase 4 — Penjualan (Hari 16–20) · 11–15 Agustus
+
+**Hari 16** — Rencana: 11 Agu · Aktual: `____`
+- [ ] BE: `sales_orders`(+lines) + CRUD + `convert-to-invoice`
+- [ ] FE: halaman Sales Order
+- **DoD:** SO yang sudah CONVERTED tidak bisa diubah
+
+**Hari 17** ⚠️ — Rencana: 12 Agu · Aktual: `____`
+- [ ] BE: `price-suggestion` (**wajib**, bukan opsional)
+- [ ] BE: `sales_invoices`(+lines) migration
+- [ ] FE: mulai form Sales Invoice — autocomplete produk + suggest harga
+- [ ] FE: **modal tambah customer dari dalam form** (bukan pindah halaman)
+- **DoD:** pilih customer+produk → 3–5 harga terakhir muncul < 300ms
+
+**Hari 18** ⚠️ — Rencana: 13 Agu · Aktual: `____`
+- [ ] BE: `POST /sales-invoices` full flow (Stock Recorder + Journal)
+- [ ] BE: **pembulatan ke atas kelipatan config** → Pendapatan Pembulatan
+- [ ] BE: PPN dormant (`company_is_pkp` = false → tidak memungut)
+- [ ] FE: lanjut form + preview total live
+- **DoD:** total selalu kelipatan Rp100; `rounding_amount` masuk jurnal; PPN nol selama config mati
+
+**Hari 19** — Rencana: 14 Agu · Aktual: `____`
+- [ ] BE: edit bersyarat + VOID Sales Invoice
+- [ ] FE: detail Sales Invoice
+- [ ] FE: **cetak nota A4 2 rangkap identik**
+- **DoD:** nota tercetak sesuai format klien; VOID mengembalikan stok & lot
+
+**Hari 20** — Rencana: 15 Agu · Aktual: `____`
+- [ ] BE: `sales_returns`(+lines) + nomor `RJ/YYMM/NNNN`
+- [ ] BE: jurnal 4 sisi + `unit_cost_fifo` asli + `settlement_type`
+- [ ] FE: halaman Retur Penjualan + cetak
+- **DoD:** retur atas invoice **lunas** dengan `CASH` → jurnal kas benar, `paid_amount` tidak melebihi `total_amount`
+
+### Fase 5 — Pengiriman & Pembayaran (Hari 21–25) · 16–20 Agustus
+
+**Hari 21** — Rencana: 16 Agu · Aktual: `____`
+- [ ] BE: `agents`, `vehicles` + CRUD
+- [ ] BE: `delivery_orders`(+lines) + nomor `SJ/YYMM/NNNN`
+- [ ] FE: halaman Agen, Kendaraan
+- **DoD:** surat jalan terbentuk dari invoice, membawa agen & kendaraan
+
+**Hari 22** — Rencana: 17 Agu · Aktual: `____`
+- [ ] BE: endpoint surat jalan + status (PENDING/DELIVERED/POSTPONED/RETURNED)
+- [ ] FE: halaman Surat Jalan + **cetak A4**
+- **DoD:** status POSTPONED bisa dilihat sebagai daftar "belum terkirim"
+
+**Hari 23** ⚠️ — Rencana: 18 Agu · Aktual: `____`
+- [ ] BE: `payment_batches` + `payment_batch_methods` + `payments` + `agent_id`/`vehicle_id`
+- [ ] BE: `POST /payments/preview-allocation` (FIFO, tolak overpayment)
+- [ ] FE: Payment step 1 — pilih pihak + input **multi-metode**
+- **DoD:** input 30jt kas + 50jt transfer atas tagihan 100jt → preview benar, sisa 20jt tetap outstanding
+
+**Hari 24** ⚠️ — Rencana: 19 Agu · Aktual: `____`
+- [ ] BE: `POST /payments/confirm` (multi-metode, AR + AP simetris)
+- [ ] BE: VOID payment batch
+- [ ] FE: Payment step 2 — **alokasi dapat diedit manual** + riwayat batch
+- **DoD:** operator mengubah alokasi ke invoice hari ini (bukan tunggakan lama) dan tersimpan sesuai editan
+
+**Hari 25** — Rencana: 20 Agu · Aktual: `____`
+- [ ] BE: rekap setoran agen (group kendaraan + tanggal)
+- [ ] FE: halaman Rekap Setoran Agen
+- **DoD:** total uang per mobil dapat dicocokkan dengan total nota hari itu
+
+### Fase 6 — Laporan & Serah Terima (Hari 26–34) · 21–29 Agustus
+
+**Hari 26** — Rencana: 21 Agu · Aktual: `____`
+- [ ] BE: laporan stok per gudang (**satuan dipecah**: "12 dus 15 renceng")
+- [ ] BE: laporan barang titipan (sumber `warehouse_mutations`)
+- [ ] FE: halaman Laporan Stok, Barang Titipan
+
+**Hari 27** — Rencana: 22 Agu · Aktual: `____`
+- [ ] BE: laporan penjualan, piutang, hutang
+- [ ] FE: halaman laporan tsb
+
+**Hari 28** — Rencana: 23 Agu · Aktual: `____`
+- [ ] BE: laporan biaya operasional, **rekap kas harian per akun**, cash opname (laporan)
+- [ ] FE: halaman Kas
+
+**Hari 29** — Rencana: 24 Agu · Aktual: `____`
+- [ ] BE: laporan retur, **laporan produk stok minus**, endpoint rekonsiliasi stok
+- [ ] FE: halaman laporan sisa
+
+**Hari 30** — Rencana: 25 Agu · Aktual: `____`
+- [ ] BE: export Excel + PDF seluruh laporan
+- [ ] FE: tombol export di semua halaman laporan
+
+**Hari 31** — Rencana: 26 Agu · Aktual: `____` — **BUFFER**
+- [ ] Perbaikan temuan UAT minggu 1–4
+
+**Hari 32** — Rencana: 27 Agu · Aktual: `____`
+- [ ] BE: audit RBAC/Permission Matrix lintas endpoint (plan v2 §7)
+- [ ] FE: audit Permission Matrix lintas halaman
+
+**Hari 33** — Rencana: 28 Agu · Aktual: `____` — **BUFFER**
+
+**Hari 34** — Rencana: 29 Agu · Aktual: `____`
+- [ ] Smoke test end-to-end (login → semua modul → logout)
+- [ ] **Dokumentasi setup & deploy**
+- [ ] Serah terima + jalankan Checklist Go-Live (plan v2 §8)
+
+---
+
+## 3. Catatan Harian & Hambatan
+
+Isi hanya kalau ada yang meleset atau ada keputusan baru. Kosong = lancar.
+
+| Tgl | Hari ke- | Kejadian | Dampak jadwal | Tindakan |
+|---|---|---|---|---|
+| 26 Jul 2026 | 1 | Mesin dev hanya 7.7GB RAM (sering <1GB free). Docker Desktop jalan bareng build Nuxt/Vite memicu crash `memory allocation failed` (esbuild/Vite OOM) — sudah dibuktikan gagal saat Docker jalan, sukses setelah Docker dimatikan. | Tidak ada drift, tapi menetapkan konvensi dev harian. | Postgres native Windows (port 5432) jadi DB dev harian, bukan Docker. `docker-compose.yml` tetap di repo untuk deploy ke mini PC nanti (dipetakan ke port 5433 agar tidak bentrok kalau harus jalan bareng Postgres native). `scripts/verify.sh` diubah untuk cek Postgres native langsung, bukan lewat `docker compose exec`. |
+
+---
+
+## 4. Modul Selesai
+
+Isi ulang tiap update. Salin bagian ini ke context prompt AI berikutnya.
+
+```
+Hari 1 — Scaffold (belum masuk urutan modul, prasyarat semua modul berikutnya):
+- Backend: NestJS modular (src/app.module.ts) + TypeORM (@nestjs/typeorm) + ConfigModule
+  + GET /health (cek koneksi DB) + ValidationPipe global + CORS. DataSource CLI terpisah
+  di src/database/data-source.ts untuk migration (belum ada migration, mulai Hari 3).
+- Frontend: Nuxt 3 + Nuxt UI (template `ui`) + layout sidebar/topbar
+  (app/layouts/default.vue pakai UDashboardGroup/Sidebar/Panel/Navbar) + app/pages/.
+  Package manager FE = pnpm (bukan npm) karena template Nuxt UI resmi pakai pnpm lockfile.
+- DB dev: Postgres native Windows, port 5432, db `omega_dev`, extension pgcrypto aktif.
+  docker-compose.yml (postgres, port 5433) ada di repo untuk deploy nanti, TIDAK dipakai
+  harian (RAM mesin dev cuma 7.7GB, Docker bareng build FE bikin OOM).
+- Env var DB: DB_HOST, DB_PORT, DB_USERNAME, DB_PASSWORD, DB_NAME (bukan DB_DATABASE) —
+  penting disamakan persis kalau bikin service/config baru yang baca DB_*.
+- scripts/verify.sh sudah disesuaikan ke Postgres native (bukan docker compose exec).
+```
+
+Urutan yang diharapkan:
+`Auth → Products → Customers → Suppliers → Warehouses → Settings → DocumentCounters →
+ChartOfAccounts → AuthorizationRequests → JournalPoster → StockRecorder(FIFO) →
+VoidEngine → ManualJournal → OpeningBalance → WarehouseMutation → PurchaseInvoice →
+PurchaseReturn → OperationalExpenses → SalesOrder → SalesInvoice → SalesReturn →
+Agents → Vehicles → DeliveryOrder → Payments → Reports`
+
+---
+
+## 5. UAT Mingguan
+
+Diikuti **Master dan operator**. Operator wajib ikut sejak minggu pertama — dialah yang menemukan hambatan input.
+
+| Minggu | Tgl | Yang diuji | Temuan | Sudah diperbaiki |
+|---|---|---|---|---|
+| 1 | ~2 Agu | Login, master data, RBAC | | |
+| 2 | ~9 Agu | Engine, jurnal manual, mutasi gudang | | |
+| 3 | ~16 Agu | Pembelian, retur, penjualan | | |
+| 4 | ~23 Agu | Pengiriman, pembayaran, rekap agen | | |
+| 5 | ~29 Agu | Laporan, end-to-end | | |
+
+**Aturan:** temuan bug → diperbaiki dalam 34 hari. Permintaan fitur baru → masuk backlog, **tukar scope**, bukan tambahan.
+
+---
+
+## 6. Daftar Potong Darurat
+
+Jalankan berurutan kalau drift ≥ 3 hari. Sudah disepakati di muka supaya tidak diputuskan dalam keadaan panik.
+
+- [ ] 1. Export PDF (Excel saja dulu) — 0,5 hari
+- [ ] 2. Laporan retur & stok minus (query manual dulu) — 0,5 hari
+- [ ] 3. Rekap setoran agen (manual bulan pertama) — 0,75 hari
+- [ ] 4. Cash opname — 0,5 hari
+- [ ] 5. Modul Sales Order (pesanan langsung jadi invoice) — 1,5 hari
+- [ ] 6. Bad stock (manual bulan pertama) — 0,5 hari
+
+**TIDAK boleh dipotong:** Journal Poster · Stock Recorder + FIFO · VOID + reversing · integration test Hari 8 · alur Saldo Awal · **ergonomi input** (navigasi keyboard, autocomplete, price-suggestion, modal tambah customer).
