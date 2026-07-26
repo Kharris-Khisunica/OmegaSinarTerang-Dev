@@ -14,11 +14,11 @@ Pendamping `Development_Plan_v2_Website_Operasional_FMCG.md`.
 
 | | |
 |---|---|
-| Hari ke- | `2` dari 34 |
-| Tanggal hari ini | `26 Juli 2026` |
+| Hari ke- | `3` dari 34 |
+| Tanggal hari ini | `27 Juli 2026` |
 | Rencana Hari 34 | **29 Agustus 2026** |
 | Cut-over | **1 September 2026** |
-| **Drift kumulatif** | `-2` hari (lebih cepat) — Hari 1 & 2 selesai di tanggal yang sama, 26 Jul, vs rencana 27–28 Jul |
+| **Drift kumulatif** | `-2` hari (lebih cepat) — Hari 1 & 2 selesai 26 Jul (rencana 27–28 Jul), Hari 3 selesai 27 Jul (rencana 29 Jul) |
 | Buffer tersisa | Hari 15 · 31 · 33 → `3` dari 3 |
 
 **Aturan drift:**
@@ -67,17 +67,19 @@ Legenda: `[ ]` belum · `[~]` jalan · `[x]` selesai & lolos DoD · ⚠️ risik
   token tersimpan di cookie, halaman terproteksi redirect ke `/login` tanpa token,
   halaman ber-`roles` menolak role yang salah, logout menghapus sesi.)*
 
-**Hari 3** 🔒 — Rencana: 29 Jul · Aktual: `____`
-- [ ] BE: migration `products`(+conversions), `customers`, `suppliers`, `warehouses`, `tax_rates`
-- [ ] BE: migration `chart_of_accounts` + seed 11 akun
-- [ ] BE: migration `settings` + `document_counters` + **generator nomor** (`FOR UPDATE`)
+**Hari 3** 🔒 — Rencana: 29 Jul · Aktual: `27 Jul 2026`
+- [x] BE: migration `products`(+conversions), `customers`, `suppliers`, `warehouses`, `tax_rates`
+- [x] BE: migration `chart_of_accounts` + seed 11 akun
+- [x] BE: migration `settings` + `document_counters` + **generator nomor** (`FOR UPDATE`)
 - [x] FE: ⚠️ `<DataTable>` (list+search+pagination server-side)
 - [x] FE: ⚠️ `<CrudFormPage>` (layout create/edit generik)
 - **DoD:** generator nomor menghasilkan `INV/2609/0001` dan reset benar saat ganti bulan; kedua komponen dipakai 1 halaman percontohan tanpa copy-paste
-  *(bagian FE terverifikasi manual di browser — search/sort/filter/pagination/state-di-URL,
+  *(FE terverifikasi manual di browser — search/sort/filter/pagination/state-di-URL,
   create dengan validasi client+server per-field, edit memuat data lama, Ctrl+S, Esc,
-  "Simpan & Tambah Lagi". Bagian BE — migration & generator nomor — menyusul, day belum
-  bisa ditandai selesai sampai itu ada.)*
+  "Simpan & Tambah Lagi". BE terverifikasi: build 0 error, lint bersih, 13 test hijau
+  (termasuk 4 test `DocumentCounterService`, salah satunya 20 pemanggilan paralel
+  menghasilkan 20 nomor unik berurutan tanpa duplikat), migration up→down→up sukses
+  di DB sementara, `GET /health` 200.)*
 
 **Hari 4** — Rencana: 30 Jul · Aktual: `____`
 - [ ] BE: CRUD Products (+konversi satuan 1 layar)
@@ -352,6 +354,88 @@ Hari 2 — Auth (BE + FE):
   `01.roles.global.ts` jalan di halaman nyata — **ganti** dengan modul Settings
   sungguhan begitu dikerjakan). `layouts/default.vue` ditambah dropdown user
   (nama+role) dan tombol Keluar yang panggil `useAuth().logout()`.
+
+Hari 3 — Master data migrations + generator nomor dokumen (BE):
+- Migration (urutan dependency FK, bukan urutan penomoran file): `chart_of_accounts`
+  (enum `account_type`: ASSET/LIABILITY/EQUITY/INCOME/EXPENSE, self-FK `parent_id`,
+  `is_cash_account`, seed 11 akun kode `1101`–`5102` — TIDAK ada Kas, Bank, atau Retur
+  Pembelian, sesuai §3 CLAUDE.md) → `products` + `product_unit_conversions`
+  (unique per `product_id`+`unit_name`, TIDAK ada kolom `tax_status`) → `customers`
+  (`ar_account_id` FK nullable ke `chart_of_accounts`, `is_pkp` default false) →
+  `suppliers` (+ `CREATE SEQUENCE supplier_code_seq`, tidak reset bulanan, dipakai
+  nanti oleh CRUD Hari 4 untuk generate `display_code`) → `warehouses` (enum
+  `warehouse_type`: STORE/CUSTOMER_CONSIGNMENT/BAD_STOCK, `customer_id` FK nullable +
+  CHECK constraint DB-level: wajib diisi hanya kalau CUSTOMER_CONSIGNMENT) →
+  `tax_rates` (`effective_from`/`effective_to`) → `settings` (key-value bertipe:
+  kolom `value` TEXT + `value_type` CHECK IN BOOLEAN/NUMBER/STRING, seed
+  `company_is_pkp=false`, `rounding_multiple=100`, `tax_calculation_mode=EXCLUDE`,
+  `backdate_max_days=2`) → `document_counters` (unique `doc_type`+`period`).
+  Semua tabel pakai trigger `set_updated_at` (fungsi dari Hari 2) dan `down()` yang
+  membalik penuh (termasuk DROP TYPE enum & DROP SEQUENCE).
+- `src/core/document-counter/document-counter.service.ts` (`DocumentCounterService`,
+  stateless, tanpa dependency Nest lain — bisa `new` langsung di test) +
+  `document-counter.module.ts` (belum diimport ke `AppModule`, menunggu modul
+  pemanggil pertama di Hari 6+/11+ sesuai urutan di bawah).
+  `getNextNumber(docType, date, manager: EntityManager)` WAJIB dipanggil dengan
+  `EntityManager` dari transaction pemanggil. Pola race-condition-safe: `INSERT ...
+  ON CONFLICT (doc_type, period) DO NOTHING` dulu (memastikan baris period baru
+  sudah ada) baru `SELECT last_number ... FOR UPDATE` lalu `UPDATE`. **Penting**:
+  urutan ini wajib — `SELECT FOR UPDATE` terhadap baris yang belum ada tidak
+  mengunci apa pun, jadi kalau langsung SELECT dulu (tanpa upsert), dua transaction
+  pertama di period baru sama-sama mencoba INSERT dan bentrok unique constraint.
+  Period diformat dari `date.getUTCFullYear()`/`getUTCMonth()` (bukan local time)
+  supaya tidak bergantung timezone mesin. Prefix map: SALES_INVOICE→INV,
+  SALES_ORDER→SO, PURCHASE_INVOICE→PI, DELIVERY_ORDER→SJ, SALES_RETURN→RJ,
+  PURCHASE_RETURN→RB, PAYMENT→PAY, JOURNAL_ENTRY→JE.
+- Test: `document-counter.service.spec.ts` — integration test terhadap Postgres asli
+  (bukan mock), pakai `DataSource` terpisah baca env `DB_*` yang sama dengan
+  `data-source.ts`. **Test ini butuh DB hidup untuk lolos** — konsisten dengan
+  rencana integration test 4 invarian di Hari 8. Test konkurensi: 20 pemanggilan
+  `getNextNumber` paralel, masing-masing dalam `dataSource.transaction()` terpisah
+  → 20 nomor unik `INV/2609/0001`..`INV/2609/0020` tanpa duplikat (dibuktikan juga
+  manual lewat script sekali-jalan, bukan cuma assertion pass/fail).
+- Migration dijalankan di DB dev (`omega_dev`) dan diuji up→down→up penuh di DB
+  sementara terpisah — berhasil tanpa error.
+
+Hari 3 — FE Engine:
+- `app/components/DataTable.vue`: list server-side (page/limit/search/sortBy/sortDir/filter
+  jadi query param, response `{data, meta}`), search debounce 300ms, state di URL query
+  (`router.replace`), skeleton/empty/error state, `rowActions` terfilter oleh `roles`
+  (dibanding ke `useAuthUser().activeRole`) dan `show(row)`. Filter `select` TIDAK boleh
+  punya opsi `value: ''` untuk "semua" — Reka UI `<SelectItem>` melempar error 500 SSR
+  kalau ada value string kosong di `items`; pakai tombol "×" clear yang sudah dibangun di
+  komponen. Expose `reload()` lewat `defineExpose` untuk dipanggil dari halaman pemanggil
+  setelah row action (mis. toggle aktif).
+- `app/components/CrudFormPage.vue`: schema-driven (`FieldDef[]`), Ctrl+S simpan/Esc kembali
+  (confirm kalau dirty), auto-focus field pertama (juga setelah "Simpan & Tambah Lagi"
+  reset form — hanya muncul di mode create), validasi client (required) + error server 400
+  dipetakan per-field (pakai `fieldErrors` kalau ada, atau cocokkan `message[]` gaya
+  class-validator NestJS ke key field). Field `select`/`autocomplete` pakai
+  `USelect`/`UInputMenu` — `UInputMenu` WAJIB `value-key="value"` eksplisit (default-nya
+  beda dari `USelect`, tanpa itu `modelValue` jadi objek utuh bukan value-nya).
+  `number`/`currency` pakai `UInputNumber` (bukan `useRupiah()` manual) supaya kursor tidak
+  lompat saat mengetik.
+- `app/composables/useApi.ts`: satu jalur panggilan API. Path `/api/...` → Nuxt server route
+  lokal (dev mock, same-origin); path lain → backend NestJS lewat
+  `runtimeConfig.public.apiBase`, dengan header `Authorization` disisipkan dari
+  `useAuth().accessToken` dan retry sekali lewat `useAuth().refresh()` kalau backend
+  membalas 401 (satu in-flight refresh dibagi semua request 401 yang datang bersamaan,
+  lihat komentar di file — bukan `useState` supaya tidak ikut ter-serialize SSR).
+  Helper `getErrorData/getErrorStatus/getErrorMessage` baca body `FetchError` tanpa `any`.
+- `app/composables/useAuthUser.ts`: role aktif (`useState`, default MASTER) — dipakai
+  `DataTable`/layout untuk filter `rowActions`/menu. Catatan: masih terpisah dari
+  `useAuth()` (yang menyimpan `user` sungguhan dari login) — pertimbangkan disatukan
+  kalau ada kebutuhan ganti-role tanpa re-login.
+- `app/composables/useRupiah.ts`: format/parse Rupiah read-only (kolom tabel, ringkasan).
+- Percontohan: `app/pages/master-data/warehouses/{index,create,[id]/edit}.vue` +
+  `app/composables/useWarehouseSchema.ts` (schema dibagi, tidak duplikasi). Endpoint mock
+  di `frontend/server/api/warehouses/` (in-memory, hilang tiap restart dev — **ganti** ke
+  CRUD NestJS asli begitu Hari 4 BE selesai, jangan biarkan mock ini jadi permanen).
+- Dokumentasi props & konvensi lengkap di `docs/frontend-engine.md` — baca ini dulu
+  sebelum bikin halaman list/form baru.
+- Catatan lingkungan dev: kalau `npm run dev` FE menolak jalan karena "Another Nuxt dev
+  server is already running" padahal tidak ada proses nyata (lock file basi), pakai
+  `NUXT_IGNORE_LOCK=1 npm run dev` — jangan hapus lock file manual.
 ```
 
 Urutan yang diharapkan:
