@@ -1,9 +1,14 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { HealthModule } from './health/health.module';
+import { AuditModule } from './modules/audit/audit.module';
+import { AuditInterceptor } from './modules/audit/interceptors/audit.interceptor';
+import { AuthModule } from './modules/auth/auth.module';
+import { UsersModule } from './modules/users/users.module';
 
 @Module({
   imports: [
@@ -22,8 +27,14 @@ import { HealthModule } from './health/health.module';
       }),
     }),
     HealthModule,
+    AuditModule,
+    UsersModule,
+    AuthModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    { provide: APP_INTERCEPTOR, useExisting: AuditInterceptor },
+  ],
 })
 export class AppModule {}

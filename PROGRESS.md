@@ -14,11 +14,11 @@ Pendamping `Development_Plan_v2_Website_Operasional_FMCG.md`.
 
 | | |
 |---|---|
-| Hari ke- | `1` dari 34 |
+| Hari ke- | `2` dari 34 |
 | Tanggal hari ini | `26 Juli 2026` |
 | Rencana Hari 34 | **29 Agustus 2026** |
 | Cut-over | **1 September 2026** |
-| **Drift kumulatif** | `0` hari (Hari 1 selesai 1 hari lebih cepat dari rencana 27 Jul) |
+| **Drift kumulatif** | `-2` hari (lebih cepat) — Hari 1 & 2 selesai di tanggal yang sama, 26 Jul, vs rencana 27–28 Jul |
 | Buffer tersisa | Hari 15 · 31 · 33 → `3` dari 3 |
 
 **Aturan drift:**
@@ -58,19 +58,26 @@ Legenda: `[ ]` belum · `[~]` jalan · `[x]` selesai & lolos DoD · ⚠️ risik
 - [x] FE: scaffold Nuxt + Nuxt UI + layout (sidebar/topbar) + struktur `pages/`
 - **DoD:** `npm run dev` jalan di BE & FE, koneksi DB sukses, commit pertama masuk repo
 
-**Hari 2** — Rencana: 28 Jul · Aktual: `____`
-- [ ] BE: `users` + JWT/refresh + bcrypt + RBAC Guard + login/refresh/logout
-- [ ] BE: seed 3 user + **rate-limit login**
-- [ ] FE: login page + auth composable + route middleware + logout
+**Hari 2** — Rencana: 28 Jul · Aktual: `26 Jul 2026`
+- [x] BE: `users` + JWT/refresh + bcrypt + RBAC Guard + login/refresh/logout
+- [x] BE: seed 3 user + **rate-limit login**
+- [x] FE: login page + auth composable + route middleware + logout
 - **DoD:** 3 role bisa login, token tersimpan, halaman terproteksi menolak akses tanpa token
+  *(BE terverifikasi lewat curl; FE terverifikasi manual di browser — login 3 role,
+  token tersimpan di cookie, halaman terproteksi redirect ke `/login` tanpa token,
+  halaman ber-`roles` menolak role yang salah, logout menghapus sesi.)*
 
 **Hari 3** 🔒 — Rencana: 29 Jul · Aktual: `____`
 - [ ] BE: migration `products`(+conversions), `customers`, `suppliers`, `warehouses`, `tax_rates`
 - [ ] BE: migration `chart_of_accounts` + seed 11 akun
 - [ ] BE: migration `settings` + `document_counters` + **generator nomor** (`FOR UPDATE`)
-- [ ] FE: ⚠️ `<DataTable>` (list+search+pagination server-side)
-- [ ] FE: ⚠️ `<CrudFormPage>` (layout create/edit generik)
+- [x] FE: ⚠️ `<DataTable>` (list+search+pagination server-side)
+- [x] FE: ⚠️ `<CrudFormPage>` (layout create/edit generik)
 - **DoD:** generator nomor menghasilkan `INV/2609/0001` dan reset benar saat ganti bulan; kedua komponen dipakai 1 halaman percontohan tanpa copy-paste
+  *(bagian FE terverifikasi manual di browser — search/sort/filter/pagination/state-di-URL,
+  create dengan validasi client+server per-field, edit memuat data lama, Ctrl+S, Esc,
+  "Simpan & Tambah Lagi". Bagian BE — migration & generator nomor — menyusul, day belum
+  bisa ditandai selesai sampai itu ada.)*
 
 **Hari 4** — Rencana: 30 Jul · Aktual: `____`
 - [ ] BE: CRUD Products (+konversi satuan 1 layar)
@@ -284,6 +291,67 @@ Hari 1 — Scaffold (belum masuk urutan modul, prasyarat semua modul berikutnya)
 - Env var DB: DB_HOST, DB_PORT, DB_USERNAME, DB_PASSWORD, DB_NAME (bukan DB_DATABASE) —
   penting disamakan persis kalau bikin service/config baru yang baca DB_*.
 - scripts/verify.sh sudah disesuaikan ke Postgres native (bukan docker compose exec).
+
+Hari 2 — Auth (BE + FE):
+- Migration: fungsi generik `set_updated_at()` (file terpisah, dipakai ulang tabel
+  berikutnya), tabel `users` (id, username unique, password_hash, full_name,
+  role enum `user_role`, is_active, refresh_token_hash, created_at, updated_at
+  + trigger), tabel `audit_logs` (user_id, action, entity, entity_id,
+  before_data/after_data JSONB, ip, created_at + index entity+entity_id).
+- AuthModule: POST /auth/login, /auth/refresh, /auth/logout, GET /auth/me.
+  Access token 15 menit, refresh token 1 hari, refresh disimpan ter-hash
+  (bcrypt cost 10) di `users.refresh_token_hash`, logout menghapusnya (rotasi
+  refresh token juga terjadi tiap kali /auth/refresh dipanggil).
+  Secret access vs refresh terpisah: env `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET`.
+- JwtAuthGuard dipasang global (APP_GUARD) + `@Public()` (dipakai di /health,
+  /auth/login, /auth/refresh, GET / bawaan Nest). RolesGuard juga global +
+  `@Roles(...)` decorator. Endpoint contoh `GET /auth/master-only` di
+  AuthController HANYA untuk membuktikan RolesGuard hari ini — **hapus/ganti**
+  begitu ada endpoint MASTER-only sungguhan (Settings/COA, Hari 4/6).
+- Rate-limit login: `LoginThrottlerGuard` (extends ThrottlerGuard dari
+  @nestjs/throttler), key = IP+username, 5 percobaan/60 detik, pesan 429
+  Bahasa Indonesia. Hanya dipasang di endpoint login (bukan guard global),
+  supaya endpoint lain tidak ikut kena limit ini.
+- Seed: `npm run seed` (src/database/seed.ts, ts-node, BUKAN migration) →
+  master/master, supervisor/supervisor, operator/operator. Idempotent
+  (update kalau username sudah ada).
+- Audit: `@Audit(action, entity)` decorator + `AuditInterceptor` generik
+  terpasang GLOBAL (APP_INTERCEPTOR) — modul berikutnya tinggal tempel
+  `@Audit('AKSI', 'entity')` di handler controller untuk otomatis tercatat,
+  tidak perlu wiring interceptor lagi per modul. `stripSecrets()` di
+  `src/modules/audit/strip-secrets.ts` membuang password, password_hash,
+  token, access_token, refresh_token, refresh_token_hash (termasuk varian
+  camelCase, rekursif ke nested object/array) — unit test di
+  `strip-secrets.spec.ts`.
+- Struktur modul baru: `src/modules/users/`, `src/modules/auth/`,
+  `src/modules/audit/` (masing-masing entities/dto/guards/decorators sendiri).
+  `src/common/enums/role.enum.ts` dipakai bareng oleh entity, decorator, guard.
+- Endpoint bawaan scaffold Hari 1 (`GET /`, `GET /health`) ditandai `@Public()`
+  supaya tidak ikut ke-block JwtAuthGuard global.
+- FE — `app/composables/useAuth.ts`: satu composable auth (state `user` +
+  `accessToken`/`refreshToken` lewat `useCookie` `sameSite: 'strict'`),
+  `login/logout/refresh/fetchMe/ensureSession`. Sengaja pakai `$fetch` langsung
+  (bukan `useApi()`) supaya tidak ada dependency melingkar dengan interceptor
+  401→refresh di `useApi()`. `ensureSession()` dipanggil middleware sebelum
+  render halaman terproteksi — coba `refresh()` dulu sebelum dianggap logout,
+  supaya operator tidak ke-lempar ke `/login` tiap kali access token (15 menit)
+  kedaluwarsa padahal refresh token (1 hari) masih hidup.
+- FE — `app/middleware/00.auth.global.ts` (prefix `00.` supaya jalan sebelum
+  `01.roles.global.ts` — urutan alfabetis file middleware global Nuxt): redirect
+  ke `/login?returnUrl=...` kalau `ensureSession()` gagal; kalau sudah login dan
+  buka `/login`, redirect ke `/`.
+- FE — `app/middleware/01.roles.global.ts`: baca `to.meta.roles` (diisi lewat
+  `definePageMeta({ roles: [...] })` per halaman) dan redirect ke `/` kalau role
+  user tidak termasuk. Kosongkan/hilangkan `roles` di halaman yang boleh diakses
+  semua role login.
+- FE — `app/pages/login.vue` (`layout: false`), `app/types/auth.ts` (`Role`,
+  `AuthUser`, `AuthTokens`, `LoginResponse`), `app/config/navigation.ts`
+  (`navigationGroups`: menu difilter per item berdasar `roles`, dipakai
+  `layouts/default.vue` bareng `useAuthUser().activeRole`), `app/pages/pengaturan/
+  index.vue` (placeholder `roles: ['MASTER']` HANYA untuk membuktikan
+  `01.roles.global.ts` jalan di halaman nyata — **ganti** dengan modul Settings
+  sungguhan begitu dikerjakan). `layouts/default.vue` ditambah dropdown user
+  (nama+role) dan tombol Keluar yang panggil `useAuth().logout()`.
 ```
 
 Urutan yang diharapkan:

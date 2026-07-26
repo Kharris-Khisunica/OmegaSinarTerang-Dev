@@ -1,7 +1,32 @@
 <script setup lang="ts">
-const links = [
+import { navigationGroups } from '~/config/navigation'
+
+const { user, logout } = useAuth()
+const { activeRole } = useAuthUser()
+const router = useRouter()
+
+const links = computed(() =>
+  navigationGroups
+    .map(group => group.filter(item => !item.roles || item.roles.includes(activeRole.value)))
+    .filter(group => group.length > 0)
+)
+
+const ROLE_LABEL: Record<string, string> = {
+  MASTER: 'Master',
+  SUPERVISOR: 'Supervisor',
+  OPERATOR: 'Operator'
+}
+
+const userMenuItems = [
   [
-    { label: 'Dashboard', icon: 'i-lucide-layout-dashboard', to: '/' }
+    {
+      label: 'Keluar',
+      icon: 'i-lucide-log-out',
+      onSelect: async () => {
+        await logout()
+        await router.push('/login')
+      }
+    }
   ]
 ]
 </script>
@@ -39,7 +64,29 @@ const links = [
 
     <UDashboardPanel id="main-panel">
       <template #header>
-        <UDashboardNavbar title="Omega Sinar Terang" />
+        <UDashboardNavbar title="Omega Sinar Terang">
+          <template #right>
+            <UDropdownMenu
+              v-if="user"
+              :items="userMenuItems"
+            >
+              <UButton
+                color="neutral"
+                variant="ghost"
+                trailing-icon="i-lucide-chevron-down"
+              >
+                <div class="text-left leading-tight">
+                  <p class="text-sm font-medium">
+                    {{ user.fullName }}
+                  </p>
+                  <p class="text-xs text-muted">
+                    {{ ROLE_LABEL[user.role] ?? user.role }}
+                  </p>
+                </div>
+              </UButton>
+            </UDropdownMenu>
+          </template>
+        </UDashboardNavbar>
       </template>
 
       <template #body>
