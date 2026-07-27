@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { FieldDef, SelectOption } from '~/types/crud-form'
+import type { FieldDef, RepeaterColumnDef, SelectOption } from '~/types/crud-form'
 
 const props = defineProps<{
   title: string
@@ -17,10 +17,21 @@ const toast = useToast()
 
 const isEdit = computed(() => props.id !== undefined && props.id !== null && props.id !== '')
 
+function repeaterDefaultRow(field: FieldDef): Record<string, unknown> {
+  const row: Record<string, unknown> = {}
+  for (const col of field.repeaterColumns ?? []) {
+    row[col.key] = col.type === 'number' ? null : ''
+  }
+  return row
+}
+
 function blankForm(): Record<string, unknown> {
   const form: Record<string, unknown> = {}
   for (const field of props.schema) {
-    form[field.key] = field.type === 'switch' ? false : null
+    if (field.defaultValue !== undefined) form[field.key] = field.defaultValue
+    else if (field.type === 'switch') form[field.key] = false
+    else if (field.type === 'repeater') form[field.key] = [repeaterDefaultRow(field)]
+    else form[field.key] = null
   }
   return form
 }
@@ -36,8 +47,62 @@ const resolvedOptions = reactive<Record<string, SelectOption[]>>({})
 async function loadOptions() {
   for (const field of props.schema) {
     if ((field.type === 'select' || field.type === 'autocomplete') && field.options) {
-      resolvedOptions[field.key] = typeof field.options === 'function' ? await field.options() : field.options
+      try {
+        resolvedOptions[field.key] = typeof field.options === 'function' ? await field.options() : field.options
+      } catch {
+        // Endpoint sumber opsi belum ada/gagal — biarkan kosong, jangan gagalkan seluruh form.
+        resolvedOptions[field.key] = []
+      }
     }
+  }
+}
+
+function repeaterRows(key: string): Record<string, unknown>[] {
+  if (!Array.isArray(form[key])) form[key] = []
+  return form[key] as Record<string, unknown>[]
+}
+function repeaterCellValue(key: string, rowIndex: number, colKey: string) {
+  return repeaterRows(key)[rowIndex]?.[colKey]
+}
+function setRepeaterCellValue(key: string, rowIndex: number, colKey: string, value: unknown) {
+  const row = repeaterRows(key)[rowIndex]
+  if (row) row[colKey] = value
+}
+function addRepeaterRow(field: FieldDef) {
+  repeaterRows(field.key).push(repeaterDefaultRow(field))
+}
+function removeRepeaterRow(key: string, rowIndex: number) {
+  repeaterRows(key).splice(rowIndex, 1)
+}
+function repeaterPlaceholder(field: FieldDef, col: RepeaterColumnDef, rowIndex: number): string | undefined {
+  if (typeof col.placeholder !== 'function') return col.placeholder
+  const rows = repeaterRows(field.key)
+  return col.placeholder({ row: rows[rowIndex] ?? {}, rowIndex, rows, form })
+}
+
+const formEl = ref<HTMLFormElement | null>(null)
+function focusRepeaterCell(fieldKey: string, rowIndex: number, colIndex: number) {
+  nextTick(() => {
+    const el = formEl.value?.querySelector<HTMLElement>(
+      `[data-repeater-cell="${fieldKey}:${rowIndex}:${colIndex}"] input`
+    )
+    el?.focus()
+  })
+}
+function onRepeaterEnter(e: KeyboardEvent, field: FieldDef, rowIndex: number, colIndex: number) {
+  e.preventDefault()
+  const cols = field.repeaterColumns ?? []
+  const rows = repeaterRows(field.key)
+  const isLastCol = colIndex === cols.length - 1
+  const isLastRow = rowIndex === rows.length - 1
+
+  if (isLastCol && isLastRow) {
+    addRepeaterRow(field)
+  }
+  if (isLastCol) {
+    focusRepeaterCell(field.key, rowIndex + 1, 0)
+  } else {
+    focusRepeaterCell(field.key, rowIndex, colIndex + 1)
   }
 }
 
@@ -93,6 +158,7 @@ function focusFirstField() {
 function validateClient() {
   const errors: Record<string, string> = {}
   for (const field of props.schema) {
+    if (field.type === 'repeater') continue
     if (field.required && (form[field.key] === null || form[field.key] === undefined || form[field.key] === '')) {
       errors[field.key] = `${field.label} wajib diisi.`
     }
@@ -241,6 +307,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 
     <form
       v-else
+      ref="formEl"
       class="grid grid-cols-12 gap-4"
       @submit.prevent="submit(false)"
     >
@@ -321,6 +388,68 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
             :disabled="isDisabled(field)"
             @update:model-value="(v) => setField(field.key, v)"
           />
+          <div
+            v-else-if="field.type === 'repeater'"
+            class="border border-default rounded-md overflow-hidden"
+          >
+            <div
+              class="grid gap-2 px-2 py-1.5 bg-elevated/50 text-xs font-medium text-muted"
+              :style="{ gridTemplateColumns: `repeat(${field.repeaterColumns?.length ?? 1}, minmax(0, 1fr)) 2.5rem` }"
+            >
+              <span
+                v-for="col in field.repeaterColumns"
+                :key="col.key"
+              >{{ col.label }}</span>
+              <span />
+            </div>
+            <div
+              v-for="(row, rowIndex) in repeaterRows(field.key)"
+              :key="rowIndex"
+              class="grid gap-2 px-2 py-1.5 border-t border-default items-center"
+              :style="{ gridTemplateColumns: `repeat(${field.repeaterColumns?.length ?? 1}, minmax(0, 1fr)) 2.5rem` }"
+            >
+              <div
+                v-for="(col, colIndex) in field.repeaterColumns"
+                :key="col.key"
+                :data-repeater-cell="`${field.key}:${rowIndex}:${colIndex}`"
+              >
+                <UInput
+                  v-if="col.type === 'text'"
+                  :model-value="(repeaterCellValue(field.key, rowIndex, col.key) as string) ?? ''"
+                  :placeholder="repeaterPlaceholder(field, col, rowIndex)"
+                  class="w-full"
+                  @update:model-value="(v) => setRepeaterCellValue(field.key, rowIndex, col.key, v)"
+                  @keydown.enter="(e: KeyboardEvent) => onRepeaterEnter(e, field, rowIndex, colIndex)"
+                />
+                <UInputNumber
+                  v-else
+                  :model-value="(repeaterCellValue(field.key, rowIndex, col.key) as number) ?? undefined"
+                  :placeholder="repeaterPlaceholder(field, col, rowIndex)"
+                  class="w-full"
+                  @update:model-value="(v) => setRepeaterCellValue(field.key, rowIndex, col.key, v)"
+                  @keydown.enter="(e: KeyboardEvent) => onRepeaterEnter(e, field, rowIndex, colIndex)"
+                />
+              </div>
+              <UButton
+                icon="i-lucide-trash-2"
+                color="error"
+                variant="ghost"
+                size="xs"
+                aria-label="Hapus baris"
+                @click="removeRepeaterRow(field.key, rowIndex)"
+              />
+            </div>
+            <div class="px-2 py-1.5 border-t border-default">
+              <UButton
+                size="xs"
+                variant="subtle"
+                icon="i-lucide-plus"
+                @click="addRepeaterRow(field)"
+              >
+                Tambah baris
+              </UButton>
+            </div>
+          </div>
         </UFormField>
       </div>
     </form>

@@ -14,11 +14,11 @@ Pendamping `Development_Plan_v2_Website_Operasional_FMCG.md`.
 
 | | |
 |---|---|
-| Hari ke- | `3` dari 34 |
+| Hari ke- | `4` dari 34 |
 | Tanggal hari ini | `27 Juli 2026` |
 | Rencana Hari 34 | **29 Agustus 2026** |
 | Cut-over | **1 September 2026** |
-| **Drift kumulatif** | `-2` hari (lebih cepat) — Hari 1 & 2 selesai 26 Jul (rencana 27–28 Jul), Hari 3 selesai 27 Jul (rencana 29 Jul) |
+| **Drift kumulatif** | `-3` hari (lebih cepat) — Hari 1 & 2 selesai 26 Jul (rencana 27–28 Jul), Hari 3 & 4 selesai 27 Jul (rencana 29–30 Jul) |
 | Buffer tersisa | Hari 15 · 31 · 33 → `3` dari 3 |
 
 **Aturan drift:**
@@ -81,13 +81,25 @@ Legenda: `[ ]` belum · `[~]` jalan · `[x]` selesai & lolos DoD · ⚠️ risik
   menghasilkan 20 nomor unik berurutan tanpa duplikat), migration up→down→up sukses
   di DB sementara, `GET /health` 200.)*
 
-**Hari 4** — Rencana: 30 Jul · Aktual: `____`
-- [ ] BE: CRUD Products (+konversi satuan 1 layar)
-- [ ] BE: CRUD Customers (+`is_pkp`, `ar_account_id`)
-- [ ] BE: CRUD Suppliers (auto-code + masking Operator) + Warehouses + Settings
-- [ ] FE: halaman Products, Customers, Settings
-- [ ] **Beri tahu klien: input master data boleh dimulai**
-- **DoD:** Operator melihat supplier ter-mask, Master melihat penuh; klien sudah bisa masuk & input produk
+**Hari 4** — Rencana: 30 Jul · Aktual: `27 Jul 2026`
+- [x] BE: CRUD Products (+konversi satuan 1 layar)
+- [x] BE: CRUD Customers (+`is_pkp`, `ar_account_id`)
+- [x] BE: CRUD Suppliers (auto-code + masking Operator) + Warehouses + Settings
+- [x] FE: halaman Products, Customers, Settings
+- [x] **Beri tahu klien: input master data boleh dimulai** (FE terverifikasi visual di
+  browser sore ini — lihat DoD di bawah — aman untuk dikabari)
+- **DoD:** Operator melihat supplier ter-mask, Master melihat penuh (✅ BE, dibuktikan lewat
+  test otomatis + curl manual); klien sudah bisa masuk & input produk (✅ **diuji visual
+  langsung di browser** — ekstensi Chrome konek sore ini: login Master, create Produk 2
+  baris konversi via keyboard murni — Enter pindah kolom, Enter di kolom terakhir menambah
+  baris + auto-fokus — simpan sukses & tampil di list; edit produk 3-tingkat lama
+  (dus/renceng) merekonstruksi rasio dengan benar (dus=12, renceng=10, cocok data DB);
+  create Customer dengan "Aktif" default ON, submit nomor telepon format salah → error
+  400 ter-mapping ke field yang benar, submit format benar + 4 field alamat terpisah →
+  tersimpan sukses.)
+- **Revisi (27 Jul, sore):** guardrail nomor telepon Customer, alamat Customer dipecah 4
+  field, default "Aktif"=aktif, urutan input konversi satuan Produk dibalik besar→kecil.
+  Detail lengkap di §4.
 
 ### Fase 2 — Engine Inti (Hari 5–10) · 31 Juli–5 Agustus
 
@@ -272,6 +284,7 @@ Isi hanya kalau ada yang meleset atau ada keputusan baru. Kosong = lancar.
 | Tgl | Hari ke- | Kejadian | Dampak jadwal | Tindakan |
 |---|---|---|---|---|
 | 26 Jul 2026 | 1 | Mesin dev hanya 7.7GB RAM (sering <1GB free). Docker Desktop jalan bareng build Nuxt/Vite memicu crash `memory allocation failed` (esbuild/Vite OOM) — sudah dibuktikan gagal saat Docker jalan, sukses setelah Docker dimatikan. | Tidak ada drift, tapi menetapkan konvensi dev harian. | Postgres native Windows (port 5432) jadi DB dev harian, bukan Docker. `docker-compose.yml` tetap di repo untuk deploy ke mini PC nanti (dipetakan ke port 5433 agar tidak bentrok kalau harus jalan bareng Postgres native). `scripts/verify.sh` diubah untuk cek Postgres native langsung, bukan lewat `docker compose exec`. |
+| 27 Jul 2026 | 4 | §1 "Keputusan hosting final" dibutuhkan **sebelum Hari 4** — sampai akhir Hari 4 masih ⏳ (sementara asumsi mini PC lokal, sesuai default plan). | Belum ada drift jadwal (deploy Docker baru dipakai Hari 30+), tapi risiko menumpuk kalau dibiarkan sampai mendekati Hari 30 (pengadaan mini PC+UPS). | Tanyakan ulang ke klien besok; kalau masih belum ada jawaban di Hari 10 (buffer Fase 2), eskalasi jadi blocker eksplisit. |
 
 ---
 
@@ -436,7 +449,178 @@ Hari 3 — FE Engine:
 - Catatan lingkungan dev: kalau `npm run dev` FE menolak jalan karena "Another Nuxt dev
   server is already running" padahal tidak ada proses nyata (lock file basi), pakai
   `NUXT_IGNORE_LOCK=1 npm run dev` — jangan hapus lock file manual.
-```
+
+Hari 4 — CRUD master data (BE saja; FE menyusul):
+- `src/common/dto/pagination-query.dto.ts` + `src/common/pagination.ts`: satu kontrak
+  pagination dipakai ulang oleh Products/Customers/Suppliers/Warehouses — `{page, limit,
+  search, sortBy, sortDir}` → `{data, meta:{page,limit,total,totalPages}}` (sesuai kontrak
+  `<DataTable>`). `resolveSortColumn()` whitelist kolom per modul supaya `sortBy` dari query
+  string tidak dipakai mentah di `ORDER BY`.
+- Migration baru `AddIsReceivableAccountToChartOfAccounts` (1785080602917): kolom
+  `chart_of_accounts.is_receivable_account` (BOOLEAN, simetris `is_cash_account`), seed
+  `true` untuk kode `1102` (Piutang Usaha). **Keputusan disepakati dengan user**: karena
+  `account_type` (ASSET/LIABILITY/EQUITY/INCOME/EXPENSE) tidak cukup spesifik untuk
+  membedakan akun piutang dari Persediaan/PPN Masukan yang sama-sama ASSET, validasi
+  `ar_account_id` butuh flag sendiri — bukan match nama akun (rapuh) atau longgar ke semua
+  ASSET (salah). `src/modules/chart-of-accounts/entities/chart-of-account.entity.ts` dibuat
+  **hanya sebagai entity** untuk validasi FK modul lain — CRUD/controller COA penuh tetap
+  Hari 15, jangan bikin controller COA duluan.
+- **Products** (`src/modules/products/`): `unitConversions` dikirim nested dalam SATU
+  payload `POST/PATCH`, disimpan dalam satu `dataSource.transaction()` bareng row
+  `products`-nya (product create/update + delete-lama-insert-baru conversions, bukan
+  patch parsial per baris). Validasi di `validators/validate-unit-conversions.ts`
+  (dipanggil dari service, bukan di DTO — butuh cross-field): unit tidak boleh sama dengan
+  `baseUnit`, tidak boleh duplikat sesama konversi, `level` wajib berurutan `1..N` tanpa
+  lompat/duplikat (base unit sendiri TIDAK ikut ditulis ke `unitConversions`, qty implisit
+  1). `qtyInBaseUnit` di entity bertipe `string` (bukan `number`) — konvensi TypeORM untuk
+  kolom `numeric` supaya tidak ada presisi float hilang (CLAUDE.md §2.14); DTO tetap terima
+  `number` dari JSON, dikonversi `String()` sebelum insert.
+- **Customers** (`src/modules/customers/`): `arAccountId` divalidasi ke
+  `ChartOfAccount` — harus `isActive=true` **dan** `isReceivableAccount=true`, kalau tidak
+  400 `BadRequestException` bahasa Indonesia. `UpdateCustomerDto.arAccountId` terima
+  `null` eksplisit (pakai `@ValidateIf` bukan `@IsOptional` saja) supaya bisa di-unset.
+- **Suppliers** (`src/modules/suppliers/`): `display_code` auto dari
+  `nextval('supplier_code_seq')` diformat `SUP-001` (bukan dari DTO — field ini tidak
+  diterima dari client sama sekali). **Masking Operator** ada di `supplier-masking.ts`
+  (fungsi murni `maskName`/`maskPhone`/`maskAddress`) + `supplier-masking.interceptor.ts`
+  (`@UseInterceptors` di level Controller, cek `request.user.role === OPERATOR`, transform
+  response — baik bentuk single object maupun `{data,meta}` list) — **bukan** di query,
+  supaya tidak ada jalur bocor lain (CLAUDE.md §3). Pola masking: nama "PT Abadi Jaya" →
+  "PT A***" (kata pertama utuh + huruf pertama kata kedua), telepon
+  "081234567789" → "0812****789" (4 depan + **** + 3 belakang), alamat pakai pola sama
+  dengan nama. `display_code` tidak pernah di-mask. **Test wajib**
+  `suppliers-masking.spec.ts`: bukan mock — bikin app Nest penuh + user MASTER/OPERATOR
+  sungguhan di DB (dibuat & dihapus dalam test, bukan bergantung seed), token JWT
+  ditandatangani langsung lewat `JwtService` (skip endpoint `/auth/login` supaya tidak
+  bentrok rate-limiter), lalu request asli lewat `supertest` ke guard+interceptor+service
+  sungguhan. **Catatan cleanup**: hapus `audit_logs` milik user test dulu sebelum hapus
+  user-nya sendiri (FK `audit_logs.user_id` → `users.id`), kalau tidak `afterAll` gagal.
+- **Warehouses** (`src/modules/warehouses/`): validasi aplikasi (400 pesan jelas) untuk
+  aturan yang sudah ada sebagai CHECK constraint DB (`CUSTOMER_CONSIGNMENT` wajib
+  `customerId`, tipe lain wajib `customerId` kosong) — supaya user dapat pesan Indonesia,
+  bukan raw Postgres constraint error. **`is_default` unik per `warehouseType`** (bukan
+  global): begitu row baru/di-update jadi `isDefault=true`, service otomatis
+  `UPDATE ... SET is_default=false` untuk row lain dengan `warehouseType` yang sama dalam
+  transaction yang sama.
+- **Settings** (`src/modules/settings/`, MASTER-only lewat `@Roles(Role.MASTER)` di level
+  Controller): `GET /settings` mengembalikan value ter-parse sesuai `value_type`
+  (`boolean`/`number`/`string`), bukan string mentah dari DB. `PATCH /settings/:key`
+  menerima `value` apa adanya lalu divalidasi & di-stringify sesuai `value_type` row
+  tsb sebelum disimpan (mis. kirim `123abc` ke setting `NUMBER` → 400).
+- **RBAC yang dipakai** (belum eksplisit di CLAUDE.md §5 untuk 4 modul ini, jadi ini
+  asumsi kerja — **cek ulang saat audit RBAC Hari 32** kalau ternyata salah): GET
+  Products/Customers/Suppliers/Warehouses terbuka untuk semua role login; POST/PATCH
+  dibatasi `@Roles(MASTER, OPERATOR)` (SUPERVISOR 403, konsisten pola Sales
+  Order/Invoice/dsb). Settings MASTER-only (eksplisit sesuai matrix).
+- Semua endpoint write (`POST`/`PATCH` di 5 modul ini) sudah dipasangi `@Audit(...)` —
+  otomatis tercatat lewat `AuditInterceptor` global yang sudah ada dari Hari 2, tidak ada
+  wiring baru.
+- **Tidak ada route `DELETE`** di modul manapun (dibuktikan dari log startup Nest
+  `Mapped {...}` dan `grep -rn "@Delete(" src` kosong) — nonaktifkan lewat
+  `PATCH .../:id` dengan `isActive: false`.
+- FE untuk 3 halaman (Products/Customers/Settings) **belum dikerjakan** — task ini
+  eksplisit backend-only. Endpoint mock `frontend/server/api/warehouses/` (Hari 3) juga
+  **belum diganti** ke backend asli — masih pekerjaan FE yang menyusul.
+
+Hari 4 — FE Products/Customers/Settings (susulan, sama hari):
+- `CrudFormPage.vue` dapat field type baru `repeater` (+ `RepeaterColumnDef` di
+  `types/crud-form.ts`) — sub-tabel di dalam form, dipakai untuk `unitConversions` Produk.
+  Enter di kolom terakhir baris terakhir menambah baris baru & fokus ke baris baru; Enter di
+  kolom terakhir baris non-terakhir pindah ke baris berikutnya; Enter di kolom lain pindah ke
+  kolom berikutnya (fokus dicari lewat `[data-repeater-cell="key:row:col"] input` di dalam
+  `ref="formEl"` yang sekarang dipasang di `<form>`). Tombol hapus per baris + "Tambah baris".
+  `field.required` diabaikan untuk type `repeater` (tidak masuk akal untuk array).
+  **Loader `options` field select/autocomplete sekarang dibungkus try/catch** — endpoint
+  sumber opsi yang belum ada/gagal (mis. `/chart-of-accounts`, lihat Customers di bawah)
+  tidak lagi menggagalkan seluruh mount form, tinggal kosong.
+- **Products** (`composables/useProductSchema.ts` + `pages/master-data/products/`): urutan
+  field sengaja **nama duluan, baru kode** — `CrudFormPage` selalu fokus ke field index 0
+  (juga setelah "Simpan & Tambah Lagi"), jadi urutan ini yang bikin fokus balik ke nama
+  produk tanpa perlu prop baru di komponen. Level konversi satuan **disembunyikan dari UI**
+  dan di-generate ulang otomatis dari urutan baris (`index+1`) di `productTransformOut` —
+  operator tidak perlu mikir soal urutan level manual, tinggal susun baris dari satuan kecil
+  ke besar. Baris repeater kosong (nama satuan blank) otomatis dibuang saat submit, form
+  create mulai dengan 1 baris kosong siap ketik. `productTransformIn` urutkan
+  `unitConversions` dari response naik berdasar `level` sebelum ditaruh ke form.
+- **Customers** (`composables/useCustomerSchema.ts` + `pages/master-data/customers/`):
+  `arAccountId` adalah `select` yang coba `GET /chart-of-accounts` — endpoint ini **belum
+  ada** (dikonfirmasi 404 manual, CRUD COA penuh baru Hari 15 sesuai komentar di entity),
+  jadi field ini kosong sampai saat itu; berkat perbaikan loader di atas, form tetap jalan
+  normal tanpa field ini. Field lain (`isPkp` switch, `code`/`name`/`phone`/`address`) 1:1
+  ke `CreateCustomerDto`/`UpdateCustomerDto`.
+- **Settings** (`pages/pengaturan/index.vue`, menggantikan placeholder Hari 3): **BUKAN**
+  `<CrudFormPage>` — bentuk data `GET /settings` adalah `TypedSetting[]` key-value, bukan
+  satu entity ber-id, jadi form custom yang PATCH `/settings/:key` satu-satu per key yang
+  berubah. 4 setting dikenal (`company_is_pkp`, `rounding_multiple`,
+  `tax_calculation_mode`, `backdate_max_days`) dipetakan ke label + penjelasan bahasa awam
+  lewat `SETTING_META`; key lain yang muncul di masa depan tetap ke-load (`extraKeys`) tapi
+  belum ada UI untuk itu — tambahkan ke `SETTING_META`/`SETTING_ORDER` saat setting baru
+  ditambah.
+- **RBAC FE**: row action "Edit"/"Nonaktifkan"/"Aktifkan" di Products & Customers dibatasi
+  `roles: ['MASTER','OPERATOR']` (SUPERVISOR tidak lihat, konsisten RBAC BE dari catatan di
+  atas). **Celah yang belum diperbaiki** (bawaan Hari 3, bukan baru): tombol "Tambah" dari
+  prop `createTo` di `<DataTable>` tidak punya role gate sendiri — SUPERVISOR tetap lihat
+  tombolnya walau submit-nya akan 403. Belum disentuh di luar lingkup hari ini; masuk radar
+  audit RBAC Hari 32 atau tambah prop `createRoles` di `<DataTable>` kalau mau dirapikan
+  lebih awal.
+- **Verifikasi**: `pnpm run lint`, `pnpm run typecheck`, `pnpm run build` di FE — semua
+  hijau, 0 error. Kontrak API diverifikasi manual lewat curl terhadap backend asli (bukan
+  mock): create Product 3 baris konversi (shape response sama persis dengan yang diharapkan
+  `productTransformIn`), create Customer, `GET/PATCH /settings`, `GET /chart-of-accounts`
+  (404, sesuai dugaan), OPERATOR 403 di `GET /settings` tapi 201 di `POST /products`.
+  **Belum diuji visual di browser** — ekstensi Chrome tidak konek di sesi ini (tidak ada
+  cara lain untuk browser automation tersedia), jadi alur keyboard murni (Tab/Enter/Ctrl+S)
+  dan waktu input per produk **belum diukur langsung**, hanya diverifikasi lewat pembacaan
+  kode. **Wajib dicoba manual di browser sebelum dianggap benar-benar selesai** — servers
+  dev BE (`:3000`) & FE (`:3001`) ditinggal jalan di sesi ini untuk itu.
+
+Hari 4 — Revisi Customer & Produk (susulan, sama hari, atas permintaan user):
+- **Migration baru** `AddAddressDetailsToCustomers` (1785080602918): kolom `district`,
+  `city`, `province` (VARCHAR(120), nullable) di `customers` — `address` lama tetap ada,
+  sekarang dipakai khusus untuk "Alamat Lengkap" (jalan/nomor/RT-RW), bukan alamat penuh
+  satu blok teks lagi. Diuji up→down→up di DB dev, sukses.
+- **Customer — guardrail nomor telepon**: `@Matches` di `Create`/`UpdateCustomerDto`,
+  format Indonesia `/^(\+?62|0)8[0-9]{7,11}$/` (mis. `081234567890` atau
+  `+6281234567890`, tanpa spasi/strip). Pesan error sengaja diawali kata `phone` (bukan
+  cuma teks Indonesia polos) supaya tetap ke-mapping ke field yang benar oleh
+  `CrudFormPage.mapServerErrors` (dia mencocokkan `message[]` yang diawali nama field).
+- **Customer — Aktif default true di form create**: `CrudFormPage` dapat prop baru
+  `FieldDef.defaultValue` — `blankForm()` pakai ini kalau ada, sebelum fallback ke
+  `switch→false`/`repeater→1 baris kosong`/lainnya→`null`. Sebelumnya SEMUA switch di
+  form create selalu mulai `false` walau default DB `true`, karena FE selalu kirim nilai
+  eksplisit. `useCustomerSchema` set `isActive: { defaultValue: true }`.
+- **Produk — urutan input konversi satuan dibalik jadi besar→kecil**: repeater sekarang
+  minta satuan TERBESAR dulu (mis. dus), lalu ke bawah makin kecil (renceng, lalu
+  implisit satuan dasar). Kolom kedua repeater berubah makna dari "qty total dalam satuan
+  dasar" jadi **rasio ke baris di bawahnya** (1 dus = berapa renceng, 1 renceng = berapa
+  satuan dasar) — jauh lebih natural buat operator daripada harus mengalikan sendiri ke
+  satuan dasar. `productTransformOut` mengalikan rasio bertingkat dari bawah (satuan
+  terkecil) ke atas jadi `qtyInBaseUnit` absolut sebelum dikirim; `productTransformIn`
+  membalik matematikanya pas edit. **Kontrak backend/`level` TIDAK berubah** (level 1 =
+  satuan terkecil, tetap seperti semula) — murni transformasi di FE, dibuktikan lewat
+  curl: kirim payload absolut yang dihitung tangan (dus qty=120 level=2, renceng qty=10
+  level=1), GET balik, jalankan ulang matematika `productTransformIn` manual → hasil rasio
+  dus=12, renceng=10, urutan [dus, renceng] — cocok.
+- **`CrudFormPage` repeater — placeholder dinamis per baris**: `RepeaterColumnDef.placeholder`
+  sekarang boleh fungsi `(ctx: {row, rowIndex, rows, form}) => string`, dipakai Produk untuk
+  menampilkan hint "berapa renceng?" / "berapa pcs?" sesuai baris di bawahnya atau
+  `baseUnit` kalau baris terakhir. Header kolom sendiri tetap statis (tidak ikut dinamis).
+- **Verifikasi ulang**: BE `npm run lint`/`build`/`test` (15 test, 4 suite) hijau, migration
+  up→down→up sukses; FE `pnpm run lint`/`typecheck`/`build` hijau. Kontrak API diverifikasi
+  lagi lewat curl: phone invalid → 400 pesan field-matchable, phone valid + alamat terpecah
+  → 201 tersimpan benar, customer tanpa `isActive` di body → DB default `true` (FE sendiri
+  yang tadinya perlu diperbaiki, sudah lewat `defaultValue`), matematika kaskade konversi
+  satuan produk terverifikasi round-trip. **Diuji visual di browser sore ini** (ekstensi
+  Chrome akhirnya konek): login Master → Tambah Produk, toggle "Aktif" default ON tanpa
+  disentuh, isi baris "DUS" lalu Enter (pindah ke kolom Isi, placeholder otomatis "berapa
+  PCS?" karena belum ada baris di bawahnya) lalu Enter lagi (baris baru muncul, fokus
+  otomatis pindah ke situ) → simpan → toast "Tersimpan" → tampil di list. Buka Edit produk
+  3-tingkat lama (`dus`/`renceng`, tersimpan `qtyInBaseUnit` absolut 120/10) → form
+  menampilkan rasio `dus=12`, `renceng=10` — cocok persis dengan perhitungan manual yang
+  didokumentasikan di atas. Tambah Customer: toggle "Aktif" ON default, submit telepon
+  `0812-3456-7890` (ada strip) → 400 muncul tepat di bawah field telepon; ganti ke
+  `081234567890` + isi Kecamatan/Kota/Provinsi → simpan sukses. Data uji dihapus lagi dari
+  DB dev setelah verifikasi.
 
 Urutan yang diharapkan:
 `Auth → Products → Customers → Suppliers → Warehouses → Settings → DocumentCounters →

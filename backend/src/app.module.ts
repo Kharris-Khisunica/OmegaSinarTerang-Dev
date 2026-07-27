@@ -9,6 +9,11 @@ import { AuditModule } from './modules/audit/audit.module';
 import { AuditInterceptor } from './modules/audit/interceptors/audit.interceptor';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
+import { ProductsModule } from './modules/products/products.module';
+import { CustomersModule } from './modules/customers/customers.module';
+import { SuppliersModule } from './modules/suppliers/suppliers.module';
+import { WarehousesModule } from './modules/warehouses/warehouses.module';
+import { SettingsModule } from './modules/settings/settings.module';
 
 @Module({
   imports: [
@@ -30,6 +35,11 @@ import { UsersModule } from './modules/users/users.module';
     AuditModule,
     UsersModule,
     AuthModule,
+    ProductsModule,
+    CustomersModule,
+    SuppliersModule,
+    WarehousesModule,
+    SettingsModule,
   ],
   controllers: [AppController],
   providers: [

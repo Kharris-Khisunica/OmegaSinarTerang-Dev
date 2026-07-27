@@ -12,6 +12,8 @@ export interface NavItem {
 export const navigationGroups: NavItem[][] = [
   [
     { label: 'Dashboard', icon: 'i-lucide-layout-dashboard', to: '/' },
+    { label: 'Produk', icon: 'i-lucide-package', to: '/master-data/products' },
+    { label: 'Customer', icon: 'i-lucide-users', to: '/master-data/customers' },
     { label: 'Gudang', icon: 'i-lucide-warehouse', to: '/master-data/warehouses' }
   ],
   [
