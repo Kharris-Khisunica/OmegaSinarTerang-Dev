@@ -7,8 +7,9 @@ const schema = useWarehouseSchema()
 <template>
   <CrudFormPage
     title="Tambah Gudang"
-    endpoint="/api/warehouses"
+    endpoint="/warehouses"
     :schema="schema"
     back-to="/master-data/warehouses"
+    :transform-out="warehouseTransformOut"
   />
 </template>

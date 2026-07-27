@@ -14,11 +14,11 @@ Pendamping `Development_Plan_v2_Website_Operasional_FMCG.md`.
 
 | | |
 |---|---|
-| Hari ke- | `4` dari 34 |
+| Hari ke- | `6` dari 34 |
 | Tanggal hari ini | `27 Juli 2026` |
 | Rencana Hari 34 | **29 Agustus 2026** |
 | Cut-over | **1 September 2026** |
-| **Drift kumulatif** | `-3` hari (lebih cepat) — Hari 1 & 2 selesai 26 Jul (rencana 27–28 Jul), Hari 3 & 4 selesai 27 Jul (rencana 29–30 Jul) |
+| **Drift kumulatif** | `-5` hari (lebih cepat) — Hari 1 & 2 selesai 26 Jul (rencana 27–28 Jul), Hari 3 & 4 selesai 27 Jul (rencana 29–30 Jul), Hari 5 & 6 juga selesai 27 Jul (rencana 31 Jul & 1 Agu) |
 | Buffer tersisa | Hari 15 · 31 · 33 → `3` dari 3 |
 
 **Aturan drift:**
@@ -103,17 +103,29 @@ Legenda: `[ ]` belum · `[~]` jalan · `[x]` selesai & lolos DoD · ⚠️ risik
 
 ### Fase 2 — Engine Inti (Hari 5–10) · 31 Juli–5 Agustus
 
-**Hari 5** — Rencana: 31 Jul · Aktual: `____`
-- [ ] BE: export generik ExcelJS + PDFKit
-- [ ] BE: `authorization_requests` + guard step-up + `expires_at` (TTL 15 menit)
-- [ ] FE: halaman Suppliers, Warehouses (pilih `warehouse_type`)
+**Hari 5** — Rencana: 31 Jul · Aktual: `27 Jul 2026`
+- [x] BE: export generik ExcelJS + PDFKit
+- [x] BE: `authorization_requests` + guard step-up + `expires_at` (TTL 15 menit)
+- [x] FE: halaman Suppliers, Warehouses (pilih `warehouse_type`)
 - **DoD:** request step-up kedaluwarsa setelah 15 menit dan ditolak saat dieksekusi
+  *(dibuktikan lewat test otomatis yang memundurkan `expires_at` 16 menit lalu
+  eksekusi ulang — bukan menunggu 15 menit sungguhan; `./scripts/verify.sh` 10/10
+  lulus: build+lint+test BE, migration up→down→up, `GET /health` 200, build+lint FE,
+  tidak ada `@Delete()`, `.env` tidak ter-stage. FE diuji manual di browser — lihat
+  detail di §4.)*
 
-**Hari 6** 🔒 — Rencana: 1 Agu · Aktual: `____`
-- [ ] BE: `journal_entries` + `journal_entry_lines`
-- [ ] BE: **Journal Poster** + 5 validasi (min 2 baris, satu sisi > 0, balance, akun aktif, nomor)
-- [ ] FE: halaman COA (tree, view only)
+**Hari 6** 🔒 — Rencana: 1 Agu · Aktual: `27 Jul 2026`
+- [x] BE: `journal_entries` + `journal_entry_lines`
+- [x] BE: **Journal Poster** + 5 validasi (min 2 baris, satu sisi > 0, balance, akun aktif, nomor)
+- [x] FE: halaman COA (tree, view only)
 - **DoD:** posting tidak balance → error & rollback; `entry_number` format `JE/YYMM/NNNN`
+  *(dibuktikan lewat 7 unit test `journal-poster.service.spec.ts` — integration test
+  terhadap Postgres asli, pola sama dengan `DocumentCounterService` — termasuk bukti
+  eksplisit `document_counters` tidak naik (`last_number` sama sebelum/sesudah)
+  setelah percobaan posting yang sengaja tidak balance selisih Rp0,01. `./scripts/
+  verify.sh` 10/10 lulus. Endpoint `GET /journal-entries` + `GET /journal-entries/:id`
+  diuji manual lewat curl: MASTER/SUPERVISOR/OPERATOR semua 200 (RBAC direvisi susulan,
+  lihat §4), id tidak ada → 404. Detail lengkap FE COA/Jurnal susulan di §4.)*
 
 **Hari 7** 🔒 — Rencana: 2 Agu · Aktual: `____`
 - [ ] BE: `stock_movements`, `product_stock_balance`, `stock_cost_lots`, `stock_cost_consumptions`
@@ -285,6 +297,8 @@ Isi hanya kalau ada yang meleset atau ada keputusan baru. Kosong = lancar.
 |---|---|---|---|---|
 | 26 Jul 2026 | 1 | Mesin dev hanya 7.7GB RAM (sering <1GB free). Docker Desktop jalan bareng build Nuxt/Vite memicu crash `memory allocation failed` (esbuild/Vite OOM) — sudah dibuktikan gagal saat Docker jalan, sukses setelah Docker dimatikan. | Tidak ada drift, tapi menetapkan konvensi dev harian. | Postgres native Windows (port 5432) jadi DB dev harian, bukan Docker. `docker-compose.yml` tetap di repo untuk deploy ke mini PC nanti (dipetakan ke port 5433 agar tidak bentrok kalau harus jalan bareng Postgres native). `scripts/verify.sh` diubah untuk cek Postgres native langsung, bukan lewat `docker compose exec`. |
 | 27 Jul 2026 | 4 | §1 "Keputusan hosting final" dibutuhkan **sebelum Hari 4** — sampai akhir Hari 4 masih ⏳ (sementara asumsi mini PC lokal, sesuai default plan). | Belum ada drift jadwal (deploy Docker baru dipakai Hari 30+), tapi risiko menumpuk kalau dibiarkan sampai mendekati Hari 30 (pengadaan mini PC+UPS). | Tanyakan ulang ke klien besok; kalau masih belum ada jawaban di Hari 10 (buffer Fase 2), eskalasi jadi blocker eksplisit. |
+| 27 Jul 2026 | 6 | Migration `CreateJournalEntries` sempat lupa dijalankan (`npm run migration:run`) di DB dev `omega_dev` setelah dibuat — ketahuan lewat integration test yang gagal `relation "journal_entries" does not exist"`, bukan lewat `verify.sh` (skrip itu cuma menguji up→down→up di DB sementara, tidak menerapkan ke DB dev harian). | Tidak ada drift, tapi berpotensi berulang tiap migration baru kalau tidak diingat manual. | Jalankan `npm run migration:run` manual segera setelah bikin migration baru, sebelum lanjut coding fitur yang bergantung padanya. Pertimbangkan tambah langkah ini ke `verify.sh` atau checklist DoD kalau kejadian lagi di Hari 7+. |
+| 27 Jul 2026 | 5 & 6 | Verifikasi FE untuk kedua hari ini (Suppliers/Warehouses/ExportButton Hari 5; COA tree + Jurnal Hari 6) baru lewat pembacaan kode + kontrak API asli — ekstensi Chrome browser automation tidak konek di sesi ini. | Tidak ada drift jadwal, tapi risiko kualitas: bug visual (styling, expand/collapse tree, drawer, download filename) baru ketahuan belakangan. | Servers BE (`:3000`)/FE (`:3001`) ditinggal jalan; **wajib** uji manual di browser sebelum halaman-halaman ini dianggap benar-benar final — jadwalkan sesegera ekstensi Chrome konek lagi. |
 
 ---
 
@@ -621,6 +635,217 @@ Hari 4 — Revisi Customer & Produk (susulan, sama hari, atas permintaan user):
   `0812-3456-7890` (ada strip) → 400 muncul tepat di bawah field telepon; ganti ke
   `081234567890` + isi Kecamatan/Kota/Provinsi → simpan sukses. Data uji dihapus lagi dari
   DB dev setelah verifikasi.
+
+Hari 5 — Export generik + Authorization Requests (BE) + Suppliers/Warehouses (FE):
+- **`src/core/export/`** (`ExportService`, `ExportInterceptor`, dipakai lewat
+  `@UseInterceptors(ExportInterceptor)` di endpoint laporan mana pun — belum dipasang di
+  endpoint sungguhan, itu tugas Hari 26+): handler controller tetap mengembalikan JSON biasa
+  `{ rows, columns, meta? }` (kontrak `ExportableResponse`); interceptor cuma mengubahnya jadi
+  Buffer xlsx (ExcelJS)/pdf (PDFKit) + set `Content-Type`/`Content-Disposition` kalau request
+  punya `?format=xlsx|pdf` — request tanpa query itu tetap dapat JSON apa adanya. PDF otomatis
+  landscape kalau kolom > 6, ada header/footer (nama perusahaan, judul, filter, dicetak
+  oleh+waktu, nomor halaman).
+- **`src/modules/authorization-requests/`**: `AuthorizationRequest` entity (status
+  PENDING/APPROVED/REJECTED/EXPIRED/EXECUTED), `POST /authorization-requests` (create),
+  `GET /authorization-requests` (antrian pending, MASTER/SUPERVISOR — lazy-expire dicek tiap
+  read), `POST /:id/approve` `/:id/reject` (MASTER/SUPERVISOR, tidak boleh approve/reject
+  punya sendiri). **`StepUpGuard`** global (no-op tanpa `@RequiresStepUp(actionType)`, pola
+  sama seperti `RolesGuard`+`@Roles()`) — hanya mengenai role OPERATOR (CLAUDE.md §13);
+  request pertama tanpa header `X-Authorization-Request-Id` otomatis membuat authorization
+  request lalu balas 412 `requiresAuthorization`; request ulang dengan header itu memanggil
+  `consumeApproval` yang men-transisi APPROVED→EXECUTED lewat
+  `UPDATE ... WHERE status='APPROVED' AND expires_at > now()` (atomic, sekali pakai, expiry
+  dicek ULANG di level DB saat eksekusi — bukan cuma dipercaya dari status yang mungkin sudah
+  basi). TTL 15 menit dipakai dua kali dengan makna beda: saat PENDING (batas waktu
+  disetujui) dan saat APPROVED (di-reset dari waktu approve, jadi batas waktu dieksekusi).
+  Endpoint `POST /authorization-requests/test-step-up-action` **sementara**, hanya untuk
+  membuktikan `StepUpGuard` end-to-end hari ini (lihat `authorization-requests.spec.ts`) —
+  **ganti dengan aksi step-up sungguhan** (VOID Sales Invoice dll, Hari 12/19+) lalu hapus ini.
+  FE halaman Authorization Requests (antrian + modal approve) **belum dikerjakan** — itu
+  scope Hari 7, bukan Hari 5.
+- **Suppliers** (`frontend/app/composables/useSupplierSchema.ts` + `pages/master-data/
+  suppliers/`): `displayCode` ditampilkan read-only (`disabled: true`) di form, TIDAK PERNAH
+  dikirim ke server (di-drop lewat `transformOut`, backend juga sudah buang lewat
+  `whitelist: true` seandainya terkirim). Masking Operator (dari Hari 4,
+  `SupplierMaskingInterceptor`) transparan ke FE — tidak ada masking tambahan di client,
+  cukup render apa adanya dari response.
+- **Warehouses — DITULIS ULANG TOTAL** (`useWarehouseSchema.ts` + 3 halaman): skema
+  percontohan Hari 3 (`code`, `type`, `address`, `is_active`, endpoint mock
+  `frontend/server/api/warehouses/`) **dibuang semua** — bentuknya tidak cocok dengan entity
+  backend sungguhan dari Hari 4 (`name`, `warehouseType`, `customerId`, `isDefault`,
+  `isActive`; tidak ada `code`/`address` sama sekali). Endpoint mock + store in-memory
+  dihapus, diarahkan ke `/warehouses` backend asli.
+- **`FieldDef.showIf?: (form) => boolean`** (baru, `types/crud-form.ts` + `CrudFormPage.vue`):
+  field `customerId` di form Warehouse cuma tampil kalau `warehouseType ===
+  'CUSTOMER_CONSIGNMENT'`, pakai `v-show` (bukan `v-if`, supaya tidak remount/reset state)
+  dan otomatis dilewati dari validasi `required` client-side saat tersembunyi. `transformOut`
+  tetap memaksa `customerId: null` kalau tipe bukan konsinyasi, jaga-jaga kalau operator
+  sempat pilih customer lalu ganti tipe sebelum submit.
+- **`useApi().getBlob()`** (baru): GET dengan `responseType: 'blob'`, lewat jalur auth+retry
+  401→refresh yang sama dengan `get/post/patch` — dipakai `useExport()`, BUKAN `$fetch`
+  terpisah, supaya tidak ada jalur HTTP kedua yang lolos dari penanganan token.
+- **`useExport()` + `<ExportButton>`** (baru, `composables/useExport.ts` +
+  `components/ExportButton.vue`): panggil endpoint yang sama dengan `?format=xlsx|pdf` +
+  filter tambahan, trigger download via blob + `<a download>`. **Nama file ditentukan di
+  FE** (`fileNamePrefix` + tanggal dari `filters().date`/`.tanggal` atau hari ini + ekstensi)
+  — **BUKAN** dibaca dari header `Content-Disposition` server. ⚠️ **Catatan rekonsiliasi
+  untuk siapa pun yang menyambungkan `<ExportButton>` ke laporan sungguhan pertama kali
+  (Hari 26+)**: `ExportInterceptor` backend (dibangun paralel hari ini, lihat di atas) SUDAH
+  mengirim `Content-Disposition: attachment; filename="<slug-title>-<tanggal>.<format>"`
+  sendiri dari `meta.title` — FE saat ini mengabaikan itu dan memakai nama hasil hitungnya
+  sendiri. Kedua nama kemungkinan besar beda persis. Putuskan salah satu (FE baca header,
+  atau BE berhenti kirim nama) sebelum halaman laporan pertama dianggap selesai, supaya
+  tidak ada dua sumber kebenaran untuk nama file.
+- Endpoint dummy `frontend/server/api/export-demo.get.ts` + halaman QA
+  `frontend/app/pages/qa/export-demo.vue` (MASTER-only, tidak di nav) dipakai untuk uji
+  `<ExportButton>` sebelum endpoint laporan backend ada. **Hapus keduanya** begitu ada
+  halaman laporan sungguhan yang memakainya untuk verifikasi.
+- **Verifikasi FE manual di browser** (Master & Operator): Supplier create + masking Operator
+  benar (`PT A***`, `0812****890`, `displayCode` tetap tampil penuh); Warehouse create — field
+  "Customer Penitip" terbukti muncul/hilang reaktif saat ganti Tipe Gudang (STORE ↔
+  CUSTOMER_CONSIGNMENT), validasi required client-side untuk field wajib; `<ExportButton>`
+  — network `200` ke `/api/export-demo?format=xlsx|pdf`, isi file di disk dicek benar
+  (`"Dummy export (xlsx)..."`), error path (endpoint 404) menampilkan toast. **Catatan**: nama
+  file unduhan tidak bisa dikonfirmasi visual di sesi ini — sandbox Chrome automation yang
+  dipakai menyimpan file dengan nama GUID acak (`.tmp`), bukan dari atribut `download`
+  anchor; ini perilaku sandbox-nya, bukan bug `buildFileName()` (sudah diisolasi lewat test
+  anchor-download polos di luar composable, hasilnya sama). Perlu dicoba sekali di Chrome
+  normal untuk kepastian visual penuh.
+
+Hari 6 — Journal Poster + journal_entries/journal_entry_lines (BE saja; FE menyusul):
+- **Migration** `1785080602920-CreateJournalEntries`: `journal_entries` (entry_number
+  unique, entry_date, source_type/source_id generik untuk dipakai modul manapun,
+  is_reversal + reversed_entry_id nullable untuk VoidEngine Hari 8, created_by FK
+  users) → `journal_entry_lines` (account_id FK chart_of_accounts, debit_amount/
+  credit_amount `NUMERIC(16,2)` default 0, `CHECK ((debit_amount > 0) <> (credit_amount
+  > 0))`, `ON DELETE CASCADE` ke parent, line_order). **Sengaja tidak ada
+  UpdateDateColumn/trigger `set_updated_at`** di kedua tabel — jurnal tidak pernah
+  di-UPDATE (CLAUDE.md §2.1/§2.6), pembatalan lewat baris pembalik baru (Hari 8), bukan
+  mengubah baris lama. Diuji up→down→up di DB dev asli (bukan cuma DB sementara
+  `verify.sh`) — migration ini sekarang **sudah applied** di `omega_dev` (sebelumnya
+  sempat lupa dijalankan di luar siklus `verify.sh`, ketahuan lewat test integration
+  yang gagal `relation "journal_entries" does not exist`; jangan lupa `npm run
+  migration:run` manual tiap kali migration baru dibuat, `verify.sh` cuma menguji
+  reversibilitas di DB sementara, bukan menerapkannya ke DB dev harian).
+- **`src/core/journal-poster/journal-poster.service.ts`** (`JournalPosterService`):
+  menerima `EntityManager` dari pemanggil, **tidak pernah membuka transaction sendiri**
+  (pola sama `DocumentCounterService`/`StockRecorder` nanti). Urutan validasi sengaja:
+  struktur baris dulu (murah, tanpa query — min 2 baris, tepat satu sisi > 0 per baris,
+  balance dibanding sebagai **integer sen** `Math.round(x*100)` supaya tidak kena
+  float `0.1+0.2!==0.3`) → validasi yang butuh DB (backdate terhadap
+  `settings.backdate_max_days`, semua `account_id` ada & `is_active=true`) →
+  **BARU setelah semua lolos** panggil `DocumentCounterService.getNextNumber('JOURNAL_ENTRY',
+  ...)`. Urutan ini penting: `entry_number`/`document_counters` tidak pernah tersentuh
+  sama sekali kalau validasi gagal di titik manapun — bukan cuma "di-rollback transaction",
+  tapi memang belum pernah dipanggil. `PostJournalDto`/`PostJournalLineDto` di
+  `dto/post-journal.dto.ts` (interface polos, bukan class-validator — tidak ada
+  controller HTTP yang mem-bind DTO ini langsung, dipakai murni sebagai kontrak
+  internal antar-service). `JournalPosterModule` **belum diimport ke `AppModule`**
+  (sama seperti `DocumentCounterModule`) — menunggu modul pemanggil pertama (Manual
+  Journal Hari 9, Purchase/Sales Invoice Hari 11+).
+- **Test** `journal-poster.service.spec.ts`: integration test terhadap Postgres asli
+  (pola sama `document-counter.service.spec.ts`, `new JournalPosterService(new
+  DocumentCounterService())` langsung tanpa Nest app), 7 test — kelima validasi wajib
+  + backdate + format nomor. **Bukti rollback eksplisit**: test balance-mismatch
+  meng-`console.log` isi `document_counters` sebelum & sesudah percobaan gagal,
+  keduanya `last_number: 1` (tidak naik). Test CHECK constraint DB (`debit=0 AND
+  credit=0`) sengaja bypass service — raw SQL `INSERT` langsung ke `journal_entry_lines`
+  untuk membuktikan constraint level-DB independen dari validasi aplikasi (defense in
+  depth). User/akun uji dibuat & dihapus sendiri dalam test (bukan bergantung seed),
+  konsisten pola `authorization-requests.spec.ts`.
+- **`src/modules/journal-entries/`** (read-only, GET saja — **tidak akan pernah ada**
+  POST/PATCH/DELETE di controller ini; posting HANYA lewat `JournalPosterService`
+  dipanggil modul transaksi lain): `GET /journal-entries` (filter `dateFrom`/`dateTo`/
+  `sourceType`/`sourceId`/`accountId`, search nomor+deskripsi) mengembalikan list
+  **tanpa** `lines` (sengaja — `leftJoinAndSelect` relasi one-to-many dibarengi
+  `skip`/`take` bikin paginasi salah begitu satu entry punya >1 baris, LIMIT Postgres
+  jalan di level baris JOIN bukan per-entry; lihat catatan yang sama berlaku di
+  `ProductsService.findAll` — konvensi list=ringkas/detail=lengkap dipilih di sini
+  supaya tidak mewarisi bug itu). Filter `accountId` pakai `EXISTS` subquery (bukan
+  join ke tabel lines) supaya tidak ikut menduplikasi baris hasil. `GET
+  /journal-entries/:id` baru eager-load `lines` (+ `account` masing-masing baris,
+  urut `lineOrder`).
+  **RBAC — asumsi kerja** (belum eksplisit di CLAUDE.md §5 untuk endpoint ini, sama
+  seperti asumsi RBAC Products/Customers/dll Hari 4): disamakan dengan `GET
+  /chart-of-accounts` (`MASTER`+`SUPERVISOR`, `OPERATOR` 403) karena ini buku besar
+  mentah per-akun, bukan ringkasan seperti "Laporan" biasa — **cek ulang saat audit
+  RBAC Hari 32**.
+Hari 6 — FE COA (tree) + Jurnal (list+detail), susulan sama hari:
+- **`GET /chart-of-accounts` baru ditambahkan** (`src/modules/chart-of-accounts/
+  chart-of-accounts.{controller,service,module}.ts`, entity-nya sendiri sudah ada
+  sejak Hari 4): read-only, flat list terurut `code`, `@Roles(MASTER, SUPERVISOR)`
+  — **CRUD penuh (create/update akun, kas/bank custom) tetap Hari 15**, endpoint ini
+  cuma dibuat lebih awal karena FE COA & filter akun Jurnal butuh data akun nyata
+  hari ini. Ini penyimpangan dari catatan "Dicatat, TIDAK dikerjakan" versi BE-only
+  di atas — diputuskan lanjut membuatnya (bukan menunda) begitu FE task hari ini
+  eksplisit butuh endpoint ini untuk lolos DoD.
+- **RBAC `GET /journal-entries` direvisi**: `@Roles(MASTER, SUPERVISOR)` yang
+  ditulis pas endpoint ini dibuat (asumsi kerja, lihat catatan BE di atas) **dihapus**
+  — dibuka untuk SEMUA role login (tidak ada `@Roles()` di controller = lolos
+  `RolesGuard`). Sesuai instruksi tugas FE hari ini ("Jurnal boleh dilihat semua
+  role"), beda dari `GET /chart-of-accounts` yang tetap Operator 403. **Cek ulang
+  bareng permission matrix lengkap saat audit RBAC Hari 32** — keputusan ini
+  menggantikan asumsi sebelumnya, belum eksplisit tertulis di CLAUDE.md §5.
+- **`<DataTable>` dapat prop baru `onRowClick?: (row: T) => void`**
+  (`components/DataTable.vue`): seluruh `<tr>` jadi klikable kalau prop ini diisi
+  (cursor-pointer + `@click`), sel kolom aksi (dropdown "...") tetap `@click.stop`
+  supaya klik menu tidak ikut memicu `onRowClick`. Dipakai halaman Jurnal untuk
+  buka drawer detail — pola generik ini (nambah prop, bukan fork komponen)
+  konsisten aturan CLAUDE.md §6.
+- **Bagan Akun** (`composables/useChartOfAccountsTree.ts` + `components/
+  ChartOfAccountsTreeNode.vue` + `pages/akuntansi/bagan-akun/index.vue`): tree
+  disusun di FE dari flat list `GET /chart-of-accounts` lewat `parentId`
+  (`buildAccountTree`, urut `code` per level) — **bukan** `<DataTable>` (tabel
+  server-paginated tidak cocok untuk struktur pohon). Expand/collapse per-node
+  (`reactive<Record<string,boolean>>`, bukan `Set` — supaya reaktivitas Vue
+  granular per key) + tombol "Expand semua"/"Collapse semua". Search
+  (`v-model="search"`, tanpa debounce — dataset kecil, murni client-side) meng-hasilkan
+  `visibleIds` (hasil cocok + semua leluhurnya) dan otomatis anggap semua node itu
+  ter-expand selama pencarian aktif, node di luar `visibleIds` disembunyikan penuh
+  (bukan cuma di-dim). Kolom "Saldo" sengaja kosong (`—`) — disiapkan, belum ada
+  sumber datanya (baru dari laporan/rekonsiliasi stok Hari 26+). Dengan 11 akun
+  seed (semua `parentId` NULL, benar-benar flat — belum ada sub-akun sungguhan di
+  DB manapun), tree hari ini secara visual cuma menampilkan 11 node level-atas
+  tanpa expand icon; struktur rekursifnya sendiri sudah diuji lewat kode &
+  komponen self-referencing Nuxt (auto-registered), tinggal dipakai begitu Hari 15
+  menambah akun dengan `parentId` terisi.
+- **Jurnal** (`pages/akuntansi/jurnal/index.vue`): `<DataTable endpoint="/journal-entries">`
+  dengan filter `{ key: 'date', type: 'date-range' }` (sengaja `date` bukan
+  `entryDate` — `<DataTable>` mengirim `${key}From`/`${key}To`, harus persis cocok
+  `JournalEntryQueryDto.dateFrom/dateTo`) dan filter akun (`select`, opsi dari
+  `GET /chart-of-accounts` — dibungkus try/catch, gagal senyap/kosong untuk
+  Operator yang 403 di endpoint itu, TIDAK mematikan halaman Jurnal). Klik baris
+  (`onRowClick`) buka `USlideover` (Nuxt UI) yang fetch `GET /journal-entries/:id`
+  on-demand: tabel baris debit/kredit per akun + baris footer total (dijumlah
+  `Number(debitAmount)`/`Number(creditAmount)` di FE, BUKAN dipercaya sama dari
+  backend — murni tampilan, bukan validasi ulang balance). Badge "Pembalik" di
+  kolom list + banner "Jurnal Pembalik" di drawer kalau `isReversal`, dengan
+  lookup tambahan `GET /journal-entries/:reversedEntryId` untuk menampilkan
+  **nomor** jurnal asli yang dibalik (bukan cuma UUID mentah) — dibungkus
+  try/catch, fallback tampil UUID kalau lookup gagal.
+- **`utils/formatDate.ts`** (baru, auto-import Nuxt dari folder `utils/`): format
+  `'YYYY-MM-DD'` → `'DD/MM/YYYY'` lewat pemotongan string, SENGAJA tidak lewat
+  `new Date(value)` — konsisten dengan alasan `JournalEntry` entity BE menyimpan
+  `entryDate` sebagai string mentah (hindari pergeseran tanggal akibat timezone
+  browser).
+- **Verifikasi**: `pnpm run lint`/`typecheck`/`build` FE hijau, `npm run build`/
+  `lint`/`test` (30 test) BE hijau, `./scripts/verify.sh` 10/10. Kontrak API
+  diverifikasi lewat curl asli (bukan mock): `GET /chart-of-accounts` — MASTER
+  200 (11 akun), SUPERVISOR 200, OPERATOR 403; `GET /journal-entries` — ketiga
+  role 200 (termasuk Operator, sesuai revisi RBAC di atas); detail jurnal 3-baris
+  contoh (dibuat sementara lewat `JournalPosterService` langsung dari script
+  ts-node sekali-jalan untuk QA — **dihapus lagi dari DB dev + reset
+  `document_counters` JOURNAL_ENTRY setelah verifikasi**, konsisten konvensi
+  Hari 4/5) membuktikan total debit = total kredit di footer, dan satu entry yang
+  ditandai `isReversal=true` tampil dengan badge + "Membalik jurnal JE/2607/0005"
+  yang benar; filter `accountId` ke akun Persediaan mengembalikan persis 2 entry
+  yang menyentuh akun itu. **Belum diuji visual di browser** — ekstensi Chrome
+  tidak konek di sesi ini (`tabs_context_mcp` gagal, "Browser extension is not
+  connected"), jadi expand/collapse tree, auto-expand search, drawer
+  buka/tutup, dan styling `USlideover` **belum dikonfirmasi visual langsung**,
+  hanya lewat pembacaan kode + kontrak data API asli. **Wajib dicoba manual di
+  browser** sebelum dianggap benar-benar selesai — servers BE (`:3000`) & FE
+  (`:3001`) ditinggal jalan di sesi ini untuk itu.
 
 Urutan yang diharapkan:
 `Auth → Products → Customers → Suppliers → Warehouses → Settings → DocumentCounters →

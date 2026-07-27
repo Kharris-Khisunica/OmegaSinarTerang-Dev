@@ -9,8 +9,9 @@ const schema = useWarehouseSchema()
   <CrudFormPage
     :id="route.params.id as string"
     title="Ubah Gudang"
-    endpoint="/api/warehouses"
+    endpoint="/warehouses"
     :schema="schema"
     back-to="/master-data/warehouses"
+    :transform-out="warehouseTransformOut"
   />
 </template>

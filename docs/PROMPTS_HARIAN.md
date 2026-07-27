@@ -66,17 +66,17 @@ Kalau ada yang [ ], jelaskan kenapa — jangan lapor selesai.
 ## C. Prompt Penutup Harian
 
 ```
-Hari <N> selesai. Lakukan:
+Hari 6 selesai. Lakukan:
 
 1. Jalankan ./scripts/verify.sh dan tampilkan hasil lengkapnya.
 2. Update PROGRESS.md:
-   - centang [x] sub-item Hari <N> yang benar-benar lolos DoD (yang belum, biarkan [ ] atau [~])
+   - centang [x] sub-item Hari 6 yang benar-benar lolos DoD (yang belum, biarkan [ ] atau [~])
    - isi "Aktual" dengan tanggal hari ini
    - update §0 Papan Status (Hari ke-, tanggal, drift kumulatif)
    - kalau ada yang meleset, tambahkan baris di §3 Catatan Harian
    - perbarui §4 Modul Selesai
-3. Commit semua dengan pesan: "Hari <N>: <ringkasan 1 baris>"
-4. Terakhir, beri saya 3 kalimat: apa yang paling berisiko untuk Hari <N+1>,
+3. Commit semua dengan pesan: "Hari 6: <ringkasan 1 baris>"
+4. Terakhir, beri saya 3 kalimat: apa yang paling berisiko untuk Hari 7,
    dan apakah ada utang teknis yang saya buat hari ini.
 ```
 

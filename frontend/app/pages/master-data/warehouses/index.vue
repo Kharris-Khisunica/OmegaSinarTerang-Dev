@@ -1,20 +1,19 @@
 <script setup lang="ts">
 import type { Column, FilterDef, RowAction } from '~/types/data-table'
+import { WAREHOUSE_TYPE_OPTIONS } from '~/composables/useWarehouseSchema'
 
 definePageMeta({ title: 'Gudang' })
 
 interface WarehouseRow extends Record<string, unknown> {
-  id: number
-  code: string
+  id: string
   name: string
-  type: 'STORE' | 'CUSTOMER_CONSIGNMENT' | 'BAD_STOCK'
-  address: string
-  is_active: boolean
-  created_at: string
+  warehouseType: 'STORE' | 'CUSTOMER_CONSIGNMENT' | 'BAD_STOCK'
+  isDefault: boolean
+  isActive: boolean
 }
 
 const TYPE_LABEL: Record<string, string> = {
-  STORE: 'Toko / Gudang Utama',
+  STORE: 'Gudang Toko',
   CUSTOMER_CONSIGNMENT: 'Titipan Customer',
   BAD_STOCK: 'Barang Rusak'
 }
@@ -24,46 +23,36 @@ const toast = useToast()
 const table = ref()
 
 const columns: Column<WarehouseRow>[] = [
-  { key: 'code', label: 'Kode', width: '100px' },
   { key: 'name', label: 'Nama Gudang' },
-  { key: 'type', label: 'Tipe', format: v => TYPE_LABEL[String(v)] ?? String(v) },
-  { key: 'address', label: 'Alamat' },
-  { key: 'is_active', label: 'Status', align: 'center', format: v => (v ? 'Aktif' : 'Nonaktif') }
+  { key: 'warehouseType', label: 'Tipe', format: v => TYPE_LABEL[String(v)] ?? String(v) },
+  { key: 'isDefault', label: 'Default', align: 'center', format: v => (v ? 'Ya' : '-') },
+  { key: 'isActive', label: 'Status', align: 'center', format: v => (v ? 'Aktif' : 'Nonaktif') }
 ]
 
 const filters: FilterDef[] = [
-  {
-    key: 'type',
-    label: 'Tipe Gudang',
-    type: 'select',
-    options: [
-      { label: 'Toko / Gudang Utama', value: 'STORE' },
-      { label: 'Titipan Customer', value: 'CUSTOMER_CONSIGNMENT' },
-      { label: 'Barang Rusak', value: 'BAD_STOCK' }
-    ]
-  }
+  { key: 'warehouseType', label: 'Tipe Gudang', type: 'select', options: WAREHOUSE_TYPE_OPTIONS }
 ]
 
 async function toggleActive(row: WarehouseRow) {
-  await api.patch(`/api/warehouses/${row.id}`, { is_active: !row.is_active })
-  toast.add({ title: row.is_active ? 'Gudang dinonaktifkan' : 'Gudang diaktifkan', color: 'success' })
+  await api.patch(`/warehouses/${row.id}`, { isActive: !row.isActive })
+  toast.add({ title: row.isActive ? 'Gudang dinonaktifkan' : 'Gudang diaktifkan', color: 'success' })
   table.value?.reload()
 }
 
 const rowActions: RowAction<WarehouseRow>[] = [
-  { label: 'Edit', icon: 'i-lucide-pencil', to: row => `/master-data/warehouses/${row.id}/edit` },
+  { label: 'Edit', icon: 'i-lucide-pencil', roles: ['MASTER', 'OPERATOR'], to: row => `/master-data/warehouses/${row.id}/edit` },
   {
     label: 'Nonaktifkan',
     icon: 'i-lucide-power-off',
-    roles: ['MASTER'],
-    show: row => row.is_active,
+    roles: ['MASTER', 'OPERATOR'],
+    show: row => row.isActive,
     onClick: toggleActive
   },
   {
     label: 'Aktifkan',
     icon: 'i-lucide-power',
-    roles: ['MASTER'],
-    show: row => !row.is_active,
+    roles: ['MASTER', 'OPERATOR'],
+    show: row => !row.isActive,
     onClick: toggleActive
   }
 ]
@@ -77,13 +66,13 @@ const rowActions: RowAction<WarehouseRow>[] = [
 
     <DataTable
       ref="table"
-      endpoint="/api/warehouses"
+      endpoint="/warehouses"
       :columns="columns"
       :filters="filters"
       :row-actions="rowActions"
       create-to="/master-data/warehouses/create"
-      search-placeholder="Cari kode, nama, atau alamat..."
-      :default-sort="{ key: 'code', dir: 'asc' }"
+      search-placeholder="Cari nama gudang..."
+      :default-sort="{ key: 'name', dir: 'asc' }"
     />
   </div>
 </template>

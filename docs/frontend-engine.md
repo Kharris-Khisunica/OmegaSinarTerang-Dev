@@ -70,7 +70,7 @@ Semua kolom bisa di-sort dengan klik header (tidak perlu flag `sortable` per kol
 | `title` | `string` | Judul halaman. |
 | `endpoint` | `string` | Path API dasar, mis. `/products`. |
 | `id` | `string \| number?` | Kalau diisi → mode edit (fetch `GET {endpoint}/{id}` dulu). |
-| `schema` | `FieldDef[]` | `{ key, label, type, required?, options?, cols?, hint?, disabled?, placeholder? }` |
+| `schema` | `FieldDef[]` | `{ key, label, type, required?, options?, cols?, hint?, disabled?, placeholder?, showIf? }` |
 | `backTo` | `string` | Path kembali setelah simpan/batal. |
 | `transformIn` | `(data) => Record` | Opsional, mapping response server → form. |
 | `transformOut` | `(form) => unknown` | Opsional, mapping form → payload request. |
@@ -100,6 +100,14 @@ Semua kolom bisa di-sort dengan klik header (tidak perlu flag `sortable` per kol
   **wajib** diisi eksplisit untuk `UInputMenu` (defaultnya `undefined`, beda dari
   `USelect` yang defaultnya `'value'`), kalau tidak `modelValue` jadi objek penuh,
   bukan `field.value`-nya saja.
+- `FieldDef.showIf?: (form) => boolean` (Hari 5) — sembunyikan field secara reaktif
+  berdasar nilai field lain (mis. field `customerId` Warehouse hanya tampil kalau
+  `warehouseType === 'CUSTOMER_CONSIGNMENT'`). Pakai `v-show` di dalam `CrudFormPage`
+  (bukan `v-if`) supaya tidak ada remount/reset state saat field muncul lagi. Field yang
+  sedang tersembunyi **dilewati** dari validasi `required` client-side — tetap tanggung
+  jawab `transformOut` untuk membersihkan nilainya sebelum dikirim (jangan andalkan
+  backend menolaknya, walau `whitelist:true` + DTO validation di backend tetap jadi
+  pertahanan kedua).
 
 ---
 
@@ -151,7 +159,34 @@ Hari 3 supaya `DataTable` tidak perlu berubah.
 ## Halaman percontohan
 
 `frontend/app/pages/master-data/warehouses/` (list, create, edit) — membuktikan kedua
-komponen cukup untuk modul nyata tanpa fork. Endpoint mock: `frontend/server/api/warehouses/`
-(in-memory, **bukan** backend sungguhan — Hari 4 akan menggantinya dengan CRUD NestJS asli
-bertumpu pada migration `warehouses`). Skema field dibagi lewat
+komponen cukup untuk modul nyata tanpa fork. Skema field dibagi lewat
 `composables/useWarehouseSchema.ts` supaya halaman create & edit tidak duplikasi.
+**Update Hari 5**: endpoint mock `frontend/server/api/warehouses/` (Hari 3, in-memory)
+sudah dihapus dan diarahkan ke backend NestJS asli (`/warehouses`) — field schema juga
+ditulis ulang total karena bentuk mock lama (`code`, `type`, `address`, `is_active`)
+tidak cocok dengan entity backend sungguhan (`name`, `warehouseType`, `customerId`,
+`isDefault`, `isActive`, tanpa `code`/`address`).
+
+## `useExport()` (`composables/useExport.ts`) + `<ExportButton>`
+
+Satu jalur export file (Excel/PDF) di FE, dipakai berulang oleh semua halaman laporan
+mulai Hari 26. Lewat `useApi().getBlob()` (sama seperti `get/post/patch`, ikut auth +
+retry 401 → refresh) — **jangan** `$fetch` manual terpisah untuk download, supaya tidak
+ada jalur HTTP kedua yang lolos dari penanganan token.
+
+- `useExport(endpoint, filters?)` → `{ exporting, error, exportFile(format, fileNamePrefix) }`.
+  `filters` boleh fungsi `() => Record<string, unknown>` (dievaluasi ulang tiap export,
+  bukan snapshot statis) — dipakai halaman laporan untuk mengirim filter tanggal/gudang/dsb
+  sebagai query string bareng `?format=xlsx|pdf`.
+- Nama file diambil dari `fileNamePrefix` + tanggal (dari `filters().date`/`filters().tanggal`
+  kalau ada, atau tanggal hari ini) + ekstensi, mis. `laporan-stok-2026-08-05.xlsx` —
+  **ditentukan di FE**, tidak bergantung pada header `Content-Disposition` server (backend
+  boleh saja mengirim nama filenya sendiri, FE mengabaikannya).
+- `<ExportButton endpoint="/reports/stock" file-name-prefix="laporan-stok" :filters="..." />`
+  — render 2 tombol (Excel/PDF), disabled+loading saat `exporting`, toast error kalau gagal.
+- Endpoint percontohan Hari 5 untuk uji unduh: `frontend/server/api/export-demo.get.ts`
+  (dummy, balas file kecil ber-`Content-Type` sesuai `format` — **bukan** ExcelJS/PDFKit
+  sungguhan; export generik ExcelJS/PDFKit backend adalah task BE Hari 5 terpisah, belum
+  diverifikasi jalur/nama endpointnya dari sisi FE sesi ini). Ganti `endpoint` di pemanggil
+  `<ExportButton>` ke path laporan backend asli begitu tersedia & kontraknya dikonfirmasi;
+  hapus file dummy ini kalau sudah tidak dipakai lagi oleh halaman uji manapun.

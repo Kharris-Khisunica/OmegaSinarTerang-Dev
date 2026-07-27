@@ -128,6 +128,10 @@ function isDisabled(field: FieldDef) {
   return typeof field.disabled === 'function' ? field.disabled(form) : !!field.disabled
 }
 
+function isVisible(field: FieldDef) {
+  return field.showIf ? field.showIf(form) : true
+}
+
 function asString(key: string): string | undefined {
   const v = form[key]
   return v === null || v === undefined ? undefined : String(v)
@@ -159,6 +163,7 @@ function validateClient() {
   const errors: Record<string, string> = {}
   for (const field of props.schema) {
     if (field.type === 'repeater') continue
+    if (!isVisible(field)) continue
     if (field.required && (form[field.key] === null || form[field.key] === undefined || form[field.key] === '')) {
       errors[field.key] = `${field.label} wajib diisi.`
     }
@@ -313,6 +318,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
     >
       <div
         v-for="(field, index) in schema"
+        v-show="isVisible(field)"
         :key="field.key"
         :ref="index === 0 ? (el: Element | null) => (firstFieldContainer = el as HTMLElement | null) : undefined"
         :class="colSpan(field)"

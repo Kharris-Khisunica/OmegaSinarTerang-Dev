@@ -10,6 +10,8 @@ const props = withDefaults(defineProps<{
   rowActions?: RowAction<T>[]
   createTo?: string
   defaultSort?: { key: string, dir: 'asc' | 'desc' }
+  /** Kalau diisi, seluruh baris jadi klikable (mis. buka drawer/halaman detail). */
+  onRowClick?: (row: T) => void
 }>(), {
   searchable: true,
   searchPlaceholder: 'Cari...',
@@ -287,6 +289,8 @@ defineExpose({ reload: load })
             v-else
             :key="row.id ?? i"
             class="border-b border-default last:border-0 hover:bg-elevated/30"
+            :class="{ 'cursor-pointer': onRowClick }"
+            @click="onRowClick?.(row as T)"
           >
             <td
               v-for="column in columns"
@@ -309,6 +313,7 @@ defineExpose({ reload: load })
             <td
               v-if="rowActions.length"
               class="px-3 py-2 text-right"
+              @click.stop
             >
               <UDropdownMenu
                 v-if="dropdownItems(row).length"

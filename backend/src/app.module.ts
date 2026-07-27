@@ -14,6 +14,10 @@ import { CustomersModule } from './modules/customers/customers.module';
 import { SuppliersModule } from './modules/suppliers/suppliers.module';
 import { WarehousesModule } from './modules/warehouses/warehouses.module';
 import { SettingsModule } from './modules/settings/settings.module';
+import { AuthorizationRequestsModule } from './modules/authorization-requests/authorization-requests.module';
+import { JournalEntriesModule } from './modules/journal-entries/journal-entries.module';
+import { ChartOfAccountsModule } from './modules/chart-of-accounts/chart-of-accounts.module';
+import { ExportModule } from './core/export/export.module';
 
 @Module({
   imports: [
@@ -40,6 +44,10 @@ import { SettingsModule } from './modules/settings/settings.module';
     SuppliersModule,
     WarehousesModule,
     SettingsModule,
+    AuthorizationRequestsModule,
+    JournalEntriesModule,
+    ChartOfAccountsModule,
+    ExportModule,
   ],
   controllers: [AppController],
   providers: [

@@ -42,4 +42,6 @@ export interface FieldDef {
   defaultValue?: unknown
   /** Wajib diisi kalau type === 'repeater'. Kolom sub-tabel di dalam form. */
   repeaterColumns?: RepeaterColumnDef[]
+  /** Sembunyikan field secara reaktif berdasar nilai field lain di form. Default selalu tampil. */
+  showIf?: (form: Record<string, unknown>) => boolean
 }

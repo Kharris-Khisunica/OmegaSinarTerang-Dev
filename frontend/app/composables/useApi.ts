@@ -2,6 +2,7 @@ interface RequestOptions {
   query?: Record<string, unknown>
   body?: unknown
   headers?: Record<string, string>
+  responseType?: 'json' | 'blob'
 }
 
 type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'
@@ -44,7 +45,8 @@ export function useApi() {
         method,
         query: options.query,
         body: options.body as Record<string, unknown> | undefined,
-        headers
+        headers,
+        responseType: options.responseType ?? 'json'
       })) as T
     } catch (err) {
       if (isBackend && !isRetry && getErrorStatus(err) === 401) {
@@ -70,7 +72,10 @@ export function useApi() {
     post: <T>(path: string, body?: unknown) => request<T>(path, 'POST', { body }),
     patch: <T>(path: string, body?: unknown) => request<T>(path, 'PATCH', { body }),
     put: <T>(path: string, body?: unknown) => request<T>(path, 'PUT', { body }),
-    delete: <T>(path: string) => request<T>(path, 'DELETE')
+    delete: <T>(path: string) => request<T>(path, 'DELETE'),
+    /** GET dengan response biner (download file) — tetap lewat auth + retry 401 yang sama. */
+    getBlob: (path: string, query?: Record<string, unknown>) =>
+      request<Blob>(path, 'GET', { query, responseType: 'blob' })
   }
 }
 
