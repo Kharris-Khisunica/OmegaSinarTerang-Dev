@@ -136,12 +136,12 @@ describe('AuthorizationRequests + StepUpGuard', () => {
     await app.close();
   });
 
-  it('OPERATOR memicu aksi bersyarat tanpa persetujuan -> 428 dan authorizationRequestId otomatis dibuat', async () => {
+  it('OPERATOR memicu aksi bersyarat tanpa persetujuan -> 412 dan authorizationRequestId otomatis dibuat', async () => {
     const res = await request(app.getHttpServer())
       .post('/authorization-requests/test-step-up-action')
       .set('Authorization', `Bearer ${operatorToken}`)
       .send({})
-      .expect(428);
+      .expect(412);
 
     const body = asStepUpError(res.body);
     expect(body.requiresAuthorization).toBe(true);
@@ -154,7 +154,7 @@ describe('AuthorizationRequests + StepUpGuard', () => {
       .post('/authorization-requests/test-step-up-action')
       .set('Authorization', `Bearer ${operatorToken}`)
       .send({})
-      .expect(428);
+      .expect(412);
     const requestId = asStepUpError(triggerRes.body).authorizationRequestId;
     createdRequestIds.push(requestId);
 
@@ -178,7 +178,7 @@ describe('AuthorizationRequests + StepUpGuard', () => {
       .set('Authorization', `Bearer ${operatorToken}`)
       .set('x-authorization-request-id', requestId)
       .send({})
-      .expect(428);
+      .expect(412);
 
     const reuseBody = asStepUpError(reuseRes.body);
     expect(reuseBody.requiresAuthorization).toBe(true);
@@ -192,6 +192,7 @@ describe('AuthorizationRequests + StepUpGuard', () => {
       .send({
         actionType: 'TEST_STEP_UP_ACTION',
         payload: {},
+        contextSummary: 'Uji kedaluwarsa TTL 15 menit',
         reason: 'Uji kedaluwarsa TTL 15 menit',
       })
       .expect(201);
@@ -218,7 +219,7 @@ describe('AuthorizationRequests + StepUpGuard', () => {
       .set('Authorization', `Bearer ${operatorToken}`)
       .set('x-authorization-request-id', requestId)
       .send({})
-      .expect(428);
+      .expect(412);
 
     const execBody = asStepUpError(execRes.body);
     expect(execBody.requiresAuthorization).toBe(true);
@@ -237,6 +238,7 @@ describe('AuthorizationRequests + StepUpGuard', () => {
       .send({
         actionType: 'TEST_STEP_UP_ACTION',
         payload: {},
+        contextSummary: 'Uji larangan self-approve',
         reason: 'Uji larangan self-approve',
       })
       .expect(201);
@@ -256,6 +258,7 @@ describe('AuthorizationRequests + StepUpGuard', () => {
       .send({
         actionType: 'TEST_STEP_UP_ACTION',
         payload: {},
+        contextSummary: 'Uji larangan self-reject',
         reason: 'Uji larangan self-reject',
       })
       .expect(201);
@@ -265,6 +268,71 @@ describe('AuthorizationRequests + StepUpGuard', () => {
     await request(app.getHttpServer())
       .post(`/authorization-requests/${requestId}/reject`)
       .set('Authorization', `Bearer ${masterToken}`)
+      .send({ reason: 'Uji larangan self-reject' })
       .expect(403);
+  });
+
+  it('GET /:id — pemilik boleh lihat request miliknya, operator lain tidak (403)', async () => {
+    const createRes = await request(app.getHttpServer())
+      .post('/authorization-requests')
+      .set('Authorization', `Bearer ${operatorToken}`)
+      .send({
+        actionType: 'TEST_STEP_UP_ACTION',
+        payload: {},
+        contextSummary: 'Uji GET /:id',
+        reason: 'Uji GET /:id',
+      })
+      .expect(201);
+    const requestId = asAuthorizationRequest(createRes.body).id;
+    createdRequestIds.push(requestId);
+
+    await request(app.getHttpServer())
+      .get(`/authorization-requests/${requestId}`)
+      .set('Authorization', `Bearer ${operatorToken}`)
+      .expect(200)
+      .expect((res) => {
+        expect(asAuthorizationRequest(res.body).id).toBe(requestId);
+      });
+
+    await request(app.getHttpServer())
+      .get(`/authorization-requests/${requestId}`)
+      .set('Authorization', `Bearer ${masterToken}`)
+      .expect(200);
+  });
+
+  it('reject tanpa reason -> 400; dengan reason -> tersimpan dan terbaca lewat GET /:id', async () => {
+    const createRes = await request(app.getHttpServer())
+      .post('/authorization-requests')
+      .set('Authorization', `Bearer ${operatorToken}`)
+      .send({
+        actionType: 'TEST_STEP_UP_ACTION',
+        payload: {},
+        contextSummary: 'Uji alasan tolak',
+        reason: 'Uji alasan tolak',
+      })
+      .expect(201);
+    const requestId = asAuthorizationRequest(createRes.body).id;
+    createdRequestIds.push(requestId);
+
+    await request(app.getHttpServer())
+      .post(`/authorization-requests/${requestId}/reject`)
+      .set('Authorization', `Bearer ${supervisorToken}`)
+      .send({})
+      .expect(400);
+
+    await request(app.getHttpServer())
+      .post(`/authorization-requests/${requestId}/reject`)
+      .set('Authorization', `Bearer ${supervisorToken}`)
+      .send({ reason: 'Stok tidak sesuai, cek ulang dulu' })
+      .expect(201);
+
+    const getRes = await request(app.getHttpServer())
+      .get(`/authorization-requests/${requestId}`)
+      .set('Authorization', `Bearer ${operatorToken}`)
+      .expect(200);
+    expect(getRes.body).toMatchObject({
+      status: 'REJECTED',
+      reason: 'Stok tidak sesuai, cek ulang dulu',
+    });
   });
 });

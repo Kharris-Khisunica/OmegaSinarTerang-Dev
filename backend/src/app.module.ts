@@ -18,6 +18,11 @@ import { AuthorizationRequestsModule } from './modules/authorization-requests/au
 import { JournalEntriesModule } from './modules/journal-entries/journal-entries.module';
 import { ChartOfAccountsModule } from './modules/chart-of-accounts/chart-of-accounts.module';
 import { ExportModule } from './core/export/export.module';
+import { BrandsModule } from './modules/brands/brands.module';
+import { UnitsModule } from './modules/units/units.module';
+import { SalesmenModule } from './modules/salesmen/salesmen.module';
+import { ReceivablesModule } from './core/receivables/receivables.module';
+import { StepUpModule } from './core/step-up/step-up.module';
 
 @Module({
   imports: [
@@ -48,6 +53,11 @@ import { ExportModule } from './core/export/export.module';
     JournalEntriesModule,
     ChartOfAccountsModule,
     ExportModule,
+    BrandsModule,
+    UnitsModule,
+    SalesmenModule,
+    ReceivablesModule,
+    StepUpModule,
   ],
   controllers: [AppController],
   providers: [

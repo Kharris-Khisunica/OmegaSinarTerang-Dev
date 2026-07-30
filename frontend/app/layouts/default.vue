@@ -93,5 +93,7 @@ const userMenuItems = [
         <slot />
       </template>
     </UDashboardPanel>
+
+    <StepUpDialog />
   </UDashboardGroup>
 </template>

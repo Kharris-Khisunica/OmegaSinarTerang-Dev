@@ -27,6 +27,17 @@ export class SettingsService {
     return settings.map((setting) => this.toTyped(setting));
   }
 
+  // store_code dikunci di FE setelah dokumen pertama terbit (CLAUDE.md §2.3)
+  // — "terbit" dibuktikan lewat ada tidaknya nomor yang sudah dipakai
+  // (last_number > 0) di document_counters, tidak peduli jenis dokumennya.
+  async isStoreCodeLocked(): Promise<boolean> {
+    const rows: { exists: boolean }[] =
+      await this.settingsRepository.manager.query(
+        `SELECT EXISTS (SELECT 1 FROM document_counters WHERE last_number > 0) AS exists`,
+      );
+    return rows[0]?.exists ?? false;
+  }
+
   async update(
     key: string,
     value: string | number | boolean,

@@ -5,7 +5,7 @@
 // entity ber-id seperti form CRUD lain. Tetap MASTER-only lewat role guard.
 definePageMeta({ roles: ['MASTER'] })
 
-type SettingInputType = 'boolean' | 'number' | 'select'
+type SettingInputType = 'boolean' | 'number' | 'text' | 'select'
 
 interface SettingMeta {
   label: string
@@ -20,16 +20,40 @@ interface TypedSetting {
   valueType: 'BOOLEAN' | 'NUMBER' | 'STRING'
 }
 
+// Identitas toko (CLAUDE.md §2.3, §1) — dipakai generator nomor dokumen
+// (store_code, jadi segmen "JL/RM01-26070001") dan kepala nota
+// (nama/kota/telepon, yang kosong tidak dicetak). Kelompok terpisah dari
+// SETTING_META di bawah karena maknanya beda: bukan parameter perilaku
+// sistem, tapi data identitas yang tercetak/terpakai apa adanya.
+const STORE_IDENTITY_META: Record<string, SettingMeta> = {
+  store_code: {
+    label: 'Kode Toko',
+    description: 'Segmen kedua nomor dokumen (contoh: JL/RM01-26070001) dan bagian kepala nota.',
+    type: 'text'
+  },
+  store_name: {
+    label: 'Nama Toko',
+    description: 'Tercetak di kepala nota. Kosongkan kalau tidak perlu dicetak.',
+    type: 'text'
+  },
+  store_city: {
+    label: 'Kota',
+    description: 'Tercetak di kepala nota. Kosongkan kalau tidak perlu dicetak.',
+    type: 'text'
+  },
+  store_phone: {
+    label: 'Telepon',
+    description: 'Tercetak di kepala nota. Kosongkan kalau tidak perlu dicetak.',
+    type: 'text'
+  }
+}
+const STORE_IDENTITY_ORDER = ['store_code', 'store_name', 'store_city', 'store_phone']
+
 const SETTING_META: Record<string, SettingMeta> = {
   company_is_pkp: {
     label: 'Perusahaan Berstatus PKP',
     description: 'Kalau diaktifkan, PPN dihitung otomatis di nota penjualan untuk customer yang juga PKP. Kalau dimatikan, PPN selalu Rp0 di semua nota — berapa pun tarif pajaknya.',
     type: 'boolean'
-  },
-  rounding_multiple: {
-    label: 'Pembulatan Nota',
-    description: 'Total nota penjualan dibulatkan ke atas ke kelipatan angka ini. Contoh: diisi 100, nota Rp125.430 dibulatkan jadi Rp125.500. Hanya berlaku di nota penjualan, tidak pernah di pembelian.',
-    type: 'number'
   },
   tax_calculation_mode: {
     label: 'Mode Perhitungan Pajak',
@@ -46,7 +70,7 @@ const SETTING_META: Record<string, SettingMeta> = {
     type: 'number'
   }
 }
-const SETTING_ORDER = ['company_is_pkp', 'rounding_multiple', 'tax_calculation_mode', 'backdate_max_days']
+const SETTING_ORDER = ['company_is_pkp', 'tax_calculation_mode', 'backdate_max_days']
 
 const api = useApi()
 const toast = useToast()
@@ -57,19 +81,27 @@ const extraKeys = ref<string[]>([])
 const loading = ref(true)
 const saving = ref(false)
 const bannerError = ref('')
+const storeCodeLocked = ref(false)
 
-const isDirty = computed(() => SETTING_ORDER.concat(extraKeys.value).some(key => form[key] !== original.value[key]))
+const allKeys = computed(() => STORE_IDENTITY_ORDER.concat(SETTING_ORDER, extraKeys.value))
+const isDirty = computed(() => allKeys.value.some(key => form[key] !== original.value[key]))
 
 async function load() {
   loading.value = true
   bannerError.value = ''
   try {
-    const settings = await api.get<TypedSetting[]>('/settings')
+    const [settings, lockStatus] = await Promise.all([
+      api.get<TypedSetting[]>('/settings'),
+      api.get<{ locked: boolean }>('/settings/store-code-lock-status')
+    ])
     const map: Record<string, string | number | boolean> = {}
     for (const s of settings) map[s.key] = s.value
     original.value = { ...map }
     Object.assign(form, map)
-    extraKeys.value = settings.map(s => s.key).filter(key => !SETTING_ORDER.includes(key))
+    extraKeys.value = settings
+      .map(s => s.key)
+      .filter(key => !STORE_IDENTITY_ORDER.includes(key) && !SETTING_ORDER.includes(key))
+    storeCodeLocked.value = lockStatus.locked
   } catch (err) {
     bannerError.value = getErrorMessage(err, 'Gagal memuat pengaturan.')
   } finally {
@@ -82,7 +114,7 @@ async function save() {
   saving.value = true
   bannerError.value = ''
   try {
-    const changedKeys = SETTING_ORDER.concat(extraKeys.value).filter(key => form[key] !== original.value[key])
+    const changedKeys = allKeys.value.filter(key => form[key] !== original.value[key])
     for (const key of changedKeys) {
       await api.patch(`/settings/${key}`, { value: form[key] })
       original.value[key] = form[key]!
@@ -127,35 +159,74 @@ onMounted(load)
 
     <div
       v-else
-      class="flex flex-col gap-3"
+      class="flex flex-col gap-4"
     >
-      <UPageCard
-        v-for="key in SETTING_ORDER.filter(k => k in form)"
-        :key="key"
-        :title="SETTING_META[key]!.label"
-        :description="SETTING_META[key]!.description"
-      >
-        <template #footer>
-          <USwitch
-            v-if="SETTING_META[key]!.type === 'boolean'"
-            :model-value="form[key] === true"
-            @update:model-value="(v) => (form[key] = v)"
-          />
-          <UInputNumber
-            v-else-if="SETTING_META[key]!.type === 'number'"
-            :model-value="Number(form[key])"
-            class="w-40"
-            @update:model-value="(v) => (form[key] = v ?? 0)"
-          />
-          <USelect
-            v-else-if="SETTING_META[key]!.type === 'select'"
-            :model-value="String(form[key])"
-            :items="SETTING_META[key]!.options"
-            class="w-full sm:w-80"
-            @update:model-value="(v) => (form[key] = v as string)"
-          />
-        </template>
-      </UPageCard>
+      <div class="flex flex-col gap-3">
+        <h2 class="text-sm font-semibold text-muted uppercase tracking-wide">
+          Identitas Toko
+        </h2>
+
+        <UAlert
+          v-if="storeCodeLocked"
+          color="warning"
+          variant="subtle"
+          icon="i-lucide-lock"
+          title="Kode toko terkunci"
+          description="Sudah ada dokumen terbit memakai kode ini — Kode Toko tidak bisa diubah lagi."
+        />
+
+        <UPageCard
+          v-for="key in STORE_IDENTITY_ORDER.filter(k => k in form)"
+          :key="key"
+          :title="STORE_IDENTITY_META[key]!.label"
+          :description="STORE_IDENTITY_META[key]!.description"
+        >
+          <template #footer>
+            <div class="flex flex-col items-end gap-1">
+              <UInput
+                :model-value="String(form[key])"
+                :disabled="key === 'store_code' && storeCodeLocked"
+                class="w-full sm:w-64"
+                @update:model-value="(v) => (form[key] = v)"
+              />
+              <span
+                v-if="key === 'store_code' && !storeCodeLocked"
+                class="text-xs text-muted"
+              >Tidak bisa diubah setelah dokumen pertama terbit.</span>
+            </div>
+          </template>
+        </UPageCard>
+      </div>
+
+      <div class="flex flex-col gap-3 pt-2 border-t border-default">
+        <UPageCard
+          v-for="key in SETTING_ORDER.filter(k => k in form)"
+          :key="key"
+          :title="SETTING_META[key]!.label"
+          :description="SETTING_META[key]!.description"
+        >
+          <template #footer>
+            <USwitch
+              v-if="SETTING_META[key]!.type === 'boolean'"
+              :model-value="form[key] === true"
+              @update:model-value="(v) => (form[key] = v)"
+            />
+            <UInputNumber
+              v-else-if="SETTING_META[key]!.type === 'number'"
+              :model-value="Number(form[key])"
+              class="w-40"
+              @update:model-value="(v) => (form[key] = v ?? 0)"
+            />
+            <USelect
+              v-else-if="SETTING_META[key]!.type === 'select'"
+              :model-value="String(form[key])"
+              :items="SETTING_META[key]!.options"
+              class="w-full sm:w-80"
+              @update:model-value="(v) => (form[key] = v as string)"
+            />
+          </template>
+        </UPageCard>
+      </div>
     </div>
 
     <div class="flex items-center gap-2 pt-2 border-t border-default">

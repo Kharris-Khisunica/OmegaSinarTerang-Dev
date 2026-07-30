@@ -42,6 +42,9 @@ export class AuthorizationRequest {
   @Column({ type: 'jsonb' })
   payload: Record<string, unknown>;
 
+  @Column({ name: 'context_summary', type: 'text' })
+  contextSummary: string;
+
   @Column({
     type: 'enum',
     enum: AuthorizationRequestStatus,

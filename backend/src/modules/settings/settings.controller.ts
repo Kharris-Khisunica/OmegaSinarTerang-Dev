@@ -15,6 +15,11 @@ export class SettingsController {
     return this.settingsService.findAll();
   }
 
+  @Get('store-code-lock-status')
+  async storeCodeLockStatus() {
+    return { locked: await this.settingsService.isStoreCodeLocked() };
+  }
+
   @Audit('UPDATE', 'settings')
   @Patch(':key')
   update(@Param('key') key: string, @Body() dto: UpdateSettingDto) {

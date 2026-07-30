@@ -1,7 +1,20 @@
-# Prompt Development Harian — Website Operasional FMCG
+# Prompt Development Harian v3 — Website Operasional FMCG
 
-Pendamping `Development_Plan_v2` dan `PROGRESS.md`.
+Pendamping `Development_Plan_v2`, `CLAUDE.md` v2, `KONTEKS_REVISI_2026-07-28.md`, dan `PROGRESS.md` v3.
 Setiap hari punya **2 prompt** (Backend & Frontend) + **1 blok verifikasi**.
+
+> **Versi 3 — 29 Juli 2026.** Menggantikan v2 mulai Hari 7. Prompt Hari 1–6 di bawah
+> **dibiarkan apa adanya sebagai arsip** — hari-hari itu sudah dieksekusi. Sebagian hasilnya
+> sudah usang dan diperbaiki oleh **rework Hari 7–9**; jangan menjalankan ulang prompt lama.
+>
+> **Penomoran hari berubah.** Rework menempati Hari 7–9, sisanya bergeser +3, scope baru masuk
+> lewat hari sisipan berhuruf (22A, 23A). Peta lengkapnya di `PROGRESS.md` §0.1.
+>
+> **Revisi 29 Juli sore — posting jalan, pelaporan menyusul.** Empat hal ditunda ke pasca-MVP:
+> tutup bulan (Hari 23A), laporan penjualan/piutang/hutang (Hari 30), laporan biaya
+> operasional (bagian Hari 31), dan layar Jurnal Manual (bagian Hari 12). Prompt-nya
+> **tetap ada di file ini** bertanda ⏸ — jangan dihapus, tinggal dijalankan setelah
+> 30 Agustus. Tanggal Hari 24–35 ditarik maju 2 hari; Hari 36 & 37 tetap di 29 & 30 Agustus.
 
 ---
 
@@ -15,6 +28,9 @@ Setiap hari punya **2 prompt** (Backend & Frontend) + **1 blok verifikasi**.
    kecuali soal bentuk response API — dan itu sudah ditulis eksplisit di tiap prompt FE.
 4. Setelah keduanya selesai: jalankan `./scripts/verify.sh`, lalu **Prompt Penutup** (§C).
 5. Kalau ada yang merah, jangan lanjut ke hari berikutnya. Catat di `PROGRESS.md` §3.
+6. Hari bertanda 🛑 punya **gerbang berhenti-dan-tanya**: ada keputusan klien yang belum
+   turun. Kerjakan bagian yang aman, lalu berhenti. Menebak di titik itu lebih mahal
+   daripada menunggu — beberapa di antaranya baru ketahuan salah setelah data terlanjur masuk.
 
 **Urutan dalam satu hari yang ideal:** BE dulu, FE kedua. Frontend butuh endpoint yang
 sudah bisa dipanggil, bukan endpoint yang "nanti ada".
@@ -24,18 +40,28 @@ sudah bisa dipanggil, bukan endpoint yang "nanti ada".
 ## A. Prompt Pembuka Harian (jalankan sekali tiap pagi)
 
 ```
-Baca CLAUDE.md dan PROGRESS.md.
+Baca CLAUDE.md, PROGRESS.md, dan KONTEKS_REVISI_2026-07-28.md §4.
 
-Sebelum kita mulai Hari <N>, jawab singkat (maksimal 15 baris):
+Sebelum kita mulai Hari 8, jawab singkat (maksimal 18 baris):
 1. Modul apa saja yang sudah selesai menurut PROGRESS.md §4?
+   PENTING: §4 merekam keadaan sebelum revisi klien. Sebutkan mana yang
+   sudah digantikan oleh rework Hari 7-9.
 2. Apakah ada blocker 🔒 dari hari sebelumnya yang belum tuntas?
 3. Apakah ada item di PROGRESS.md §1 (Menunggu Klien) yang tanggal
    "dibutuhkan sebelum"-nya sudah lewat atau jatuh hari ini?
-4. Sebutkan file/service existing yang akan saya sentuh hari ini, supaya
+4. Apakah pekerjaan Hari 8 menyentuh salah satu PR terbuka di
+   KONTEKS_REVISI §4.2? Kalau ya, sebutkan nomornya dan BERHENTI di situ —
+   saya yang akan menanyakannya ke klien.
+5. Sebutkan file/service existing yang akan saya sentuh hari ini, supaya
    kamu tidak membuat duplikat.
 
 Jangan menulis kode dulu. Tunggu prompt tugas berikutnya.
 ```
+
+> **Kenapa poin 1 diberi peringatan:** `PROGRESS.md` §4 masih memuat format nomor
+> `INV/2609/0001`, skema produk lama, dan `CUSTOMER_CONSIGNMENT`. Kalau disalin mentah-mentah
+> ke context, Claude Code akan membangun di atas skema yang sudah mati — dan tidak akan
+> ada error apa pun yang memberi tahu.
 
 ---
 
@@ -66,24 +92,37 @@ Kalau ada yang [ ], jelaskan kenapa — jangan lapor selesai.
 ## C. Prompt Penutup Harian
 
 ```
-Hari 6 selesai. Lakukan:
+Hari <N> selesai. Lakukan:
 
 1. Jalankan ./scripts/verify.sh dan tampilkan hasil lengkapnya.
 2. Update PROGRESS.md:
-   - centang [x] sub-item Hari 6 yang benar-benar lolos DoD (yang belum, biarkan [ ] atau [~])
+   - centang [x] sub-item Hari <N> yang benar-benar lolos DoD (yang belum, biarkan [ ] atau [~])
    - isi "Aktual" dengan tanggal hari ini
    - update §0 Papan Status (Hari ke-, tanggal, drift kumulatif)
-   - kalau ada yang meleset, tambahkan baris di §3 Catatan Harian
+   - kalau drift >= 0,5 hari, tambahkan baris di §3 Catatan Harian hari ini juga
    - perbarui §4 Modul Selesai
-3. Commit semua dengan pesan: "Hari 6: <ringkasan 1 baris>"
-4. Terakhir, beri saya 3 kalimat: apa yang paling berisiko untuk Hari 7,
-   dan apakah ada utang teknis yang saya buat hari ini.
+   - kalau ada item §1 (Menunggu Klien) yang jawabannya masuk hari ini, isi kolom
+     "Diterima tgl" dan ubah statusnya
+3. Commit semua dengan pesan: "Hari <N>: <ringkasan 1 baris>"
+4. Terakhir, beri saya 3 kalimat: apa yang paling berisiko untuk Hari <N+1>,
+   apakah ada utang teknis yang saya buat hari ini, dan apakah ada aturan
+   CLAUDE.md §2 yang hari ini terasa sempit — kalau ada, sebutkan nomornya.
 ```
 
+> **Margin jadwal sekarang nol.** Aturan drift di `PROGRESS.md` §0 sudah diperketat: drift
+> setengah hari pun dicatat hari itu juga. Jangan menunggu genap sehari — daftar potong
+> darurat sudah habis, jadi drift yang ketahuan terlambat tidak punya tempat mendarat.
+
 ---
 ---
 
-# FASE 1 — FONDASI (Hari 1–4)
+# FASE 1 — FONDASI (Hari 1–4) · ARSIP, SUDAH DIEKSEKUSI
+
+> ⛔ **Jangan dijalankan ulang.** Prompt di bawah ditulis sebelum revisi klien dan memuat
+> aturan yang sudah dicabut: format nomor `INV/2609/0001`, akun Pendapatan Pembulatan,
+> `settings.rounding_multiple`, `warehouse_type` `CUSTOMER_CONSIGNMENT`, dan skema produk
+> tanpa `is_bkp`. Semuanya diperbaiki di **Hari 7–9**. Bagian ini disimpan hanya sebagai
+> catatan apa yang dulu dikerjakan.
 
 ## Hari 1 — Scaffold
 
@@ -499,7 +538,10 @@ lewat keyboard saja. Kalau lebih dari 30 detik, sebutkan hambatannya.
 ---
 ---
 
-# FASE 2 — ENGINE INTI (Hari 5–10)
+# FASE 2 — ENGINE INTI (Hari 5–6) · ARSIP, SUDAH DIEKSEKUSI
+
+> ⛔ **Jangan dijalankan ulang.** Step-up di Hari 5 memakai kode status **428**;
+> `CLAUDE.md` §5 menetapkan **412**. Penyeragamannya dikerjakan di **Hari 9**.
 
 > Fase ini menentukan apakah angka di sistem bisa dipercaya. Tidak ada satu pun
 > item di sini yang boleh masuk daftar potong.
@@ -659,14 +701,357 @@ DEFINITION OF DONE:
 - [ ] Tidak ada endpoint update/delete jurnal
 - [ ] `./scripts/verify.sh` hijau
 
+
+---
 ---
 
-## Hari 7 🔒 — Stock Recorder + FIFO
+# FASE 2B — REWORK PASCA-REVISI KLIEN (Hari 7–9)
+
+Tiga hari ini membayar utang yang dibuat revisi klien 28–29 Juli terhadap pekerjaan yang
+sudah ditandai selesai. Urutannya tidak boleh ditukar:
+
+- **Hari 7 dulu** karena setelah Hari 14 dokumen mulai terbit dengan nomor sungguhan, dan
+  format nomor tidak bisa diubah lagi tanpa migrasi data yang menyentuh nota yang sudah dicetak.
+- **Hari 9 terakhir** karena `StepUpService` adalah fondasi kunci cetak (Hari 15), approval
+  kas besar (Hari 17), batas jual-rugi (Hari 21), dan mutasi BS→STORE (Hari 13).
+
+---
+
+## Hari 7 🆕🔒 — Format Nomor Dokumen + Identitas Toko
 
 ### 🔧 Backend
 
 ```
-KONTEKS: Hari 7 dari 34. JANTUNG PERSEDIAAN. Blocker bagi semua modul transaksi.
+KONTEKS: Hari 7 dari 37. Rework pasca-revisi klien.
+Hari 3 sudah membuat DocumentCounterService dengan format PREFIX/YYMM/NNNN
+(contoh INV/2609/0001). Klien menetapkan format yang berbeda dan format lama
+tidak boleh tersisa di mana pun.
+
+TUGAS (BACKEND):
+1. Ubah format nomor jadi: KODE/{settings.store_code}-YYMMXXXX
+   Contoh nyata dari sistem lama klien: JL/RM01-26070201
+   - XXXX = 4 digit, reset tiap bulan
+   - segmen toko diambil dari settings, DILARANG di-hardcode di mana pun
+2. Tambah ke settings: store_code (RM01), store_name, store_city, store_phone.
+   Ini yang dicetak di kepala nota nanti. Yang kosong tidak dicetak.
+3. Perbarui tabel kode dokumen:
+   JL  Faktur Penjualan     B1  Faktur Pembelian    GD  Mutasi Gudang
+   SO  Sales Order          SJ  Surat Jalan         RJ  Retur Penjualan
+   RB  Retur Pembelian      PAY Pembayaran          JE  Jurnal Manual
+   CATATAN: JL, B1, GD berasal dari sistem nyata klien. Jangan diganti jadi
+   INV/PI/WM meski terasa lebih rapi.
+4. Tambah kolom alasan VOID ke SEMUA tabel dokumen yang akan ada:
+   void_reason_code (enum) + void_reason_note (teks, WAJIB terisi saat VOID).
+   Ini yang dibaca Laporan Kontinuitas Nomor Dokumen di Hari 28.
+5. Migrasi data dev yang terlanjur bernomor format lama. Kalau lebih mudah
+   di-truncate, boleh — tapi tulis keputusannya di output.
+6. Pastikan generator tetap memakai tabel document_counters di dalam transaction
+   pemanggil (SELECT ... FOR UPDATE). JANGAN diganti CREATE SEQUENCE.
+7. BERSIH-BERSIH SISA ATURAN YANG DICABUT — Hari 3 menyeed dan menyetel hal-hal
+   yang sekarang sudah mati:
+   HAPUS  akun "Pendapatan Pembulatan" dari seed COA (pembulatan dicabut)
+   HAPUS  settings.rounding_multiple
+   TAMBAH akun "Diskon Penjualan"          (kontra pendapatan, metode bruto, Hari 21)
+   TAMBAH akun "Selisih Pembayaran"        (satu akun dua arah, Hari 27)
+   TAMBAH akun "Selisih Retur Pembelian"   (Hari 16)
+   TAMBAH settings.default_ar_account_id
+   TAMBAH settings.cash_outflow_approval_threshold
+   Akun Kas, Bank, dan Retur Pembelian TETAP tidak di-seed.
+   Kalau akun yang dihapus sudah terlanjur dipakai di jurnal dev, nonaktifkan
+   (is_active = false), jangan dihapus — dan katakan itu di output.
+
+ATURAN WAJIB HARI INI:
+- Nomor tidak boleh hilang. Rollback transaksi WAJIB mengembalikan nomor.
+  Inilah alasan counter berupa tabel, bukan sequence — jangan "dioptimalkan".
+- store_code tidak boleh muncul sebagai literal string di luar settings.
+  Grep 'RM01' di src/ setelah selesai; hasilnya harus kosong kecuali seed & test.
+
+DEFINITION OF DONE:
+- getNextNumber('JL') menghasilkan JL/RM01-26070001
+- Pemanggilan di bulan berikutnya menghasilkan ...26080001 (reset benar)
+- 20 pemanggilan paralel menghasilkan 20 nomor unik berurutan tanpa duplikat
+- Transaksi yang di-rollback TIDAK menaikkan last_number (buktikan dengan
+  membandingkan nilai last_number sebelum dan sesudah)
+- grep -r 'INV/' src/ dan grep -r 'YYMM/' src/ mengembalikan kosong
+- COA tidak lagi memuat Pendapatan Pembulatan, dan memuat tiga akun baru di atas
+- settings.rounding_multiple sudah tidak ada di kode maupun DB
+
+SETELAH SELESAI:
+Jalankan ./scripts/verify.sh dan tampilkan hasilnya. Lalu tampilkan checklist DoD
+dalam bentuk [x]/[ ] beserta bukti (output perintah / potongan response JSON).
+```
+
+### 🎨 Frontend
+
+```
+KONTEKS: Hari 7 dari 37. Backend baru saja memindahkan identitas toko ke settings.
+
+TUGAS (FRONTEND):
+1. Halaman Settings: tambah blok "Identitas Toko" — store_code, nama, kota, telepon.
+   store_code diberi peringatan: "Tidak bisa diubah setelah dokumen pertama terbit."
+   (Backend belum menegakkannya; cukup peringatan visual dulu.)
+2. Cari seluruh tempat di frontend yang menampilkan atau memformat nomor dokumen
+   dan pastikan tidak ada yang memparse format lama (split '/', ambil index, dsb).
+   Nomor dokumen diperlakukan sebagai string utuh, tidak pernah diurai di frontend.
+3. Kalau ada komponen yang menampilkan contoh nomor (placeholder, helper text),
+   perbarui contohnya jadi JL/RM01-26070001.
+
+ATURAN WAJIB HARI INI:
+- Pakai <CrudFormPage> yang sudah ada. Dilarang bikin layout form baru.
+
+DEFINITION OF DONE:
+- Settings menampilkan 4 field identitas toko dan menyimpannya
+- Tidak ada satu pun tempat di frontend yang mengurai struktur nomor dokumen
+- npm run build 0 error, npm run lint bersih
+
+SETELAH SELESAI: tampilkan daftar file yang diubah + hasil build.
+```
+
+### ✅ Verifikasi Hari 7
+
+- [ ] `JL/RM01-26070001` terbit; ganti bulan mereset ke `0001`
+- [ ] 20 pemanggilan paralel → 20 nomor unik berurutan
+- [ ] Rollback **mengembalikan** nomor (`last_number` sama sebelum/sesudah)
+- [ ] `grep -r 'INV/' src/` kosong · `grep -r 'RM01' src/` hanya di seed & test
+- [ ] `void_reason_code` + `void_reason_note` ada di semua tabel dokumen
+- [ ] Akun Pendapatan Pembulatan & `settings.rounding_multiple` **hilang**
+- [ ] Akun Diskon Penjualan · Selisih Pembayaran · Selisih Retur Pembelian **ada**
+- [ ] Settings menyimpan identitas toko
+- [ ] `./scripts/verify.sh` hijau
+
+---
+
+## Hari 8 🆕♻️ — Master Data v2 (Produk, Merek, UoM, Salesman, Gudang)
+
+### 🔧 Backend
+
+```
+KONTEKS: Hari 8 dari 37. Rework pasca-revisi klien.
+Hari 4 sudah membuat CRUD Products/Customers/Suppliers/Warehouses. Klien
+menjelaskan bentuk master data yang sebenarnya dipakai, dan bentuknya berbeda.
+Ini rework di atas kode yang sudah ada, bukan modul baru — JANGAN buat modul
+kembar, ubah yang ada.
+
+TUGAS (BACKEND):
+1. Master baru (kecil-kecil, satu layar masing-masing):
+   - brands      : kode, nama, aktif
+   - units       : kode, nama, aktif        (satuan jual/beli: DUS, RENCENG, SACHET)
+   - salesmen    : kode, nama, aktif
+2. products — ubah:
+   - Kode produk = BARCODE format YYMMDDXXXX (contoh 2401200001 = produk ke-1
+     tanggal 20 Jan 2024). Diinput manual; kalau kosong, dibangkitkan otomatis.
+     UNIK, dan DIKUNCI setelah produk dipakai di transaksi pertama.
+   - is_bkp (boolean) — menentukan apakah PPN masukan dihitung. WAJIB ADA.
+   - Nama tersusun 4 bagian: brand_id (FK) + keterangan + kemasan + ukuran&uom.
+     Contoh hasil: "Bendera Putih Sachet 37 gr".
+     Simpan keempat bagiannya PLUS kolom display_name gabungan yang TERINDEKS.
+   - Konversi satu tingkat saja: 1 <satuan besar> = N <satuan dasar>.
+     Qty disimpan dalam satuan dasar.
+   - Barcode EAN sebagai field opsional terpisah, tidak dipakai di MVP.
+3. customers: tambah ar_account_id (nullable, FK chart_of_accounts).
+   WAJIB: buat SATU fungsi bersama resolveArAccount(customer) yang
+   mengembalikan customer.ar_account_id ?? settings.default_ar_account_id.
+   Lima tempat akan memanggilnya nanti (faktur, alokasi pembayaran, retur,
+   pembalikan VOID, saldo awal). Buat sekarang, meski baru satu pemanggil.
+4. suppliers: tambah is_pkp (boolean).
+5. warehouses: rename warehouse_type CUSTOMER_CONSIGNMENT -> TITIPAN_PELANGGAN
+   (migration + seluruh referensi di kode + test).
+
+ATURAN WAJIB HARI INI:
+- Dua konsep "satuan" TIDAK BOLEH tertukar:
+  * UoM kemasan (gr, ml, kg) = bagian dari NAMA. Deskriptif. Tidak pernah dihitung.
+  * Satuan jual/beli (DUS, RENCENG) = konversi qty dan penyimpanan stok.
+  Kalau keduanya masuk ke tabel yang sama, hentikan dan tanya saya.
+- display_name WAJIB terindeks. Operator mencari produk berdasarkan nama,
+  bukan kode — ini jalur panas yang dipakai tiap baris faktur.
+- Tidak ada master kategori. Kategori diwakili merek.
+
+DEFINITION OF DONE:
+- Membuat produk dari 4 bagian terpisah menghasilkan display_name
+  "Bendera Putih Sachet 37 gr" dan bisa ditemukan lewat pencarian "bendera"
+- Mengubah kode produk yang sudah dipakai transaksi -> 400 dengan pesan
+  berbahasa Indonesia yang bisa dibaca operator
+- resolveArAccount() mengembalikan default saat ar_account_id NULL
+- grep -r 'CUSTOMER_CONSIGNMENT' src/ mengembalikan kosong
+- Migration up -> down -> up sukses di DB kosong
+
+SETELAH SELESAI:
+Jalankan ./scripts/verify.sh, tampilkan hasilnya, lalu checklist DoD [x]/[ ]
+beserta bukti.
+```
+
+### 🎨 Frontend
+
+```
+KONTEKS: Hari 8 dari 37. Backend master data v2 baru selesai.
+Setelah hari ini klien MULAI MENGISI MASTER DATA SUNGGUHAN — layar ini akan
+dipakai ratusan kali oleh orang yang bukan developer. Prioritaskan kejelasan.
+
+TUGAS (FRONTEND):
+1. Halaman Merek, Satuan (UoM), Salesman — pakai <DataTable> + <CrudFormPage>
+   yang sudah ada. Tiga halaman ini nyaris identik; tetap DILARANG copy-paste
+   layout — kalau butuh varian, tambah prop.
+2. Form Produk dirombak:
+   - 4 field terpisah (Merek dropdown, Keterangan, Kemasan, Ukuran + UoM dropdown)
+   - PREVIEW display_name yang ter-update saat mengetik, ditampilkan besar.
+     Operator harus melihat nama akhir sebelum menyimpan.
+   - Kode produk: input manual + tombol "Bangkitkan" (YYMMDDXXXX).
+     Kalau produk sudah dipakai transaksi, field jadi read-only dengan penjelasan.
+   - Checkbox is_bkp dengan label yang dimengerti orang non-pajak:
+     "Barang Kena Pajak (PPN dari supplier dihitung)"
+   - Blok konversi satuan: 1 [satuan besar] = [N] [satuan dasar]. Satu tingkat.
+3. Form Pelanggan: JANGAN tampilkan ar_account_id ke Operator.
+   Field itu hanya muncul untuk MASTER, dan dropdownnya TERSARING hanya akun
+   bertipe piutang yang aktif.
+
+ATURAN WAJIB HARI INI:
+- Bahasa UI Indonesia, jelas untuk operator toko. Hindari istilah teknis
+  ("FK", "nullable", "enum") di label mana pun.
+- Format angka lewat useRupiah()/useQty(). Tidak ada toLocaleString tersebar.
+
+DEFINITION OF DONE:
+- Mengetik di 4 field menghasilkan preview nama yang benar secara live
+- Login sebagai OPERATOR: field akun piutang tidak ada di DOM sama sekali
+- Login sebagai MASTER: dropdown akun piutang hanya berisi akun piutang aktif
+- npm run build 0 error, npm run lint bersih
+
+SETELAH SELESAI: tampilkan daftar file + hasil build + 3 screenshot alur
+(buat produk, buat merek, form pelanggan sebagai Operator).
+```
+
+### ✅ Verifikasi Hari 8
+
+- [ ] Produk "Bendera Putih Sachet 37 gr" terbentuk dari 4 bagian, `display_name` terindeks
+- [ ] Pencarian "bendera" menemukan produk itu
+- [ ] Kode produk yang sudah dipakai transaksi ditolak saat diubah
+- [ ] `is_bkp` dan `suppliers.is_pkp` ada dan tersimpan
+- [ ] `resolveArAccount()` ada dan dipakai — bukan literal akun default di modul
+- [ ] `grep -r 'CUSTOMER_CONSIGNMENT' src/` kosong
+- [ ] Operator tidak melihat field akun piutang
+- [ ] **Klien dikabari bahwa pengisian master data boleh dimulai** (tenggat internal ±20 Agu)
+- [ ] `./scripts/verify.sh` hijau
+
+---
+
+## Hari 9 🆕🔒 — Authorization Requests Berpayload + StepUpService Dinamis
+
+### 🔧 Backend
+
+```
+KONTEKS: Hari 9 dari 37. Rework pasca-revisi klien.
+Hari 5 sudah membuat authorization_requests + guard step-up + TTL 15 menit.
+Yang kurang: request tidak membawa konteks, dan approval tidak terikat ke aksi
+tertentu. Ini fondasi untuk kunci cetak (Hari 15), approval kas besar (Hari 17),
+mutasi BS->STORE (Hari 13), dan batas jual-rugi (Hari 21). Kalau salah di sini,
+keempatnya ikut salah.
+
+TUGAS (BACKEND):
+1. authorization_requests: tambah payload (JSONB) + context_summary (teks).
+   context_summary adalah kalimat yang DIBACA SUPERVISOR di layar approval,
+   contoh: "VOID faktur JL/RM01-26070042 ke Toko Makmur, Rp 4.250.000".
+2. consumeApproval() WAJIB memvalidasi ulang bahwa body request yang sedang
+   dieksekusi COCOK dengan payload yang disetujui.
+   Tanpa ini, approval Rp 1 juta bisa dipakai mengeksekusi Rp 100 juta.
+   Tentukan pencocokan per actionType, jangan deep-equal buta.
+3. expires_at (TTL 15 menit) dicek SAAT EKSEKUSI, bukan hanya saat approve.
+4. KODE STATUS: Hari 5 memakai 428, CLAUDE.md Sec.5 menyebut 412. Pilih 412 dan
+   SERAGAMKAN — ubah guard lama, <StepUpDialog>, dan semua test yang menyebut 428.
+   Dua kode berbeda untuk satu makna adalah cara termurah membuat frontend punya
+   dua jalur penanganan tanpa disadari.
+5. StepUpService.requireApproval() — dipanggil DARI DALAM SERVICE, bukan guard,
+   karena syaratnya bergantung pada ISI transaksi (nominal, akun, status), bukan
+   sekadar role. Melempar 412 dengan kontrak response yang SAMA PERSIS seperti
+   guard, supaya frontend cukup punya satu jalur penanganan.
+6. Daftar actionType yang sudah diketahui (buat enum-nya sekarang, implementasi
+   menyusul di harinya): VOID_DOCUMENT, UNLOCK_PRINT, SELL_BELOW_COST,
+   CASH_OUTFLOW, BS_TO_STORE.
+7. audit_logs: pastikan password, password_hash, token, refresh_token di-strip
+   dari before_data/after_data. Cek ulang, ini gampang bocor lewat payload baru.
+
+ATURAN WAJIB HARI INI:
+- Satu permintaan = satu persetujuan = satu eksekusi. Approval yang sudah
+  dikonsumsi tidak bisa dipakai lagi.
+- Klien MENOLAK pola supervisor mengetik password di layar operator. Alurnya:
+  operator mengajukan lewat program -> supervisor melihat di layarnya sendiri ->
+  approve -> operator lanjut. Jangan pernah membuat modal "minta password atasan".
+
+DEFINITION OF DONE:
+- Approval untuk payload Rp 1.000.000 DITOLAK saat dipakai mengeksekusi
+  Rp 100.000.000 (tulis test-nya)
+- Request yang expires_at-nya dimundurkan 16 menit DITOLAK saat eksekusi,
+  meski statusnya APPROVED
+- Approval yang sudah dikonsumsi, dipakai kedua kali -> ditolak
+- StepUpService.requireApproval() dari dalam service menghasilkan response 412
+  dengan bentuk yang identik dengan guard (bandingkan JSON-nya berdampingan)
+- audit_logs tidak memuat satu pun field rahasia
+
+SETELAH SELESAI:
+Jalankan ./scripts/verify.sh, tampilkan hasilnya, lalu checklist DoD [x]/[ ].
+```
+
+### 🎨 Frontend
+
+```
+KONTEKS: Hari 9 dari 37. Backend authorization_requests baru diperkaya.
+Supervisor selalu ada di tempat (satu jaringan LAN, bisa dihampiri langsung),
+jadi TIDAK PERLU WebSocket. Polling 5 detik sudah cukup dan jauh lebih sederhana.
+
+TUGAS (FRONTEND):
+1. Halaman Antrian Persetujuan (untuk MASTER & SUPERVISOR):
+   - daftar request menunggu, menampilkan context_summary sebagai baris utama
+   - detail memperlihatkan payload dalam bentuk yang terbaca manusia, bukan JSON mentah
+   - tombol Setujui / Tolak, alasan wajib saat menolak
+   - sisa waktu TTL tampil dan menghitung mundur
+   - polling 5 detik
+2. <StepUpDialog> dari Hari 7 lama SUDAH ADA — jangan bikin komponen baru.
+   Perluas isinya: tampilkan context_summary, dan tangani 412 dari MANA PUN
+   (guard maupun dari dalam service) lewat SATU alur:
+   tampilkan modal "Menunggu persetujuan supervisor" -> polling status ->
+   begitu APPROVED, ULANGI request otomatis dengan header/token approval.
+3. Modal itu harus bisa dibatalkan operator tanpa menggantung request.
+
+ATURAN WAJIB HARI INI:
+- Dilarang membuat dua jalur penanganan 412. Satu komponen, dipakai semua modul.
+- Ganti seluruh referensi 428 yang tersisa dari Hari 5. Grep-lah, jangan mengandalkan ingatan.
+- Jangan tampilkan angka batas apa pun yang tidak boleh dilihat operator
+  (contoh: ambang kas besar, harga pokok). Modal cukup bilang butuh persetujuan.
+
+DEFINITION OF DONE:
+- Operator memicu aksi yang butuh step-up -> modal muncul
+- Supervisor approve di layarnya -> dalam <=5 detik modal operator lanjut sendiri
+- Supervisor menolak -> operator melihat alasannya
+- TTL habis saat modal terbuka -> operator diberi tahu, tidak menggantung
+- npm run build 0 error, npm run lint bersih
+
+SETELAH SELESAI: tampilkan daftar file + hasil build + rekaman alur dua layar
+(operator meminta, supervisor menyetujui).
+```
+
+### ✅ Verifikasi Hari 9
+
+- [ ] Approval Rp 1 jt ditolak untuk eksekusi Rp 100 jt (ada test-nya)
+- [ ] Approval kedaluwarsa ditolak **saat eksekusi**
+- [ ] Approval yang sudah dikonsumsi tidak bisa dipakai ulang
+- [ ] 412 dari guard dan dari dalam service punya bentuk response identik
+- [ ] `<StepUpDialog>` yang sudah ada dipakai ulang, bukan komponen kembar
+- [ ] Tidak ada lagi `428` tersisa di BE maupun FE (grep bersih)
+- [ ] Tidak ada modal "ketik password supervisor" di mana pun
+- [ ] `audit_logs` bersih dari field rahasia
+- [ ] `./scripts/verify.sh` hijau
+
+---
+---
+
+# FASE 3 — ENGINE INTI, LANJUTAN (Hari 10–13)
+
+---
+
+## Hari 10 🔒 — Stock Recorder + FIFO  *(v2: Hari 7)*
+
+### 🔧 Backend
+
+```
+KONTEKS: Hari 10 dari 37. JANTUNG PERSEDIAAN. Blocker bagi semua modul transaksi.
 
 TUGAS (BACKEND):
 1. Migration:
@@ -675,2166 +1060,2168 @@ TUGAS (BACKEND):
      qty_base_unit NUMERIC(16,4) (positif=masuk, negatif=keluar),
      unit_cost NUMERIC(16,4), source_type, source_id, movement_date, created_by, timestamps
    `product_stock_balance`: product_id + warehouse_id (PK gabungan),
-     qty_base_unit NUMERIC(16,4), updated_at  ← ini CACHE, bukan sumber kebenaran
-   `stock_cost_lots`: id, product_id, warehouse_id, lot_date, qty_in NUMERIC(16,4),
-     qty_remaining NUMERIC(16,4), unit_cost NUMERIC(16,4), source_type, source_id, timestamps
-   `stock_cost_consumptions`: id, lot_id, movement_id, qty NUMERIC(16,4),
-     unit_cost NUMERIC(16,4), timestamps
+     qty_base_unit NUMERIC(16,4), updated_at   <- ini CACHE, bukan sumber kebenaran
+   `stock_cost_lots`: id, product_id, warehouse_id, lot_date, qty_in, qty_remaining,
+     unit_cost NUMERIC(16,4), supplier_id (NULLABLE, FK suppliers), source_type,
+     source_id, timestamps
+   `stock_cost_consumptions`: id, lot_id, movement_id, qty, unit_cost, timestamps
+
+   CATATAN supplier_id: klien meminta lot melacak supplier asal, karena retur
+   pembelian (Hari 16) memilih supplier dulu lalu menyaring daftar bad stock ke
+   produk yang pernah dibeli dari supplier itu. Lot dari retur pelanggan NULL.
 
 2. src/core/stock-recorder/stock-recorder.service.ts — semua menerima EntityManager:
 
-   recordIn(dto, manager): membuat movement (+), lot baru, update balance
-     - lot_date DIISI PEMANGGIL (untuk pembelian = receipt_date, bukan tanggal invoice)
+   recordIn(dto, manager): movement (+), lot baru, update balance
+     - lot_date DIISI PEMANGGIL. Untuk pembelian = receipt_date (tanggal terima
+       barang), BUKAN tanggal faktur supplier. Kalau tertukar, urutan FIFO
+       mengikuti tanggal yang salah tanpa satu pun error muncul.
 
    recordOut(dto, manager): { movement, totalCost, consumptions, stockWarning? }
      - SELECT * FROM stock_cost_lots
        WHERE product_id=$1 AND warehouse_id=$2 AND qty_remaining > 0
        ORDER BY lot_date ASC, id ASC
-       FOR UPDATE                                   ← row-lock WAJIB
-     - konsumsi lot tertua dulu, catat di stock_cost_consumptions,
-       decrement qty_remaining lewat UPDATE (trigger updated_at generik yang mengurus timestamp)
-     - kalau lot habis tapi qty masih kurang → JANGAN TOLAK:
+       FOR UPDATE                                   <- row-lock WAJIB
+     - konsumsi lot tertua dulu, catat di stock_cost_consumptions
+     - lot habis tapi qty masih kurang -> JANGAN TOLAK:
        * sisa qty pakai unit_cost dari lot terakhir yang diketahui produk itu
-         (kalau tidak ada sama sekali → 0, dan warning-nya lebih keras)
+         YANG unit_cost > 0. Lot bonus berharga nol WAJIB DILEWATI.
        * balance boleh negatif
        * return.stockWarning = "Stok <produk> di <gudang> minus <n> <satuan>"
 
-   transfer(dto, manager): 2 baris movement (keluar dari asal, masuk ke tujuan),
-     lot ikut pindah dengan unit_cost SAMA (bukan lot baru berharga baru).
-     Tidak menghasilkan jurnal.
+   transfer(dto, manager): 2 baris movement, lot ikut pindah dengan unit_cost SAMA
+     (bukan lot baru berharga baru). Tidak menghasilkan jurnal.
 
-   reconcile(productId?, warehouseId?): membandingkan SUM(stock_movements.qty_base_unit)
-     dengan product_stock_balance dan melaporkan selisih.
+   getLatestCostBasis(productId, manager): unit_cost lot TERBARU yang unit_cost > 0.
+     Fungsi ini dipakai dua tempat: fallback stok minus (di atas) dan batas jual
+     di bawah harga pokok (Hari 21). Buat SEKALI di sini, jangan diduplikasi nanti.
+
+   reconcile(productId?, warehouseId?): bandingkan SUM(stock_movements.qty_base_unit)
+     dengan product_stock_balance dan laporkan selisih.
 
 3. Utility formatQtyBreakdown(qtyBase, productId): "12 dus 15 renceng"
-   memakai product_unit_conversions, dari satuan terbesar. Sisa nol tidak ditampilkan.
+   memakai konversi satu tingkat. Sisa nol tidak ditampilkan.
 
-ATURAN WAJIB:
-- SEMUA perubahan stok lewat service ini. Tidak ada modul lain yang UPDATE balance langsung.
-- FOR UPDATE wajib, bukan opsional. Tanpa itu, dua transaksi bersamaan merusak FIFO.
+ATURAN WAJIB HARI INI:
+- SEMUA perubahan stok lewat service ini. Tidak ada modul lain yang UPDATE balance.
+- FOR UPDATE wajib, bukan opsional. Tanpa itu dua transaksi bersamaan merusak FIFO.
+- Aturan "lewati lot berharga nol" berlaku SETIAP KALI mencari lot terbaru sebagai
+  DASAR BIAYA. Tanpa ini, satu pembelian berbonus mematikan batas jual-rugi sampai
+  lot bonusnya habis, dan tidak ada error apa pun yang memberi tahu.
 
 DEFINITION OF DONE (integration test, bukan unit test bermock):
 - masuk 10@1000 (lot 01/08), masuk 10@1200 (lot 03/08), keluar 15
-  → totalCost = 10×1000 + 5×1200 = 16.000; lot pertama qty_remaining=0; kedua=5
-- keluar melebihi total stok → berhasil, balance negatif, response ada stockWarning
-- transfer 5 unit → 2 movement, lot di gudang tujuan ber-unit_cost identik
-- test konkurensi: 2 pengeluaran paralel atas produk sama tidak menghasilkan
-  konsumsi lot yang tumpang tindih (total konsumsi = total yang keluar)
-- formatQtyBreakdown(12.75, produk dgn 1 dus = 20 renceng) → "12 dus 15 renceng"
+  -> totalCost = 16.000; lot pertama qty_remaining=0; kedua=5
+- keluar melebihi total stok -> berhasil, balance negatif, ada stockWarning
+- transfer 5 unit -> 2 movement, lot tujuan ber-unit_cost identik
+- 2 pengeluaran paralel atas produk sama -> konsumsi lot tidak tumpang tindih
+- getLatestCostBasis MELEWATI lot ber-unit_cost 0 dan mengembalikan lot berbayar
+  terakhir (tulis test khusus untuk ini)
+- formatQtyBreakdown(255, produk 1 dus = 20 renceng) -> "12 dus 15 renceng"
 
-SETELAH SELESAI: tampilkan isi tabel lots & consumptions setelah skenario FIFO di atas.
+SETELAH SELESAI: tampilkan isi tabel lots & consumptions setelah skenario FIFO.
 ```
 
 ### 🎨 Frontend
 
 ```
-KONTEKS: Hari 7 dari 34.
+KONTEKS: Hari 10 dari 37. Halaman antrian persetujuan sudah dibuat Hari 9.
+Hari ini hanya menyempurnakannya dengan data nyata.
 
 TUGAS (FRONTEND):
-1. Halaman Authorization Requests:
-   - antrian PENDING (default), tab untuk semua status
-   - kolom: waktu, pemohon, jenis aksi, alasan, sisa waktu (countdown ke expires_at)
-   - modal approve/reject dengan field alasan wajib saat reject
-   - baris yang sudah kedaluwarsa tampil abu-abu dan tombolnya nonaktif
-   - polling ringan (10 detik) supaya approver tidak perlu refresh manual
-2. Komponen <StepUpDialog> yang reusable: dipanggil saat API mengembalikan 428.
-   Isinya: penjelasan aksi, input alasan, tombol "Minta Persetujuan",
-   lalu status menunggu + countdown, dan otomatis melanjutkan aksi saat disetujui.
-   Komponen ini akan dipakai semua tombol VOID nanti — buat sekali, pakai selamanya.
+1. Halaman Authorization Requests: tab semua status, baris kedaluwarsa tampil
+   abu-abu dan tombolnya nonaktif, countdown ke expires_at.
+2. Komponen <StockBadge>: menampilkan sisa stok dalam bentuk pecahan satuan
+   ("12 dus 15 renceng") dari endpoint. Akan dipakai di form penjualan Hari 20.
+   Buat sekarang selagi longgar.
+3. Rapikan utang teknis kecil dari Hari 1-9: <PageHeader> di semua halaman,
+   empty state, breadcrumb.
 
 DEFINITION OF DONE:
-- Countdown berjalan dan baris otomatis nonaktif saat mencapai 0
-- <StepUpDialog> berhasil menjalankan alur end-to-end dengan endpoint dummy
+- Countdown berjalan, baris nonaktif otomatis saat mencapai 0
+- <StockBadge> menampilkan pecahan satuan, bukan desimal
+- npm run build 0 error, npm run lint bersih
 ```
 
-### ✅ Verifikasi Hari 7
+### ✅ Verifikasi Hari 10
 
 - [ ] FIFO mengambil lot `lot_date` tertua — dibuktikan isi tabel consumptions
 - [ ] Stok minus jalan + `stockWarning`, **tidak** ditolak
 - [ ] `FOR UPDATE` ada di query lot (cek kode, bukan asumsi)
 - [ ] Test konkurensi 2 pengeluaran paralel hijau
-- [ ] Transfer memindahkan lot dengan `unit_cost` sama
+- [ ] `getLatestCostBasis()` **melewati** lot berharga nol — ada test khususnya
+- [ ] `stock_cost_lots.supplier_id` ada dan nullable
 - [ ] `formatQtyBreakdown` → "12 dus 15 renceng"
 - [ ] `./scripts/verify.sh` hijau
 
 ---
 
-## Hari 8 ⚠️ — Integration Test 4 Invarian + VOID Engine
+## Hari 11 ⚠️🔒 — Integration Test 5 Invarian + VOID Engine  *(v2: Hari 8)*
 
-> Hari dengan ROI tertinggi di seluruh proyek. Empat test ini adalah satu-satunya
-> alasan refactor di minggu ke-3 masih aman. **Jangan dipotong, jangan ditunda.**
+> Hari dengan ROI tertinggi di seluruh proyek. Test ini satu-satunya alasan refactor
+> di minggu ke-3 masih aman. **Jangan dipotong, jangan ditunda.**
+> `CLAUDE.md` §7 dan §8 masih menyebut hari ini sebagai "Hari 8" — patch saat sempat.
 
 ### 🔧 Backend
 
 ```
-KONTEKS: Hari 8 dari 34. Engine (Journal Poster + Stock Recorder) sudah lengkap.
+KONTEKS: Hari 11 dari 37. Engine (Journal Poster + Stock Recorder) sudah lengkap.
 
 TUGAS (BACKEND):
 
-A. INTEGRATION TEST 4 INVARIAN — pakai DB test sungguhan, bukan mock.
-   Setup: seed COA + 1 produk (3 satuan) + 1 customer + 1 supplier + 2 gudang.
+A. INTEGRATION TEST 5 INVARIAN — DB test sungguhan, bukan mock.
+   Setup: seed COA + 1 produk (2 satuan) + 1 customer + 1 supplier PKP + 2 gudang.
 
    TEST 1 — Jurnal balance
-     Untuk SETIAP journal_entry yang ada di DB setelah rangkaian transaksi:
-     SUM(debit_amount) = SUM(credit_amount). Tidak ada pengecualian.
+     Untuk SETIAP journal_entry: SUM(debit) = SUM(credit). Tanpa pengecualian.
 
    TEST 2 — FIFO urut
-     Buat 3 lot dengan lot_date berbeda (sengaja diinput tidak berurutan).
-     Lakukan pengeluaran bertahap. Assert: stock_cost_consumptions selalu
-     merujuk lot dengan lot_date tertua yang masih bersisa saat itu.
+     3 lot dengan lot_date berbeda, sengaja diinput tidak berurutan.
+     Assert konsumsi selalu merujuk lot_date tertua yang masih bersisa.
 
    TEST 3 — VOID simetris
-     Untuk dokumen yang di-VOID: jurnal pembalik punya jumlah baris sama,
-     setiap baris debit asal jadi kredit dengan nominal identik dan sebaliknya,
-     dan entry_date jurnal pembalik = HARI INI (bukan tanggal dokumen asli).
+     Jurnal pembalik: jumlah baris sama, debit<->kredit ditukar dengan nominal
+     identik, dan entry_date = HARI INI (bukan tanggal dokumen asli).
 
    TEST 4 — Stok rekonsiliasi
-     Rangkaian: purchase → sale → return → void.
-     Assert: SUM(stock_movements.qty_base_unit) per (product, warehouse)
+     Rangkaian purchase -> sale -> return -> void.
+     SUM(stock_movements.qty_base_unit) per (product, warehouse)
      = product_stock_balance.qty_base_unit, selisih 0 (bukan toleransi).
 
-   Keempatnya masuk `npm run test` default dan ke CI/pre-push hook.
-   Waktu jalan harus < 60 detik supaya tidak ada godaan men-skip-nya.
+   TEST 5 — Persediaan cocok dengan lot        <- BARU, konsekuensi revisi klien
+     Sum(stock_cost_lots.qty_remaining * unit_cost) untuk gudang bernilai
+     = saldo akun Persediaan di buku besar.
+     Inilah invarian yang merah duluan kalau diskon pembelian salah masuk jurnal,
+     atau kalau PPN masukan tidak dikapitalisasi ke harga pokok lot.
+
+   Kelimanya masuk `npm run test` default dan ke pre-push hook.
+   Waktu jalan < 60 detik supaya tidak ada godaan men-skip.
 
 B. VOID ENGINE GENERIK — src/core/void/void.service.ts
-   voidDocument(sourceType, sourceId, reason, userId, manager):
-   1. cek dokumen belum pernah di-VOID (idempoten: VOID kedua → error jelas)
-   2. cek prasyarat spesifik per tipe (hook per modul, mis. invoice sudah dibayar?)
-   3. balik jurnal: ambil semua lines jurnal asal, buat entry baru dengan
-      debit↔credit ditukar, is_reversal=true, reversed_entry_id terisi,
-      entry_date = HARI INI
+   voidDocument(sourceType, sourceId, reasonCode, reasonNote, userId, manager):
+   1. cek belum pernah di-VOID (idempoten: VOID kedua -> error jelas)
+   2. cek prasyarat spesifik per tipe (hook per modul)
+   3. balik jurnal: entry baru, debit<->kredit ditukar, is_reversal=true,
+      reversed_entry_id terisi, entry_date = HARI INI
    4. balik stok:
-      - kalau dokumen menghasilkan lot (pembelian): kurangi qty_remaining lot itu.
-        Kalau lot SUDAH TERKONSUMSI sebagian → tolak VOID dengan pesan
+      - dokumen menghasilkan lot (pembelian): kurangi qty_remaining lot itu.
+        Kalau lot SUDAH TERKONSUMSI sebagian -> tolak dengan pesan
         "Barang dari faktur ini sudah terjual. Buat retur pembelian, bukan pembatalan."
-      - kalau dokumen mengonsumsi lot (penjualan): kembalikan qty_remaining
-        ke lot-lot asal sesuai stock_cost_consumptions (bukan lot baru)
-   5. tandai dokumen status VOID + void_reason + voided_by + voided_at.
-      TIDAK menghapus baris.
+      - dokumen mengonsumsi lot (penjualan): kembalikan qty_remaining ke lot ASAL
+        sesuai stock_cost_consumptions, bukan membuat lot baru
+   5. tandai status VOIDED + void_reason_code + void_reason_note (WAJIB terisi)
+      + voided_by + voided_at. TIDAK menghapus baris.
 
-C. Wiring step-up end-to-end dengan satu dummy action (POST /dev/dummy-void)
-   untuk membuktikan alur 428 → request → approve → retry → sukses.
+C. Wiring step-up end-to-end dengan satu dummy action untuk membuktikan alur
+   412 -> request -> approve -> retry -> sukses.
 
-ATURAN WAJIB:
+ATURAN WAJIB HARI INI:
 - VOID tidak pernah menghapus data.
-- Jurnal pembalik bertanggal hari ini. Ini sudah keputusan, jangan diperdebatkan ulang.
+- Jurnal pembalik bertanggal hari ini. Konsekuensi yang DISENGAJA: mem-VOID
+  dokumen lama tidak pernah mengubah angka bulan yang sudah ditutup. Inilah yang
+  membuat tutup bulan (Hari 23A) aman. Jangan "diperbaiki".
 
 DEFINITION OF DONE:
-- 4 test hijau dan otomatis jalan lewat `npm run test`
-- VOID atas dokumen yang lotnya sudah terkonsumsi → ditolak dengan pesan jelas
-- VOID dua kali → ditolak
-- Alur step-up dummy: 428 → approve → retry → 200
+- 5 test hijau, otomatis lewat `npm run test`, < 60 detik
+- VOID atas dokumen yang lotnya sudah terkonsumsi -> ditolak dengan pesan jelas
+- VOID dua kali -> ditolak
+- VOID tanpa void_reason_note -> ditolak
+- Alur step-up dummy: 412 -> approve -> retry -> 200
 
 SETELAH SELESAI:
 Tampilkan output `npm run test` lengkap dan durasinya.
-Lalu: MINTA SAYA MENJADWALKAN REVIEW KODE EKSTERNAL 2 JAM — engine sudah lengkap,
+Lalu MINTA SAYA MENJADWALKAN REVIEW KODE EKSTERNAL 2 JAM — engine sudah lengkap,
 ini titik dengan ROI review tertinggi di seluruh proyek.
 ```
 
 ### 🎨 Frontend
 
 ```
-KONTEKS: Hari 8 dari 34. Hari ringan di FE — sengaja, karena BE berat.
+KONTEKS: Hari 11 dari 37. Hari ringan di FE — sengaja, karena BE berat.
 
 TUGAS (FRONTEND):
-1. Dashboard placeholder yang jujur: kartu-kartu kosong dengan label
-   "Penjualan Hari Ini", "Piutang Jatuh Tempo", "Stok Minus", "Persetujuan Menunggu",
-   masing-masing menampilkan "—" dan tautan ke halaman terkait.
-   Hanya kartu "Persetujuan Menunggu" yang diisi data sungguhan hari ini
-   (endpoint authorization-requests sudah ada).
-2. Rapikan utang teknis kecil dari Hari 1–7: konsistensi spacing, judul halaman,
-   breadcrumb, empty state. Ini satu-satunya hari yang longgar sampai Hari 15.
-3. Tambahkan komponen <PageHeader> (judul + deskripsi + slot aksi) dan
-   pakai di semua halaman yang sudah ada.
+1. Dashboard placeholder yang jujur: kartu "Penjualan Hari Ini", "Piutang Jatuh
+   Tempo", "Stok Minus", "Persetujuan Menunggu" berisi "—" + tautan.
+   Hanya "Persetujuan Menunggu" yang diisi data sungguhan.
+2. PENTING: dashboard hanya untuk MASTER dan OPERATOR.
+   SUPERVISOR TIDAK PUNYA DASHBOARD — navigasinya hanya 3 item:
+   Pengecekan Invoice, Antrian Persetujuan, Laporan.
+   Terapkan sekarang di app/config/navigation.ts, jangan ditunda ke Hari 22A.
+3. Rapikan utang teknis kecil. Ini hari longgar terakhir sampai Hari 18.
 
 DEFINITION OF DONE:
 - Dashboard tidak menampilkan angka palsu/hardcode
-- Semua halaman existing memakai <PageHeader>
+- Login sebagai SUPERVISOR: sidebar hanya 3 item, / mengarahkan ke Pengecekan
+- npm run build 0 error
 ```
 
-### ✅ Verifikasi Hari 8
+### ✅ Verifikasi Hari 11
 
-- [ ] 4 invarian hijau, jalan otomatis, < 60 detik
-- [ ] VOID membalik persis, bertanggal hari ini
+- [ ] 5 invarian hijau, jalan otomatis, < 60 detik
+- [ ] Invarian ke-5 (Σ nilai lot = saldo Persediaan) hijau
+- [ ] VOID membalik persis, bertanggal **hari ini**
 - [ ] VOID atas lot terkonsumsi ditolak dengan pesan yang dimengerti operator
-- [ ] Alur step-up dummy tuntas
-- [ ] Dashboard tanpa angka palsu
+- [ ] VOID tanpa alasan ditolak
+- [ ] Supervisor tidak punya dashboard
 - [ ] **Jadwalkan review kode eksternal 2 jam** ← jangan dilewati
 - [ ] `./scripts/verify.sh` hijau
 
 ---
 
-## Hari 9 — Jurnal Manual + Saldo Awal
+## Hari 12 🛑 — Jurnal Manual + Saldo Awal  *(v2: Hari 9)*
 
 ### 🔧 Backend
 
 ```
-KONTEKS: Hari 9 dari 34. Journal Poster, Stock Recorder, VOID Engine sudah ada.
+KONTEKS: Hari 12 dari 37.
+
+BERHENTI DAN BACA DULU: bentuk Saldo Awal belum dibahas dengan klien
+(KONTEKS_REVISI Sec.4.1). Yang boleh dikerjakan hari ini: skema + endpoint +
+mesin di baliknya. Yang HARUS ditunda: bentuk layar impornya dan format file
+yang diterima. Kalau kamu merasa perlu menebak bentuk inputnya, berhenti dan
+tanya saya.
 
 TUGAS (BACKEND):
+1. Jurnal Manual (MASTER only):
+   - POST /journal-entries/manual lewat JournalPosterService
+   - TOLAK baris yang menyentuh akun Persediaan, Piutang, Hutang — meski Master.
+     Alasannya: ketiganya punya sub-ledger (lot, per-pelanggan, per-supplier).
+     Jurnal manual ke sana membuat buku besar dan sub-ledger berpisah diam-diam,
+     dan invarian 4 & 5 Hari 11 yang akan menemukannya, bukan penggunanya.
+2. Saldo Awal terpadu — SATU alur, bukan dua:
+   - saldo awal stok: membuat lot pembuka (movement_type 'opening') DAN jurnal
+     pembuka dari ANGKA YANG SAMA. Dilarang dua input terpisah.
+   - saldo awal piutang per pelanggan -> lewat resolveArAccount()
+   - saldo awal hutang per supplier
+   - semuanya bertanggal 1 SEPTEMBER 2026 (hari cut-over), dapat dikonfigurasi
+   - PENGECUALIAN TANGGAL: saldo awal diinput Hari 36 (29 Agustus) tapi bertanggal
+     1 September, jadi tanggalnya ADA DI DEPAN tanggal input. Kecualikan alur ini
+     secara EKSPLISIT dari PeriodLockValidator — jangan melonggarkan validatornya
+     untuk semua modul. Satu pengecualian bernama, bukan satu lubang.
+3. Endpoint pengecekan: GET /opening-balance/verify yang membandingkan
+   Sigma nilai lot pembuka dengan saldo akun Persediaan hasil jurnal pembuka.
 
-A. JURNAL MANUAL (MASTER only)
-   POST /manual-journals { entryDate, description, lines: [...] }
-   - lewat JournalPosterService (jangan duplikasi validasi)
-   - BLOKIR akun bertipe Persediaan, Piutang Usaha, Hutang Usaha → 403 dengan pesan:
-     "Akun <nama> hanya boleh berubah lewat transaksi. Gunakan modul terkait."
-     Blokir berdasarkan account_type/flag di COA, BUKAN berdasarkan kode akun
-     yang di-hardcode — Master bisa membuat akun piutang custom nanti.
-   - VOID manual journal juga tersedia (reversing biasa)
-
-B. ALUR SALDO AWAL TERPADU (MASTER only) — ini yang paling rawan salah
-   POST /opening-balance {
-     asOfDate,
-     stocks: [{ productId, warehouseId, qty, unitCost }],
-     accounts: [{ accountId, debit, credit }]      // kas, bank, modal, dll
-   }
-   Dalam SATU transaction:
-   1. untuk tiap stock: stockRecorder.recordIn(type='opening', lot_date=asOfDate,
-      unit_cost=unitCost)
-   2. hitung totalPersediaan = Σ(qty × unitCost)
-   3. susun jurnal pembuka: Persediaan (D) totalPersediaan + baris accounts,
-      selisihnya ke Modal Awal (K/D) supaya balance
-   4. post lewat JournalPosterService
-   ANGKA YANG SAMA menghasilkan lot DAN jurnal. Tidak boleh ada dua sumber angka.
-
-   Validasi:
-   - hanya boleh dijalankan sekali; kedua kalinya → error kecuali yang pertama di-VOID
-   - qty > 0, unitCost >= 0
-   - asOfDate boleh backdate bebas (KECUALIKAN dari aturan backdate 2 hari —
-     saldo awal memang bertanggal sebelum go-live). Buat pengecualian ini eksplisit
-     dan beri komentar di kode kenapa.
-
-   GET /opening-balance/verification → { totalNilaiLot, saldoGLPersediaan, selisih }
-   Ini dipakai saat go-live untuk membuktikan keduanya cocok.
+ATURAN WAJIB HARI INI:
+- Saldo awal WAJIB memakai StockRecorder dan JournalPoster yang sama dengan
+  transaksi biasa. Tidak ada jalur khusus yang menulis langsung ke tabel.
 
 DEFINITION OF DONE:
-- jurnal manual ke akun Persediaan → 403 dengan pesan yang benar
-- jurnal manual ke akun Biaya Operasional → sukses
-- SUPERVISOR/OPERATOR akses jurnal manual → 403
-- saldo awal 3 produk → total nilai lot PERSIS = saldo GL Persediaan (selisih 0,00)
-- endpoint verification melaporkan selisih 0
-- saldo awal kedua kali → ditolak
+- Jurnal manual ke akun Persediaan -> 403 dengan pesan yang menjelaskan kenapa
+- Saldo awal 3 produk menghasilkan 3 lot DAN 1 jurnal pembuka yang nilainya
+  PERSIS sama (dibuktikan lewat invarian ke-5 Hari 11, bukan hitung manual)
+- GET /opening-balance/verify mengembalikan selisih 0
 
-SETELAH SELESAI: tampilkan output endpoint verification setelah menginput
-saldo awal 3 produk dengan harga pecahan (mis. 1.234,5678) — buktikan
-pembulatan tidak menciptakan selisih.
+SETELAH SELESAI: verify.sh + checklist DoD + daftar pertanyaan yang perlu saya
+tanyakan ke klien soal bentuk input saldo awal.
 ```
 
 ### 🎨 Frontend
 
 ```
-KONTEKS: Hari 9 dari 34.
+KONTEKS: Hari 12 dari 37. Bentuk layar impor saldo awal BELUM diputuskan klien.
 
 TUGAS (FRONTEND):
-1. Halaman Jurnal Manual (MASTER only):
-   - repeater baris: akun (autocomplete), debit, kredit, keterangan
-   - akun yang diblokir TIDAK MUNCUL di autocomplete sama sekali
-     (lebih baik daripada muncul lalu ditolak server)
-   - total debit & kredit live di footer, dengan indikator merah/hijau
-     dan selisihnya ditampilkan; tombol simpan nonaktif selama tidak balance
-   - Enter di baris terakhir menambah baris
-2. Halaman Saldo Awal (MASTER only) — wizard 3 langkah:
-   Langkah 1: input stok (repeater: produk, gudang, qty, harga pokok satuan)
-              dengan total nilai persediaan live
-   Langkah 2: input saldo akun kas/bank/lainnya
-   Langkah 3: RINGKASAN — tampilkan jurnal pembuka yang AKAN dibuat,
-              lengkap dengan baris penyeimbang ke Modal, dan peringatan
-              "Saldo awal hanya bisa diinput sekali. Periksa kembali sebelum menyimpan."
-3. Setelah tersimpan, tampilkan hasil verifikasi (total lot vs GL) di layar.
+1. HALAMAN JURNAL MANUAL DITUNDA KE PASCA-MVP (keputusan 29 Juli).
+   Endpoint-nya tetap dibangun hari ini di backend; layarnya menyusul setelah
+   30 Agustus. Master tidak akan memakai jurnal manual di bulan pertama —
+   dan kalaupun perlu, ada saya.
+2. Halaman Saldo Awal: bentuk PALING SEDERHANA dulu — tabel input manual
+   (produk, qty, harga pokok) dengan <DataTable> yang sudah ada.
+   JANGAN membangun importir Excel hari ini. Klien belum memutuskan bentuknya
+   dan mengetik ulang importir lebih mahal daripada menunggu.
+3. Tampilkan hasil GET /opening-balance/verify sebagai banner di halaman itu.
 
 DEFINITION OF DONE:
-- Tombol simpan jurnal manual nonaktif selama tidak balance
-- Akun Persediaan/Piutang/Hutang tidak muncul di autocomplete
-- Wizard saldo awal menampilkan preview jurnal sebelum disimpan
-```
-
-### ✅ Verifikasi Hari 9
-
-- [ ] Jurnal manual ke Persediaan → 403
-- [ ] Saldo awal: nilai lot = jurnal pembuka, selisih 0,00
-- [ ] Endpoint verification melaporkan selisih 0
-- [ ] Saldo awal tidak bisa diinput dua kali
-- [ ] UI: tombol simpan terkunci saat tidak balance
-- [ ] `./scripts/verify.sh` hijau
-
----
-
-## Hari 10 — Warehouse Mutation Bercabang
-
-### 🔧 Backend
-
-```
-KONTEKS: Hari 10 dari 34. Ini logika bercabang yang paling mudah salah dipahami.
-Baca ulang CLAUDE.md §3 bagian warehouse_type sebelum menulis kode.
-
-TUGAS (BACKEND):
-1. Migration `warehouse_mutations`: id, mutation_number, product_id,
-   from_warehouse_id, to_warehouse_id, qty_base_unit, mutation_date,
-   customer_id (nullable, untuk titipan), notes, created_by, status, timestamps
-
-2. POST /warehouse-mutations — BERCABANG berdasarkan tipe gudang TUJUAN:
-
-   IF toWarehouse.warehouse_type == 'CUSTOMER_CONSIGNMENT':
-       // Lapisan 2 murni. Stok perusahaan SUDAH berkurang saat Sales Invoice.
-       validasi: SUM(qty mutasi ke gudang titip customer ini untuk produk ini)
-                 + qty baru <= SUM(qty produk ini yang sudah DIBELI customer tsb
-                                   lewat sales_invoices yang tidak VOID)
-                 kalau lebih → 400 "Melebihi jumlah yang dibeli customer (dibeli: X, sudah dititip: Y)"
-       INSERT warehouse_mutations
-       // TIDAK menyentuh stock_movements / product_stock_balance / stock_cost_lots
-       // TIDAK ada jurnal
-
-   ELSE ('STORE' atau 'BAD_STOCK'):
-       INSERT warehouse_mutations
-       stockRecorder.transfer(...)   // 2 baris movement, lot ikut pindah, unit_cost sama
-       // TIDAK ada jurnal — akun Persediaan tidak berubah
-
-3. Get-or-create gudang titip:
-   POST /warehouses/consignment/:customerId → kalau belum ada, buat otomatis
-   dengan nama "Titipan — <nama customer>", type CUSTOMER_CONSIGNMENT.
-   Dipanggil dari form mutasi supaya operator tidak perlu bikin gudang manual.
-
-4. GET /warehouse-mutations (list + filter) dan GET /:id.
-   VOID mutasi: untuk STORE/BAD_STOCK → transfer balik; untuk CONSIGNMENT →
-   cukup tandai VOID (tidak ada stok yang perlu dikembalikan).
-
-ATURAN WAJIB:
-- Jangan menyatukan dua cabang itu dengan flag. Tulis dua jalur eksplisit
-  dengan komentar kenapa berbeda. Orang berikutnya (termasuk saya bulan depan)
-  akan membacanya.
-
-DEFINITION OF DONE (test masing-masing cabang):
-- mutasi ke BAD_STOCK: 2 baris stock_movements type 'transfer', lot di gudang
-  tujuan punya unit_cost IDENTIK dengan lot asal, tidak ada journal_entry baru
-- mutasi ke CUSTOMER_CONSIGNMENT: 0 baris stock_movements, 0 journal_entry,
-  hanya 1 baris warehouse_mutations
-- mutasi titip melebihi qty dibeli → 400 dengan angka pembanding di pesan
-- get-or-create gudang titip: panggilan kedua mengembalikan gudang yang sama
-
-SETELAH SELESAI: tampilkan jumlah baris di stock_movements, journal_entries,
-dan warehouse_mutations sebelum & sesudah masing-masing cabang.
-```
-
-### 🎨 Frontend
-
-```
-KONTEKS: Hari 10 dari 34.
-
-TUGAS (FRONTEND):
-1. Halaman Mutasi Gudang (form + riwayat):
-   - pilih produk (autocomplete), gudang asal, gudang tujuan, qty
-   - qty diinput per SATUAN PILIHAN (dus/renceng/pcs), bukan base unit —
-     konversi dilakukan di FE dan dikirim sebagai base unit,
-     tapi tampilkan hasil konversinya di bawah field ("= 255 pcs") supaya operator yakin
-   - saat gudang tujuan bertipe CUSTOMER_CONSIGNMENT: muncul pilihan customer
-     + panel info "Sudah dibeli: X · Sudah dititip: Y · Sisa boleh dititip: Z"
-   - saat gudang tujuan bertipe BAD_STOCK: muncul peringatan
-     "Barang tetap dinilai penuh di pembukuan."
-   - tampilkan stok tersedia di gudang asal secara live, dalam satuan pecahan
-2. Riwayat mutasi memakai <DataTable> dengan filter tanggal, produk, gudang, tipe.
-
-DEFINITION OF DONE:
-- Panel info titipan menampilkan angka benar dan mencegah submit yang melebihi
-- Konversi satuan tampil dan benar
-- Riwayat menampilkan kedua jenis mutasi dengan penanda visual berbeda
-
-CATATAN: hari ini juga lakukan UJI MANUAL CRUD END-TO-END seluruh master data
-di browser (products, customers, suppliers, warehouses, settings). Catat temuan
-sebagai daftar, jangan langsung diperbaiki — masukkan ke UAT minggu 2.
-```
-
-### ✅ Verifikasi Hari 10
-
-- [ ] Mutasi ke CONSIGNMENT: **0** `stock_movements`, **0** jurnal
-- [ ] Mutasi ke BAD_STOCK: 2 movement `transfer`, lot pindah dengan harga pokok sama
-- [ ] Mutasi titip melebihi qty dibeli → ditolak
-- [ ] Get-or-create gudang titip idempoten
-- [ ] Uji manual CRUD end-to-end selesai, temuan tercatat
-- [ ] `./scripts/verify.sh` hijau
-- [ ] **UAT Minggu 2 dijadwalkan (~9 Agu) bersama Master DAN operator**
-
----
----
-
-# FASE 3 — PEMBELIAN (Hari 11–15)
-
-## Hari 11 — Purchase Invoice (alur penuh)
-
-### 🔧 Backend
-
-```
-KONTEKS: Hari 11 dari 34. Modul transaksi pertama yang memakai engine lengkap.
-Pola yang dibangun hari ini akan diulang di Sales Invoice — buat rapi.
-
-TUGAS (BACKEND):
-1. Migration:
-   `purchase_invoices`: id, invoice_number (internal PI/YYMM/NNNN),
-     supplier_invoice_number (bebas format, dari nota supplier),
-     supplier_id, invoice_date, receipt_date, warehouse_id,
-     subtotal, discount_amount NUMERIC(16,2) DEFAULT 0, tax_amount, total_amount,
-     paid_amount DEFAULT 0, status ENUM(OPEN/PARTIAL/PAID/VOID),
-     journal_entry_id, notes, created_by, timestamps
-   `purchase_invoice_lines`: id, purchase_invoice_id, product_id, qty_input,
-     unit_name, qty_base_unit, unit_price, line_discount, line_total, line_order
-   `goods_receipts` + `goods_receipt_lines`: dibuat OTOMATIS dari invoice
-     (klien tidak memisahkan penerimaan dari faktur), menyimpan receipt_date
-
-2. POST /purchase-invoices — SATU TRANSACTION:
-   a. validasi backdate (maks 2 hari) untuk invoice_date DAN receipt_date
-   b. hitung per baris: line_total = qty × unit_price − line_discount
-   c. subtotal = Σ line_total
-   d. ALOKASI discount_amount header secara PROPORSIONAL ke tiap baris
-      untuk keperluan harga pokok:
-        alokasi_baris = discount_amount × (line_total / subtotal)
-        cost_efektif_baris = (line_total − alokasi_baris) / qty_base_unit
-      SISA PEMBULATAN dari pembagian dilempar ke baris TERAKHIR
-      supaya Σ cost = subtotal − discount PERSIS.
-   e. total_amount = subtotal − discount_amount + tax_amount
-      TIDAK ADA PEMBULATAN DI PEMBELIAN. total harus persis sama dengan nota supplier.
-   f. buat goods_receipt otomatis
-   g. stockRecorder.recordIn per baris dengan lot_date = receipt_date
-      dan unit_cost = cost_efektif_baris
-   h. journalPoster.post:
-        Persediaan   (D) subtotal − discount_amount
-        PPN Masukan  (D) tax_amount (0 selama belum PKP)
-        Hutang Usaha (K) total_amount
-   i. nomor dari DocumentCounterService dengan manager yang sama
-
-3. GET /purchase-invoices (list, filter supplier/tanggal/status) + GET /:id detail.
-
-ATURAN WAJIB:
-- lot_date = receipt_date, BUKAN invoice_date. Jurnal tetap pakai invoice_date.
-  Ini sengaja berbeda; tulis komentar di kode agar tidak "dirapikan" orang lain.
-- Total invoice harus persis sama dengan nota supplier. Kalau ada selisih 1 rupiah
-  karena alokasi diskon, itu bug.
-
-DEFINITION OF DONE:
-- invoice 3 baris + discount_amount header → jurnal balance, Σ nilai lot
-  = subtotal − discount PERSIS (bandingkan sebagai integer sen)
-- lot_date sesuai receipt_date meski berbeda dari invoice_date
-- total_amount tidak dibulatkan
-- backdate 3 hari → 400
-- rollback: paksa error setelah stok tercatat → tidak ada movement/lot/jurnal tersisa
-
-SETELAH SELESAI: tampilkan skenario invoice dengan angka yang tidak habis dibagi
-(mis. subtotal 1.000.003, diskon 7) dan buktikan Σ cost lot = 999.996 persis.
-```
-
-### 🎨 Frontend
-
-```
-KONTEKS: Hari 11 dari 34. Form multi-baris pertama. Pola input di sini
-akan ditiru form Sales Invoice — investasikan waktu di ergonominya.
-
-TUGAS (FRONTEND):
-1. Form Purchase Invoice:
-   Header: supplier (autocomplete), nomor faktur supplier (teks bebas),
-           tanggal faktur, tanggal terima barang (default = tanggal faktur,
-           tapi bisa berbeda — beri hint kecil "menentukan urutan FIFO"),
-           gudang penerima
-   Baris:  produk (autocomplete, cari by kode/nama), qty, satuan (select dari
-           konversi produk), harga satuan, diskon baris, total baris (auto)
-   Footer: subtotal live, diskon header, PPN (disabled selama belum PKP,
-           dengan hint "aktif setelah toko berstatus PKP"), TOTAL besar
-
-2. ERGONOMI WAJIB (ini bukan polish):
-   - Enter di field terakhir sebuah baris → tambah baris baru + fokus ke produk
-   - Ctrl+Enter → simpan
-   - Esc di autocomplete menutup dropdown, Esc lagi konfirmasi keluar
-   - hapus baris dengan Ctrl+Delete
-   - autocomplete produk: hasil muncul < 300ms, navigasi panah, Enter memilih,
-     tampilkan kode + nama + stok saat ini
-   - semua angka rata kanan, format ribuan otomatis saat blur
-   - saat produk dipilih, satuan default = satuan terbesar produk itu
-
-3. Validasi client: minimal 1 baris, qty > 0, harga >= 0.
-   Tampilkan pesan error server per-baris (mapping dari path error).
-
-DEFINITION OF DONE:
-- Input invoice 5 baris tanpa menyentuh mouse, dari supplier sampai simpan
-- Total di layar PERSIS sama dengan total yang dikembalikan server
-- Autocomplete produk merespons < 300ms dengan 100 produk di DB
-
-SETELAH SELESAI: laporkan waktu input 5 baris lewat keyboard saja.
-Kalau lebih dari 60 detik, sebutkan hambatan spesifiknya.
-```
-
-### ✅ Verifikasi Hari 11
-
-- [ ] Invoice 3 baris → jurnal balance, lot benar
-- [ ] `total_amount` persis = nota supplier, tanpa pembulatan
-- [ ] Alokasi diskon proporsional, sisa pembulatan ke baris terakhir, Σ cost persis
-- [ ] `lot_date` = `receipt_date`
-- [ ] Rollback bersih saat error di tengah
-- [ ] FE: input 5 baris tanpa mouse
-- [ ] `./scripts/verify.sh` hijau
-
----
-
-## Hari 12 — Edit Bersyarat + VOID Purchase Invoice
-
-### 🔧 Backend
-
-```
-KONTEKS: Hari 12 dari 34.
-
-TUGAS (BACKEND):
-1. PATCH /purchase-invoices/:id — DIIZINKAN hanya jika KEDUA syarat terpenuhi:
-   a. belum ada pembayaran teralokasi (paid_amount = 0 dan tidak ada payment allocation)
-   b. TIDAK ADA lot dari invoice ini yang sudah terkonsumsi
-      (cek stock_cost_consumptions terhadap lot dengan source_id = invoice ini)
-   Kalau salah satu gagal → 409 dengan pesan spesifik yang menyebut
-   ALASAN MANA yang menghalangi, dan menyarankan langkah berikutnya:
-   - kalau sudah dibayar: "Faktur sudah dibayar. Batalkan pembayaran dulu."
-   - kalau lot terkonsumsi: "Barang dari faktur ini sudah terjual/dipindah.
-     Gunakan Retur Pembelian, bukan ubah faktur."
-   Implementasi edit: VOID internal + buat ulang dalam satu transaction,
-   TAPI pertahankan invoice_number yang sama (jangan boros nomor).
-   Simpan riwayat perubahan di audit_logs.
-
-2. POST /purchase-invoices/:id/void — lewat VoidEngine:
-   - prasyarat sama seperti edit
-   - OPERATOR wajib lewat step-up (@RequiresStepUp('VOID_PURCHASE_INVOICE'))
-   - jurnal pembalik bertanggal hari ini
-   - lot dihapus/di-nolkan qty_remaining-nya, movement pembalik dibuat
-
-DEFINITION OF DONE:
-- edit setelah lot terkonsumsi → 409 dengan pesan yang menyebut alasan yang benar
-- edit setelah dibayar sebagian → 409 dengan pesan pembayaran
-- edit yang sah → nomor invoice TIDAK berubah, stok & jurnal ikut terkoreksi,
-  dan invarian rekonsiliasi stok masih 0
-- VOID oleh OPERATOR → 428 dulu; setelah approve → sukses
-- VOID → invoice status VOID, baris tetap ada, jurnal pembalik bertanggal hari ini
-
-SETELAH SELESAI: jalankan test invarian (4 test Hari 8) dan buktikan masih hijau
-setelah skenario edit & void.
-```
-
-### 🎨 Frontend
-
-```
-KONTEKS: Hari 12 dari 34.
-
-TUGAS (FRONTEND):
-1. Halaman detail Purchase Invoice:
-   - header lengkap + tabel baris + ringkasan total
-   - panel "Jurnal" yang bisa di-expand: menampilkan jurnal yang dihasilkan
-     (transparansi ini membuat Master percaya pada sistem — jangan disembunyikan)
-   - panel "Penerimaan Barang": lot yang terbentuk, sisa qty tiap lot
-   - status badge: OPEN / PARTIAL / PAID / VOID
-2. Tombol Ubah dan Batalkan:
-   - keduanya DISABLE dengan tooltip alasan kalau server bilang tidak boleh
-     (endpoint GET detail mengembalikan { canEdit, canVoid, reasons: [] })
-     — lebih baik daripada dibiarkan aktif lalu ditolak
-   - tombol Batalkan memakai <StepUpDialog> dari Hari 7 untuk role OPERATOR
-   - konfirmasi VOID wajib mengisi alasan
-3. Setelah VOID, halaman menampilkan banner merah + tautan ke jurnal pembalik.
-
-DEFINITION OF DONE:
-- Tombol Ubah nonaktif dengan tooltip yang benar saat lot sudah terkonsumsi
-- Alur VOID oleh OPERATOR lengkap dari 428 sampai sukses tanpa reload manual
-- Panel jurnal menampilkan debit = kredit
+- Banner verifikasi saldo awal menampilkan selisih
+- Tidak ada layar jurnal manual yang terlanjur dibangun
 ```
 
 ### ✅ Verifikasi Hari 12
 
-- [ ] Edit setelah lot terkonsumsi → ditolak, pesan menyebut alasan tepat
-- [ ] Edit sah → nomor invoice tetap, rekonsiliasi stok masih 0
-- [ ] VOID lewat step-up untuk OPERATOR
-- [ ] 4 invarian masih hijau setelah edit & void
-- [ ] FE: tombol nonaktif + tooltip alasan
+- [ ] Jurnal manual ke Persediaan → 403 (diuji lewat endpoint; layarnya pasca-MVP)
+- [ ] Saldo awal menghasilkan lot + jurnal dari angka yang sama, selisih 0
+- [ ] Saldo awal lewat `StockRecorder`/`JournalPoster`, bukan INSERT langsung
+- [ ] Tidak ada importir Excel yang terlanjur dibangun
+- [ ] Pertanyaan untuk klien soal bentuk saldo awal sudah ditulis
 - [ ] `./scripts/verify.sh` hijau
 
 ---
 
-## Hari 13 — Retur Pembelian
+## Hari 13 ♻️ — Mutasi Gudang Bercabang  *(v2: Hari 10)*
 
 ### 🔧 Backend
 
 ```
-KONTEKS: Hari 13 dari 34.
-INGAT: sistem perpetual — TIDAK ADA akun "Retur Pembelian". Jangan membuatnya.
+KONTEKS: Hari 13 dari 37. Tiga jenis gudang, tiga perilaku yang BERBEDA.
+Kalau ketiganya diperlakukan sama, nilai persediaan bocor tanpa error.
 
 TUGAS (BACKEND):
-1. Migration `purchase_returns` + `purchase_return_lines`:
-   header: id, return_number (RB/YYMM/NNNN), purchase_invoice_id, supplier_id,
-           return_date, subtotal, tax_amount, total_amount,
-           settlement_type ENUM('REDUCE_INVOICE','CASH'),
-           cash_account_id (nullable, wajib kalau CASH),
-           status, journal_entry_id, notes, timestamps
-   lines:  id, purchase_return_id, purchase_invoice_line_id, product_id,
-           qty_base_unit, unit_cost (dari lot asal), line_total
+1. Migration `warehouse_mutations`(+lines) + nomor GD lewat DocumentCounter.
+2. Tiga cabang perilaku:
 
-2. POST /purchase-returns — satu transaction:
-   a. validasi qty retur <= qty dibeli − qty sudah diretur (per baris invoice)
-   b. harga pokok memakai unit_cost LOT ASAL dari invoice tersebut,
-      bukan harga pasar dan bukan FIFO umum
-   c. stockRecorder: keluarkan barang dari lot ASAL (kurangi qty_remaining lot itu).
-      Kalau lot asal sudah habis terkonsumsi → tolak dengan pesan
-      "Barang sudah terjual. Retur tidak bisa diproses untuk qty ini."
-   d. jurnal:
-      settlement_type = REDUCE_INVOICE:
-        Hutang Usaha (D) total_amount · Persediaan (K) subtotal · PPN Masukan (K) tax
-        + kurangi outstanding invoice terkait
-      settlement_type = CASH:
-        Kas terpilih (D) total_amount · Persediaan (K) subtotal · PPN Masukan (K) tax
-3. VOID retur pembelian lewat VoidEngine.
-4. GET list + detail.
+   A. Tujuan TITIPAN_PELANGGAN (pelanggan sudah beli & sudah bayar, belum ambil)
+      -> HANYA insert warehouse_mutations. TIDAK menyentuh stock_movements,
+         product_stock_balance, maupun lots. TIDAK ada jurnal.
+         Barangnya bukan milik toko lagi — itu sebabnya tidak boleh ada movement.
+      -> Validasi: qty kumulatif titipan <= qty yang sudah dibeli pelanggan itu.
+      -> get-or-create gudang titipan per pelanggan.
+
+   B. STORE <-> BAD_STOCK
+      -> 2 baris stock_movements type 'transfer', lot ikut pindah dengan
+         unit_cost SAMA. TIDAK ada jurnal (nilai persediaan total tidak berubah).
+
+   C. BAD_STOCK -> STORE
+      -> sama seperti B, TAPI WAJIB otorisasi supervisor lewat
+         StepUpService.requireApproval(), actionType BS_TO_STORE.
+         Alasannya: barang jadi bisa dijual lagi. Arah sebaliknya bebas.
+
+3. Nomor GD ikut kunci cetak (mekanismenya dibangun Hari 15 — siapkan kolomnya
+   sekarang: print_status, print_count, printed_at).
+
+ATURAN WAJIB HARI INI:
+- unit_cost pada mutasi TIDAK PERNAH bisa diketik. Diambil dari lot asal, titik.
+  Kalau bisa diubah, operator punya jalan mengubah nilai persediaan tanpa jurnal:
+  pindah STORE -> BAD_STOCK, ubah harga, pindah balik. Tidak ada jurnal, tidak ada
+  jejak, dan neraca bergerak tanpa satu baris pun mencatat kenapa.
+- Lokasi selalu default STORE. Kolom lokasi per baris di sistem lama adalah
+  warisan multi-outlet dan sengaja TIDAK ditiru.
+- Alur "Permintaan Mutasi Gudang" di sistem lama TIDAK dipakai.
 
 DEFINITION OF DONE:
-- jurnal retur TIDAK menyentuh akun kontra apa pun (buktikan: hanya Hutang/Kas,
-  Persediaan, PPN Masukan yang muncul)
-- stok berkurang dari LOT ASAL, bukan lot termurah/tertua secara umum
-- retur melebihi qty dibeli → 400
-- REDUCE_INVOICE mengurangi outstanding invoice; CASH tidak
-- setelah retur, rekonsiliasi stok tetap 0
+- Mutasi ke TITIPAN_PELANGGAN menghasilkan 0 baris stock_movements (query buktinya)
+- Titip melebihi qty yang dibeli pelanggan -> ditolak dengan pesan jelas
+- STORE -> BAD_STOCK: lot di tujuan ber-unit_cost identik dengan lot asal
+- BAD_STOCK -> STORE tanpa approval -> 412; setelah approval -> sukses
+- Tidak ada endpoint mana pun yang menerima unit_cost dari body request
+
+SETELAH SELESAI: verify.sh + checklist DoD + isi tabel lots sebelum/sesudah mutasi.
 ```
 
 ### 🎨 Frontend
 
 ```
-KONTEKS: Hari 13 dari 34.
+KONTEKS: Hari 13 dari 37.
 
 TUGAS (FRONTEND):
-1. Halaman Retur Pembelian:
-   - alur: pilih Purchase Invoice → baris invoice tampil dengan
-     "qty dibeli / sudah diretur / sisa bisa diretur"
-   - operator mencentang baris dan mengisi qty retur (default = sisa)
-   - pilih settlement_type: dua kartu pilihan besar dengan penjelasan awam:
-     "Kurangi Hutang — tagihan ke supplier berkurang"
-     "Uang Kembali — supplier mengembalikan uang tunai/transfer"
-     kalau Uang Kembali dipilih → select akun kas muncul
-   - total retur live
-2. Cetak A4 retur pembelian: kop, nomor RB, supplier, tabel barang,
-   total, tanda tangan. Print stylesheet terpisah (@media print),
-   pastikan tidak ada elemen UI ikut tercetak.
+1. Halaman Mutasi Gudang: pilih gudang asal & tujuan, lalu baris produk + qty.
+   - unit_cost DITAMPILKAN sebagai informasi, READ-ONLY, jelas terlihat tidak
+     bisa diedit (bukan input disabled yang tampak seperti input)
+   - kalau tujuan = STORE dan asal = BAD_STOCK, tampilkan peringatan bahwa
+     aksi ini butuh persetujuan supervisor SEBELUM operator mengisi form
+2. Riwayat mutasi dengan <DataTable>.
+3. Nota mutasi: qty saja, TANPA nilai. Mutasi tidak menyentuh uang, jadi nota
+   yang mencantumkan rupiah hanya mengundang salah tafsir.
 
 DEFINITION OF DONE:
-- Tidak mungkin mengisi qty retur melebihi sisa (dibatasi di input)
-- Cetak A4 muat 1 halaman untuk 10 baris dan rapi di print preview
+- unit_cost tidak bisa diketik dari layar mana pun
+- Nota mutasi tidak memuat satu pun angka rupiah
+- Peringatan approval muncul sebelum form diisi, bukan setelah submit
 ```
 
 ### ✅ Verifikasi Hari 13
 
-- [ ] Jurnal: Hutang/Kas (D) / Persediaan (K), **tanpa akun kontra**
-- [ ] Stok berkurang dari lot asal
-- [ ] Retur melebihi qty dibeli → ditolak
-- [ ] Cetak A4 rapi di print preview
-- [ ] Rekonsiliasi stok masih 0
+- [ ] Mutasi ke titipan: **nol** baris `stock_movements`
+- [ ] Titip melebihi qty dibeli → ditolak
+- [ ] Lot pindah dengan `unit_cost` identik
+- [ ] BS→STORE tanpa approval → 412
+- [ ] `unit_cost` read-only di layar, dan tidak diterima dari body request
+- [ ] Nota mutasi tanpa nilai rupiah
 - [ ] `./scripts/verify.sh` hijau
 
 ---
+---
 
-## Hari 14 — Biaya Operasional
+# FASE 4 — PEMBELIAN (Hari 14–18)
+
+---
+
+## Hari 14 ⚠️♻️ — Faktur Pembelian (alur penuh)  *(v2: Hari 11)*
+
+> Hari terberat di fase ini. Empat keputusan klien bertemu di satu endpoint:
+> tiga tanggal terpisah, diskon dua tingkat, PPN masukan dikapitalisasi, dan barang bonus
+> berharga nol. Salah satu saja meleset → invarian ke-5 Hari 11 merah sejak faktur pertama.
 
 ### 🔧 Backend
 
 ```
-KONTEKS: Hari 14 dari 34. Hari paling ringan di fase ini — pakai sisa waktunya
-untuk melunasi utang teknis, bukan menambah scope.
+KONTEKS: Hari 14 dari 37. Dokumen mulai terbit dengan nomor sungguhan (B1) —
+format nomor sudah tidak bisa diubah lagi setelah hari ini tanpa migrasi data.
 
 TUGAS (BACKEND):
-1. Migration `operational_expenses`: id, expense_number, expense_date,
-   expense_account_id (akun biaya), payment_account_id (akun kas/bank),
-   amount, description, reference_number, status, journal_entry_id,
-   created_by, timestamps
-2. POST /operational-expenses:
-   jurnal: Biaya (D) amount · Kas/Bank (K) amount
-   validasi: expense_account_id harus bertipe biaya,
-             payment_account_id harus is_cash_account = true
-3. PATCH (selama belum ada apa-apa yang bergantung — biaya berdiri sendiri,
-   jadi edit boleh dengan pola void-and-recreate).
-4. VOID → jurnal pembalik, baris asli TETAP ADA (tidak hard-delete).
-5. GET list dengan filter tanggal + akun biaya + akun bayar, dan agregat total.
+1. Migration:
+   `purchase_invoices`: id, invoice_number (B1/RM01-YYMMXXXX), supplier_id,
+     supplier_invoice_no (nomor faktur DARI supplier — tanpa ini rekonsiliasi
+     dengan tagihan supplier tidak punya pegangan),
+     receipt_date, supplier_invoice_date, due_date, term_days,
+     subtotal, line_discount_total, invoice_discount_amount, invoice_discount_percent,
+     input_vat_amount, total_amount NUMERIC(16,2),
+     posting_status, print_status, print_count, review_status,
+     void_reason_code, void_reason_note, timestamps
+   `purchase_invoice_lines`: id, purchase_invoice_id, product_id, qty_input, unit_id,
+     qty_base_unit, unit_price, discount_percent, discount_amount,
+     allocated_invoice_discount, line_final_amount, input_vat, unit_cost_result,
+     is_bonus (boolean)
+   `goods_receipts`(+lines): dibuat OTOMATIS dari faktur, tidak diinput terpisah
 
-CATATAN SCOPE: ongkos angkut pembelian masuk ke sini sebagai biaya biasa,
-TIDAK masuk harga pokok. Ini keputusan sadar (plan §1.7).
+   TIGA TANGGAL, SEMUANYA DISIMPAN TERPISAH — sistem lama klien memisahkannya
+   dan nilainya memang berbeda:
+     receipt_date          -> lot_date FIFO
+     supplier_invoice_date -> dasar hitung jatuh tempo
+     due_date              -> supplier_invoice_date + term_days
+   Kalau digabung jadi satu kolom, urutan FIFO mengikuti tanggal yang salah
+   TANPA satu pun error muncul.
+
+2. Urutan hitung WAJIB, per baris (CLAUDE.md Sec.4):
+   1. baris_kotor    = qty x harga
+   2. diskon_baris   = persen ATAU rupiah (alternatif, bukan bertingkat)
+   3. baris_bersih   = baris_kotor - diskon_baris
+   4. subtotal       = Sigma baris_bersih
+   5. alokasi[i]     = diskon_faktur x (baris_bersih[i] / subtotal)   <- PRO-RATA NILAI
+   6. baris_final[i] = baris_bersih[i] - alokasi[i]
+   7. ppn_masukan[i] = (supplier.is_pkp && product.is_bkp) ? baris_final[i] x tarif : 0
+   8. harga_pokok[i] = baris_final[i] + (company_is_pkp ? 0 : ppn_masukan[i])
+   9. lot.unit_cost  = harga_pokok[i] / qty dalam satuan dasar
+
+   Sisa pembulatan langkah 5 dibebankan ke BARIS TERAKHIR supaya Sigma alokasi
+   persis sama dengan diskon_faktur. Tanpa aturan ini nilai persediaan tidak akan
+   pernah cocok dengan buku besar.
+
+   Tarif PPN dari tabel tax_rates (effective_from/effective_to), BUKAN dari master
+   produk dan BUKAN dari config.
+
+3. Baris BONUS (is_bonus = true): melewati seluruh urutan di atas.
+   baris_kotor 0, alokasi diskon 0, PPN 0, lot.unit_cost = 0.
+   Qty tetap masuk stok penuh. Bonus SELALU produk yang sama dengan yang dibeli.
+
+4. Jurnal (company_is_pkp = false, keadaan sekarang):
+   Persediaan (D) Sigma harga_pokok      <- SUDAH termasuk PPN masukan
+       Hutang Usaha (K) Sigma harga_pokok
+   Siapkan cabang company_is_pkp = true (Persediaan = baris_final,
+   PPN Masukan terpisah) walau belum dipakai.
+
+5. Faktur pembelian SELALU masuk gudang STORE. Tidak pernah langsung ke BAD_STOCK.
+   Field "stock ke" di sistem lama tidak ditiru.
+6. Ongkos kirim TIDAK dikapitalisasi ke harga pokok — masuk biaya operasional
+   (Hari 17). Jangan menambahkan kolom ongkir di faktur ini.
+7. Field Adjust di sistem lama TIDAK dipakai. Order Pembelian TIDAK dibangun.
+
+ATURAN WAJIB HARI INI:
+- Diskon pembelian TIDAK PERNAH masuk jurnal. Ia larut ke harga pokok.
+  Akun "Diskon Pembelian" TIDAK dibuat. Nilainya tetap disimpan di baris dan
+  tercetak di faktur. Kalau metode bruto dipakai di sini, saldo akun Persediaan
+  tidak akan pernah sama lagi dengan Sigma nilai lot.
+- Tidak ada pembulatan. total_amount eksak sampai rupiah.
+- Semua ini dalam SATU DB transaction: nomor, faktur, GR, stok, lot, jurnal.
 
 DEFINITION OF DONE:
-- jurnal biaya balance
-- memilih akun non-kas sebagai pembayaran → 400
-- VOID → baris tetap ada dengan status VOID + jurnal pembalik hari ini
-- tidak ada endpoint DELETE
+- 1 faktur 3 baris + 1 baris bonus:
+  * jurnal balance
+  * 4 lot terbentuk, satu di antaranya unit_cost = 0
+  * Sigma alokasi diskon faktur PERSIS sama dengan invoice_discount_amount
+  * total_amount persis sama dengan nota supplier, tanpa pembulatan
+  * invarian ke-5 Hari 11 tetap hijau setelahnya
+- Supplier non-PKP -> input_vat 0 meski produknya BKP
+- Supplier PKP + produk non-BKP -> input_vat 0
+- lot_date = receipt_date (buktikan dengan mengisi tiga tanggal yang berbeda)
+- due_date = supplier_invoice_date + term_days, BUKAN receipt_date + term_days
+
+SETELAH SELESAI: tampilkan isi purchase_invoice_lines dan stock_cost_lots untuk
+faktur uji itu, plus jurnalnya, berdampingan.
 ```
 
 ### 🎨 Frontend
 
 ```
-KONTEKS: Hari 14 dari 34.
+KONTEKS: Hari 14 dari 37. Form transaksi pertama yang sungguhan.
+Operator memakai ini 11-12 kali sehari dalam pola burst (10 input dalam 20 menit,
+lalu jeda 1-2 jam). Kejelasan lebih penting daripada kecepatan ekstrem.
 
 TUGAS (FRONTEND):
-1. Halaman Biaya Operasional (list + form + detail):
-   - form ringkas: tanggal, jenis biaya (select akun biaya), dibayar dari
-     (select akun kas/bank), jumlah, keterangan, no. referensi
-   - "Simpan & Tambah Lagi" penting di sini (biaya sering diinput beruntun)
-2. List menampilkan total di footer sesuai filter aktif.
-3. SISA WAKTU HARI INI: lunasi utang teknis FE dari Hari 11–13.
-   Sebelum mulai, tampilkan dulu daftar utang teknis yang kamu temukan
-   di kode FE (duplikasi, TODO, komponen yang tidak memakai <DataTable>/<CrudFormPage>),
-   dan minta saya memilih mana yang dikerjakan. Jangan refactor besar tanpa persetujuan.
+1. Form Purchase Invoice multi-baris:
+   - header: supplier, supplier_invoice_no, TIGA tanggal terpisah dengan label
+     yang jelas (Tgl Terima Barang / Tgl Faktur Supplier / Jatuh Tempo),
+     term_days mengisi due_date otomatis dari tgl faktur supplier
+   - grid baris: produk (autocomplete display_name), qty + pilihan satuan
+     (default DUS), kolom ISI (jumlah satuan dasar per satuan besar) DITAMPILKAN,
+     harga, diskon (% atau Rp, alternatif), subtotal baris
+   - checkbox "Bonus" per baris -> harga terkunci 0 dan diberi penanda visual
+   - footer: subtotal, diskon faktur (% atau Rp), PPN masukan, TOTAL, semuanya live
+2. Preview alokasi diskon faktur per baris ditampilkan sebelum simpan, supaya
+   operator melihat ke mana diskonnya jatuh.
+3. Input qty: SATU angka + pilihan satuan. BUKAN pola dua kolom KTN+PCS seperti
+   sistem lama. Klien tidak pernah mencampur satuan dalam satu transaksi.
+
+ATURAN WAJIB HARI INI:
+- Format angka lewat useRupiah()/useQty(). Tidak ada toLocaleString tersebar.
+- Tidak ada pembulatan di tampilan mana pun. Yang tampil = yang disimpan.
 
 DEFINITION OF DONE:
-- Input 5 biaya beruntun tanpa mouse
-- Total footer berubah mengikuti filter
+- Menambah baris bonus tidak mengubah total faktur
+- Mengubah diskon faktur memperbarui preview alokasi semua baris seketika
+- Mengisi term_days mengisi due_date dari TGL FAKTUR SUPPLIER, bukan tgl terima
+- npm run build 0 error, npm run lint bersih
+
+SETELAH SELESAI: rekaman input satu faktur 3 baris + 1 bonus dari kosong sampai simpan.
 ```
 
 ### ✅ Verifikasi Hari 14
 
-- [ ] Jurnal biaya balance
-- [ ] Akun pembayaran non-kas ditolak
-- [ ] VOID → baris tetap ada
-- [ ] Daftar utang teknis FE dibuat dan diprioritaskan
+- [ ] Faktur 3 baris + 1 bonus → jurnal balance, 4 lot, satu ber-`unit_cost` 0
+- [ ] Σ alokasi diskon faktur **persis** = `invoice_discount_amount`
+- [ ] `total_amount` sama persis dengan nota supplier, tanpa pembulatan
+- [ ] Invarian ke-5 Hari 11 tetap hijau setelah faktur masuk
+- [ ] `lot_date` = `receipt_date`; `due_date` = `supplier_invoice_date` + termin
+- [ ] Gerbang PPN: non-PKP supplier → 0; produk non-BKP → 0
+- [ ] Tidak ada akun "Diskon Pembelian" di COA
 - [ ] `./scripts/verify.sh` hijau
 
 ---
 
-## Hari 15 — BUFFER + CRUD COA Penuh
+## Hari 15 ♻️ — Kunci Cetak Generik + Edit/VOID Pembelian  *(v2: Hari 12)*
 
-> Hari buffer pertama dari tiga. Kalau Fase 3 sudah tuntas, kerjakan CRUD COA
-> lalu **berhenti**. Jangan mencuri start ke Fase 4 — buffer yang dipakai untuk
-> menambah kecepatan bukan lagi buffer.
+> Mekanisme kunci cetak dibangun **sekali** di sini dan dipakai 7 dokumen:
+> `JL`, `B1`, `GD`, `SJ`, `RJ`, `RB`, `PAY`. Kalau dibangun per modul, tujuh salinan
+> aturan yang harus dijaga tetap sama — dan mereka tidak akan tetap sama.
 
 ### 🔧 Backend
 
 ```
-KONTEKS: Hari 15 dari 34. Hari BUFFER.
+KONTEKS: Hari 15 dari 37. Sistem lama klien (Affari) SUDAH punya tombol
+"Btl Cetak" dan "Checked" — kunci cetak bukan konsep baru bagi mereka.
+Yang kita tambahkan adalah otorisasi dan jejak audit yang selama ini tidak ada.
 
-LANGKAH 0 — Sebelum menulis kode, laporkan dulu:
-- Apakah semua DoD Hari 11–14 sudah [x] di PROGRESS.md?
-- Kalau ADA yang belum: kerjakan itu dulu, dan lewati tugas di bawah.
-  Lapor ke saya apa yang dikerjakan dan apa yang jadi terlewat.
-- Kalau SEMUA sudah beres: lanjut ke tugas di bawah.
+TUGAS (BACKEND):
+1. Mekanisme kunci cetak GENERIK di src/core/print-lock/.
+   TIGA SUMBU STATUS YANG TIDAK BOLEH DICAMPUR:
+     posting_status : POSTED -> VOIDED
+     print_status   : NOT_PRINTED -> PRINTED -> PRINT_CANCELLED
+     review_status  : BELUM_DICEK -> DISETUJUI / BERMASALAH
+   Tiga kolom terpisah. Jangan digabung jadi satu enum "status" — begitu digabung,
+   dokumen yang sudah dicetak dan disetujui lalu di-VOID kehilangan dua informasi.
 
-TUGAS (BACKEND) — hanya jika Fase 3 tuntas:
-1. CRUD Chart of Accounts penuh untuk MASTER:
-   - create akun baru dengan parent, kode, nama, tipe
-   - flag is_cash_account (menentukan akun muncul di pilihan pembayaran)
-   - akun piutang custom (untuk customer tertentu, dipakai customers.ar_account_id)
-   - nonaktifkan akun (bukan hapus) — DITOLAK kalau akun sudah punya
-     journal_entry_lines, dengan pesan "Akun sudah dipakai di jurnal, tidak bisa dinonaktifkan"
-   - validasi kode akun unik dan tidak boleh diubah setelah dipakai di jurnal
-2. Pastikan blokir jurnal manual (Hari 9) bekerja BERDASARKAN account_type,
-   sehingga akun piutang custom yang baru dibuat OTOMATIS ikut terblokir.
-   Buat testnya — ini jebakan yang mudah terlewat.
+2. Aturan:
+   - Cetak ulang IDENTIK: bebas, tanpa izin. print_count++, dicatat di audit_logs.
+   - Edit atau VOID SETELAH dicetak: wajib batal cetak dulu.
+     SATU PERMINTAAN, SATU PERSETUJUAN, dengan niat dideklarasikan DI DEPAN:
+       actionType: UNLOCK_PRINT, intent: EDIT | VOID, reason wajib.
+     Token yang disetujui untuk VOID HANYA bisa dipakai untuk VOID.
+     Kalau intent tidak diikat, satu approval "mau perbaiki typo" bisa dipakai
+     menghapus faktur.
+   - Nota hasil revisi wajib mencantumkan NOMOR REVISI.
+   - Dokumen VOIDED BOLEH dicetak ulang DENGAN TANDA VOID untuk arsip.
+
+3. Terapkan ke purchase_invoices + tambahkan kolom ke enam tabel dokumen lain
+   (yang sudah ada) supaya modul berikutnya tinggal memakai.
+
+4. Edit bersyarat + VOID Purchase Invoice lewat VoidEngine Hari 11:
+   - edit ditolak kalau lot sudah terkonsumsi
+   - VOID ditolak kalau lot sudah terkonsumsi sebagian ("sudah terjual, buat retur")
+
+ATURAN WAJIB HARI INI:
+- Satu mekanisme, tujuh pemakai. Kalau kamu menulis logika print_status di dalam
+  modul purchase-invoice, berhenti dan pindahkan ke core.
+- consumeApproval() memvalidasi ulang payload (Hari 9). Token UNLOCK_PRINT untuk
+  dokumen A tidak boleh bisa dipakai untuk dokumen B.
 
 DEFINITION OF DONE:
-- MASTER membuat akun "Kas Besar" dengan is_cash_account = true
-- akun itu LANGSUNG muncul di pilihan akun pembayaran biaya operasional
-  tanpa restart aplikasi
-- akun piutang custom baru otomatis terblokir dari jurnal manual
-- menonaktifkan akun yang sudah dipakai → ditolak
-- SUPERVISOR POST /chart-of-accounts → 403
+- Cetak ulang identik: print_count naik, tidak ada permintaan izin, masuk audit_logs
+- Edit setelah PRINTED tanpa batal cetak -> ditolak
+- Token ber-intent EDIT dipakai untuk VOID -> ditolak
+- Token UNLOCK_PRINT dokumen A dipakai di dokumen B -> ditolak
+- Dokumen VOIDED tetap bisa dicetak, hasilnya bertanda VOID
+- Edit setelah lot terkonsumsi -> ditolak dengan pesan berbahasa Indonesia yang
+  bisa dibaca operator, bukan pesan teknis
+
+SETELAH SELESAI: verify.sh + checklist DoD + daftar 7 dokumen yang sudah punya
+kolom kunci cetak.
 ```
 
 ### 🎨 Frontend
 
 ```
-KONTEKS: Hari 15 dari 34. Hari BUFFER.
+KONTEKS: Hari 15 dari 37.
 
-LANGKAH 0 — sama seperti backend: laporkan status DoD Hari 11–14 dulu.
-Kalau ada yang merah, itu prioritasnya.
-
-TUGAS (FRONTEND) — hanya jika Fase 3 tuntas:
-1. Form tambah/ubah akun COA di halaman COA (MASTER only):
-   - modal dari dalam tree (klik "+" di sebuah node → parent terisi otomatis)
-   - switch "Akun Kas/Bank" dengan hint: "Akan muncul di pilihan pembayaran"
-   - setelah simpan, tree ter-refresh dan node baru ter-highlight
-2. Kalau masih ada waktu: kerjakan utang teknis FE yang diprioritaskan Hari 14.
+TUGAS (FRONTEND):
+1. Komponen <DocumentActions> generik: menampilkan tombol Cetak / Batal Cetak /
+   Edit / VOID sesuai kombinasi tiga sumbu status. Dibuat SEKALI, dipakai 7 dokumen.
+   - tombol yang tidak berlaku: SEMBUNYIKAN, jangan tampilkan lalu tolak
+   - Batal Cetak membuka dialog yang MEMINTA NIAT DI DEPAN:
+     "Mau diapakan setelah dibatalkan? [Diperbaiki] [Dibatalkan/VOID]" + alasan
+2. Halaman detail Purchase Invoice memakai komponen itu.
+3. Badge status: tiga badge terpisah (posting / cetak / pengecekan), bukan satu.
 
 DEFINITION OF DONE:
-- Buat akun kas baru dari UI → langsung terpilih di form biaya operasional
-  (buka tab lain, cek tanpa reload aplikasi)
+- <DocumentActions> tidak memuat satu pun logika khusus pembelian
+- Operator melihat tiga badge status yang berbeda dan mengerti bedanya
+- Dialog batal cetak memaksa memilih niat sebelum tombol kirim aktif
 ```
 
 ### ✅ Verifikasi Hari 15
 
-- [ ] Status Fase 3 dilaporkan sebelum menambah pekerjaan baru
-- [ ] Master bisa membuat akun kas → langsung muncul di form pembayaran
-- [ ] Akun piutang custom otomatis terblokir dari jurnal manual
-- [ ] SUPERVISOR write COA → 403
-- [ ] **Hitung drift kumulatif di PROGRESS.md §0** — ini titik ukur pertengahan
-- [ ] Kalau drift ≥ 2 hari: buffer ini sudah terpakai, catat di §3
+- [ ] Kunci cetak hidup di `src/core/`, bukan di modul pembelian
+- [ ] Cetak ulang identik bebas, `print_count++`, masuk `audit_logs`
+- [ ] Edit setelah dicetak tanpa batal cetak → ditolak
+- [ ] Token `intent: EDIT` dipakai untuk VOID → ditolak
+- [ ] Token dokumen A dipakai di dokumen B → ditolak
+- [ ] Dokumen VOIDED bisa dicetak dengan tanda VOID
+- [ ] Tujuh tabel dokumen sudah punya kolom kunci cetak
 - [ ] `./scripts/verify.sh` hijau
 
 ---
----
 
-# FASE 4 — PENJUALAN (Hari 16–20)
-
-> Hari 17–18 adalah dua dari empat hari tersulit di proyek ini, dan jatuh
-> di minggu yang melelahkan. Kalau harus mengorbankan sesuatu, korbankan
-> estetika — jangan alur input.
-
-## Hari 16 — Sales Order
+## Hari 16 ♻️🛑 — Retur Pembelian (dari BAD_STOCK)  *(v2: Hari 13)*
 
 ### 🔧 Backend
 
 ```
-KONTEKS: Hari 16 dari 34. Sales Order adalah sumber pesanan kanal agen.
-CATATAN: modul ini nomor 5 di daftar potong darurat (§9.3). Kalau drift ≥ 3 hari,
-konfirmasi dulu ke saya apakah tetap dikerjakan.
+KONTEKS: Hari 16 dari 37.
+
+BERHENTI DAN BACA DULU — PR TERBUKA #2 (KONTEKS_REVISI Sec.4.2):
+Lot yang lahir dari retur pelanggan punya supplier_id NULL. Klien meminta supplier
+asal dilacak, tapi barang yang dikembalikan pelanggan tidak punya jejak supplier
+yang bersih. Belum diputuskan: boleh diretur ke supplier mana pun, atau diblokir?
+Bangun alurnya untuk lot yang supplier_id-nya TERISI. Untuk yang NULL, tulis
+TODO eksplisit dan BERHENTI. Jangan menebak — pilihan yang salah di sini baru
+ketahuan setelah barang telanjur diretur ke supplier yang keliru.
 
 TUGAS (BACKEND):
-1. Migration `sales_orders` + `sales_order_lines`:
-   header: id, order_number (SO/YYMM/NNNN), customer_id, order_date,
-           delivery_date (nullable), agent_id (nullable, diisi Hari 21),
-           subtotal, status ENUM(DRAFT/CONFIRMED/CONVERTED/CANCELLED),
-           sales_invoice_id (nullable), notes, created_by, timestamps
-   lines:  id, sales_order_id, product_id, qty_input, unit_name,
-           qty_base_unit, unit_price, line_total, line_order
-2. CRUD + POST /sales-orders/:id/confirm dan POST /:id/cancel.
-3. POST /sales-orders/:id/convert-to-invoice:
-   - hanya dari status CONFIRMED
-   - membuat sales_invoice DRAFT dengan baris tersalin (harga ikut, bisa diubah nanti)
-   - set status SO = CONVERTED, isi sales_invoice_id
-   - SO berstatus CONVERTED tidak bisa diubah/dibatalkan lagi → 409
-   CATATAN: endpoint ini baru berfungsi penuh setelah Hari 18. Hari ini cukup
-   buat kerangkanya + test yang di-skip dengan alasan tertulis.
-4. Sales Order TIDAK menyentuh stok dan TIDAK menghasilkan jurnal. Sama sekali.
+1. Migration `purchase_returns`(+lines) + nomor RB. Ikut kunci cetak Hari 15.
+2. Alur WAJIB: pilih SUPPLIER dulu -> daftar bad stock DISARING ke produk yang
+   pernah dibeli dari supplier itu -> pilih barang.
+   TIDAK menunjuk faktur pembelian asal. Ini beda dari retur penjualan.
+3. Retur SELALU mengambil dari gudang BAD_STOCK, tidak pernah dari STORE.
+4. Nilai retur DINEGOSIASIKAN dengan supplier dan bisa berbeda dari harga pokok
+   lot. Prinsip klien: ambil yang menguntungkan toko.
+   Contoh: beli 90.000, harga kini 87.000 -> minta retur 90.000.
+           beli 90.000, harga kini 92.000 -> minta retur 92.000.
+   Jurnal:
+     Hutang Usaha / Kas       (D) nilai_retur_disepakati
+         Persediaan               (K) Sigma harga pokok lot (FIFO dari BAD_STOCK)
+         Selisih Retur Pembelian  (K) selisih, bila nilai_retur > harga pokok
+   Bila nilai_retur < harga pokok, akun Selisih Retur Pembelian jadi DEBIT.
+   Klien menyatakan ini tidak akan terjadi, tapi sistem WAJIB menanganinya —
+   "tidak akan terjadi" bukan alasan untuk membuat jurnal yang tidak balance.
+5. settlement_type: REDUCE_INVOICE | CASH.
+6. Akun Retur Pembelian TIDAK ADA (sistem perpetual). Persediaan langsung dikredit.
+7. Tukar barang dengan supplier = DUA DOKUMEN, bukan satu tombol:
+   Retur Pembelian (RB) lalu Faktur Pembelian (B1) baru. Hutang saling menutup.
+   Jangan membuat fitur "tukar" yang menggabungkan keduanya.
 
 DEFINITION OF DONE:
-- SO CONVERTED → PATCH → 409
-- SO DRAFT bisa diubah bebas
-- membuat SO tidak menghasilkan stock_movements maupun journal_entries
-  (buktikan dengan hitungan baris sebelum & sesudah)
+- Pilih supplier -> daftar BS tersaring, produk yang tidak pernah dibeli dari
+  supplier itu TIDAK muncul
+- Retur di atas harga pokok -> Selisih Retur Pembelian KREDIT, jurnal balance
+- Retur di bawah harga pokok -> Selisih Retur Pembelian DEBIT, jurnal balance
+- Stok BS berkurang dari lot yang benar (FIFO dari BAD_STOCK)
+- Invarian ke-5 Hari 11 tetap hijau
+- Lot ber-supplier_id NULL: ditandai TODO, tidak dipaksa jalan
+
+SETELAH SELESAI: verify.sh + checklist DoD + pertanyaan PR #2 dalam bentuk yang
+bisa saya kirim langsung ke klien.
 ```
 
 ### 🎨 Frontend
 
 ```
-KONTEKS: Hari 16 dari 34.
+KONTEKS: Hari 16 dari 37.
 
 TUGAS (FRONTEND):
-1. Halaman Sales Order (list + form + detail).
-   Form-nya mirip Purchase Invoice tapi tanpa gudang dan tanpa pajak.
-   PAKAI ULANG komponen baris/repeater dari form Purchase Invoice —
-   kalau perlu, ekstrak jadi <TransactionLineTable> yang dipakai keduanya.
-   Ini investasi untuk Hari 17–18 yang jauh lebih berat.
-2. Detail SO: tombol "Jadikan Faktur" (aktif hanya saat CONFIRMED),
-   badge status, tautan ke invoice hasil konversi.
-3. Filter list: status, customer, rentang tanggal.
+1. Halaman Retur Pembelian, urutan layar mengikuti urutan berpikir operator:
+   pilih supplier -> daftar bad stock tersaring muncul -> centang barang -> isi
+   nilai retur yang disepakati per baris -> pilih settlement_type -> simpan.
+2. Tampilkan harga pokok lot di sebelah kolom nilai retur, supaya operator tahu
+   posisi tawarnya. Ini SATU-SATUNYA tempat harga pokok boleh dilihat operator —
+   di form penjualan tidak boleh.
+3. Cetak nota retur A5 + <DocumentActions> dari Hari 15.
 
 DEFINITION OF DONE:
-- <TransactionLineTable> diekstrak dan dipakai di Purchase Invoice DAN Sales Order
-- Tidak ada duplikasi logika baris antara dua form itu
-- SO CONVERTED tampil read-only
-
-SETELAH SELESAI: tampilkan diff baris kode form Purchase Invoice setelah refactor —
-harusnya BERKURANG, bukan bertambah.
+- Daftar BS kosong sampai supplier dipilih (bukan menampilkan semua lalu memfilter)
+- Selisih nilai retur vs harga pokok tampil live per baris
 ```
 
 ### ✅ Verifikasi Hari 16
 
-- [ ] SO CONVERTED tidak bisa diubah
-- [ ] SO tidak menghasilkan stok/jurnal
-- [ ] `<TransactionLineTable>` dipakai 2 form, tanpa duplikasi
+- [ ] Daftar BS tersaring per supplier; produk lain tidak muncul
+- [ ] Selisih retur ke atas → kredit; ke bawah → debit; keduanya balance
+- [ ] Stok BS berkurang dari lot FIFO yang benar
+- [ ] Invarian ke-5 tetap hijau
+- [ ] Tidak ada akun "Retur Pembelian" di COA
+- [ ] Tidak ada fitur "tukar barang" satu tombol
+- [ ] **Pertanyaan PR #2 sudah dikirim ke klien**
 - [ ] `./scripts/verify.sh` hijau
 
 ---
 
-## Hari 17 ⚠️ — Price Suggestion + Mulai Form Sales Invoice
+## Hari 17 🛑 — Biaya Operasional + Approval Kas Besar  *(v2: Hari 14)*
 
 ### 🔧 Backend
 
 ```
-KONTEKS: Hari 17 dari 34. Hari berisiko tinggi.
-price-suggestion adalah SATU-SATUNYA jaring pengaman terhadap salah ketik harga jual,
-karena tidak ada harga standar per produk. Ini WAJIB, bukan opsional.
+KONTEKS: Hari 17 dari 37.
+
+BERHENTI DAN BACA DULU: modul biaya operasional DITUNDA klien
+(KONTEKS_REVISI Sec.4.1). Dua hal yang SUDAH PASTI dibutuhkan dan boleh
+dikerjakan hari ini:
+  (a) ongkos kirim pembelian — sudah diputuskan masuk biaya operasional,
+      tidak dikapitalisasi ke harga pokok
+  (b) gaji harian salesman — masuk biaya operasional tanpa dikaitkan ke salesman,
+      karena tidak ada komisi
+Sisanya (kategori biaya, alur persetujuan bertingkat, anggaran) TUNGGU JAWABAN.
 
 TUGAS (BACKEND):
-1. GET /sales/price-suggestion?customerId=&productId=
-   Mengembalikan:
-   {
-     lastPrices: [{ price, qty, unitName, invoiceNumber, date }],   // 3-5 terakhir
-                                                                    // customer INI, produk INI
-     generalPrices: [{ price, date }],                              // 3 terakhir lintas customer
-     lastCost: number,                                              // harga pokok lot terkini
-     suggestion: number | null                                      // lastPrices[0].price ?? null
-   }
-   PERSYARATAN KINERJA: < 300ms dengan data 1 tahun.
-   Buat index: (customer_id, product_id, invoice_date DESC) di sales_invoice_lines
-   join sales_invoices. Kalau perlu, buat index tersendiri atau materialized view —
-   ukur dulu dengan EXPLAIN ANALYZE, jangan menebak.
+1. Migration `operational_expenses` + CRUD + jurnal + VOID lewat VoidEngine.
+2. APPROVAL PENGELUARAN KAS BESAR:
+   - chart_of_accounts.requires_outflow_approval (boolean, dicentang MASTER
+     untuk akun Kas Besar)
+   - settings.cash_outflow_approval_threshold (nominal ambang)
+   - Karena syaratnya bergantung pada ISI transaksi (akun mana + nominal berapa),
+     BUKAN sekadar role, pakai StepUpService.requireApproval() yang dipanggil
+     DARI DALAM SERVICE dan melempar 412 dengan kontrak yang sama seperti guard.
+     Frontend cukup punya satu jalur penanganan — yang sudah dibuat Hari 9.
+   - actionType: CASH_OUTFLOW. context_summary WAJIB memuat nama akun dan nominal.
 
-2. Migration `sales_invoices` + `sales_invoice_lines` (endpoint POST-nya Hari 18):
-   header: id, invoice_number (INV/YYMM/NNNN), customer_id, invoice_date,
-           due_date (NULLABLE, tanpa UI — disiapkan untuk kebutuhan nanti),
-           warehouse_id, sales_order_id (nullable), channel ENUM('STORE','AGENT'),
-           subtotal, tax_amount, rounding_amount NUMERIC(16,2) DEFAULT 0,
-           total_amount, paid_amount DEFAULT 0,
-           status ENUM(OPEN/PARTIAL/PAID/VOID), journal_entry_id,
-           notes, created_by, timestamps
-   lines:  id, sales_invoice_id, product_id, qty_input, unit_name, qty_base_unit,
-           unit_price, line_total, unit_cost_fifo NUMERIC(16,4), line_cost, line_order
-   CATATAN unit_cost_fifo: diisi saat posting Hari 18, dan WAJIB dipakai lagi
-   saat retur penjualan Hari 20. Jangan dihitung ulang di sana.
-
-3. Endpoint pendukung form: POST /customers/quick
-   (buat customer minimal: nama + telepon, sisanya nullable) — dipakai modal
-   tambah customer dari form penjualan. Role OPERATOR boleh.
+ATURAN WAJIB HARI INI:
+- Ambang persetujuan TIDAK ditampilkan ke operator. Kontrol ini menghadang saat
+  dilanggar, tidak mengajari cara menghindarinya.
+- VOID menghasilkan jurnal pembalik bertanggal hari ini; baris asli tetap ada.
 
 DEFINITION OF DONE:
-- price-suggestion mengembalikan 3-5 harga terakhir customer+produk,
-  terurut terbaru dulu
-- p95 < 300ms diukur dengan 50.000 baris sales_invoice_lines (seed data uji)
-- EXPLAIN ANALYZE menunjukkan index scan, bukan seq scan
-- POST /customers/quick membuat customer yang langsung bisa dipakai
+- Pengeluaran di bawah ambang dari akun bertanda -> langsung sukses
+- Pengeluaran di atas ambang -> 412, context_summary terbaca supervisor
+- Pengeluaran di atas ambang dari akun TIDAK bertanda -> langsung sukses
+- VOID menghasilkan pembalik, baris asli tetap ada
+- Ongkir pembelian bisa dicatat dan TIDAK menyentuh nilai lot mana pun
 
-SETELAH SELESAI: tampilkan hasil EXPLAIN ANALYZE dan angka p95-nya.
+SETELAH SELESAI: verify.sh + checklist DoD + daftar pertanyaan biaya operasional
+untuk klien.
 ```
 
 ### 🎨 Frontend
 
 ```
-KONTEKS: Hari 17 dari 34. Form terpenting di seluruh aplikasi —
-operator memakainya 50-100 kali sehari, satu transaksi tiap 5-6 menit
-sepanjang jam kerja. Setiap klik yang bisa dihilangkan bernilai.
-
-Endpoint tersedia: GET /sales/price-suggestion, POST /customers/quick.
-POST /sales-invoices BELUM ada (Hari 18) — buat form-nya dulu, submit-nya menyusul.
+KONTEKS: Hari 17 dari 37.
 
 TUGAS (FRONTEND):
-1. Form Sales Invoice (belum bisa submit):
-   Header: customer (autocomplete), tanggal, gudang, kanal (Toko/Agen)
-   Baris:  produk (autocomplete), qty, satuan, HARGA (fokus utama), total baris
-
-2. PRICE SUGGESTION — inti hari ini:
-   Saat customer + produk terpilih, tampilkan di bawah/samping field harga:
-   - 3-5 harga terakhir untuk customer INI: harga · qty · tanggal · no. nota
-   - klik/panah-atas untuk memilih salah satu → mengisi field harga
-   - harga terakhir terisi OTOMATIS sebagai default, tapi tetap bisa ditimpa
-   - kalau harga yang diketik menyimpang > 20% dari harga terakhir,
-     tampilkan peringatan kuning inline (bukan modal, jangan menghentikan alur):
-     "Harga biasanya Rp X. Yakin?"
-   - kalau customer BARU (belum pernah beli produk ini), tampilkan
-     harga umum lintas customer dengan label yang jelas
-
-3. MODAL TAMBAH CUSTOMER dari dalam form:
-   - di autocomplete customer, kalau tidak ketemu → opsi "+ Tambah customer baru"
-   - modal minimal: nama + telepon (sisanya bisa dilengkapi nanti)
-   - setelah simpan, customer LANGSUNG terpilih di form, fokus kembali ke
-     tempat semula. TIDAK BOLEH pindah halaman dan kehilangan baris yang sudah diisi.
-
-4. Ergonomi (sama seperti Hari 11 + tambahan):
-   - urutan Tab: produk → qty → satuan → harga → (Enter) baris baru
-   - autosave draft ke memori setiap perubahan, supaya refresh tak sengaja
-     tidak menghapus 10 baris yang sudah diketik
+1. Halaman Biaya Operasional: bentuk paling sederhana — tanggal, akun biaya,
+   akun kas sumber, nominal, keterangan, lampiran opsional.
+2. Alur 412 memakai <StepUpDialog> yang sudah ada. Jangan bikin alur baru.
+3. JANGAN membangun kategori biaya, anggaran, atau persetujuan bertingkat.
+   Belum diputuskan klien.
 
 DEFINITION OF DONE:
-- pilih customer + produk → 3-5 harga terakhir muncul dalam < 300ms
-- harga terakhir terisi otomatis
-- peringatan menyimpang > 20% muncul inline tanpa memblokir
-- tambah customer lewat modal → langsung terpilih, baris yang sudah diisi UTUH
-- refresh browser di tengah pengisian → draft kembali
-
-SETELAH SELESAI: rekam alur "customer baru + 3 baris produk" dari layar kosong
-sampai siap simpan, dan laporkan jumlah keystroke serta ada tidaknya klik mouse.
+- Pengeluaran di atas ambang memicu <StepUpDialog>, lalu lanjut sendiri setelah
+  disetujui
+- Tidak ada angka ambang yang bocor ke layar operator
 ```
 
 ### ✅ Verifikasi Hari 17
 
-- [ ] Price suggestion muncul < 300ms (diukur, bukan dikira)
-- [ ] `EXPLAIN ANALYZE` → index scan
-- [ ] Peringatan harga menyimpang muncul inline
-- [ ] Modal tambah customer tidak menghilangkan baris yang sudah diisi
-- [ ] Draft bertahan setelah refresh
+- [ ] 412 hanya muncul untuk akun bertanda **dan** di atas ambang
+- [ ] `context_summary` memuat nama akun + nominal
+- [ ] Ambang tidak pernah tampil di layar operator
+- [ ] Ongkir tercatat sebagai biaya, tidak menyentuh lot
+- [ ] Tidak ada fitur yang dibangun di luar (a) dan (b)
+- [ ] Pertanyaan biaya operasional sudah ditulis untuk klien
 - [ ] `./scripts/verify.sh` hijau
 
 ---
 
-## Hari 18 ⚠️ — POST /sales-invoices (alur penuh)
+## Hari 18 — BUFFER TERPAKAI + CRUD COA Penuh  *(v2: Hari 15)*
 
 ### 🔧 Backend
 
 ```
-KONTEKS: Hari 18 dari 34. Hari tersulit di fase penjualan.
-Semua engine bertemu di sini: stok + FIFO + jurnal + pembulatan + PPN dormant.
+KONTEKS: Hari 18 dari 37. Hari ini separuh buffer, separuh pekerjaan.
+Kalau Fase 4 meninggalkan sisa, KERJAKAN SISANYA DULU sebelum menyentuh COA.
 
 TUGAS (BACKEND):
-POST /sales-invoices — SATU TRANSACTION, urutannya penting:
-
-1. validasi backdate (maks 2 hari)
-2. per baris: qty_base_unit dari qty_input × konversi satuan
-3. subtotal = Σ (qty × unit_price)
-4. PPN — DORMANT:
-   ppn = (settings.company_is_pkp === true && customer.is_pkp === true)
-         ? subtotal × tarif_aktif_dari_tax_rates(invoice_date)
-         : 0
-   Selama company_is_pkp = false, ppn SELALU 0. Jangan ada jalan lain.
-   Tarif diambil dari tax_rates berdasarkan effective_from/effective_to
-   pada invoice_date — supaya invoice historis tidak berubah saat tarif berubah.
-5. total_kasar = subtotal + ppn
-   total_amount = CEIL(total_kasar / settings.rounding_multiple) × rounding_multiple
-   rounding_amount = total_amount − total_kasar
-   Hitung dengan integer sen. CEIL, bukan ROUND — selalu ke atas.
-6. stockRecorder.recordOut per baris:
-   - simpan hasilnya ke lines.unit_cost_fifo dan lines.line_cost
-     ← INI WAJIB, dipakai retur penjualan Hari 20
-   - kumpulkan stockWarning dari semua baris
-   - stok tidak cukup → TETAP JALAN, warning dikumpulkan, jangan menolak
-7. totalCOGS = Σ line_cost
-8. journalPoster.post:
-     Piutang Usaha atau Kas   (D) total_amount
-     Pendapatan Penjualan     (K) subtotal
-     PPN Keluaran             (K) ppn                    -- baris ini hanya bila ppn > 0
-     Pendapatan Pembulatan    (K) rounding_amount        -- hanya bila > 0
-     HPP                      (D) totalCOGS
-     Persediaan               (K) totalCOGS
-   Akun piutang: pakai customer.ar_account_id kalau ada, kalau tidak pakai
-   Piutang Usaha default.
-9. kalau berasal dari SO: set SO status CONVERTED
-10. response menyertakan { invoice, stockWarnings: [...] }
-
-ATURAN WAJIB:
-- Pembulatan HANYA di sini. Purchase Invoice tidak pernah dibulatkan.
-- Baris jurnal bernilai 0 TIDAK BOLEH dibuat (akan ditolak constraint).
-  Susun lines secara kondisional.
+1. CRUD COA penuh untuk MASTER:
+   - is_cash_account (boolean) — menandai akun kas/bank supaya muncul di form
+     pembayaran. Akun kas & bank TIDAK di-seed; Master yang membuatnya.
+   - requires_outflow_approval (dari Hari 17)
+   - akun piutang custom untuk customers.ar_account_id
+2. Kunci penting: ar_account_id pelanggan TERKUNCI selama saldo pelanggan itu
+   belum nol. Mengubah akun piutang di tengah jalan memindahkan saldo tanpa jurnal.
+3. Audit: pastikan KELIMA tempat yang menyentuh akun piutang memakai
+   resolveArAccount() dari Hari 8 — faktur penjualan, alokasi pembayaran, retur
+   penjualan, pembalikan VOID, saldo awal piutang.
+   Grep-lah. Satu saja yang menulis akun default langsung -> saldo pelanggan
+   bocor tanpa error apa pun.
 
 DEFINITION OF DONE:
-- total_amount selalu kelipatan 100 (uji 20 kombinasi harga acak)
-- rounding_amount masuk jurnal dan jurnal tetap balance
-- company_is_pkp = false → tidak ada baris PPN sama sekali di jurnal
-- aktifkan company_is_pkp = true + customer.is_pkp = true → baris PPN muncul,
-  tarif sesuai tax_rates pada tanggal invoice; MATIKAN LAGI setelah tes
-- penjualan melebihi stok → 201 dengan stockWarning, balance negatif, cost fallback dipakai
-- unit_cost_fifo tersimpan di setiap baris
-- 4 invarian Hari 8 masih hijau
-
-SETELAH SELESAI: tampilkan jurnal lengkap dari satu invoice yang mengandung
-pembulatan, dan buktikan Σ debit = Σ kredit sampai sen terakhir.
+- Master membuat akun kas baru -> langsung muncul di dropdown form pembayaran
+- Mengubah ar_account_id pelanggan bersaldo -> ditolak dengan pesan jelas
+- Grep membuktikan tidak ada pembacaan akun piutang di luar resolveArAccount()
+- Sisa pekerjaan Fase 4 (kalau ada) sudah beres dan dicatat di PROGRESS.md
 ```
 
 ### 🎨 Frontend
 
 ```
-KONTEKS: Hari 18 dari 34. Endpoint POST /sales-invoices sudah ada.
+KONTEKS: Hari 18 dari 37.
 
 TUGAS (FRONTEND):
-1. Sambungkan form Hari 17 ke endpoint. Tangani response:
-   - sukses → tampilkan nomor invoice besar + tombol "Cetak" dan "Buat Baru"
-   - stockWarnings → tampilkan sebagai daftar peringatan kuning di layar sukses,
-     JANGAN sebagai error. Transaksi berhasil; ini informasi.
-2. Preview total LIVE di footer form, dengan rincian yang bisa di-expand:
-     Subtotal          Rp 1.234.567
-     PPN                        Rp 0   (abu-abu + hint "toko belum PKP")
-     Pembulatan            Rp 33      (muncul hanya kalau > 0)
-     ─────────────────────────────
-     TOTAL             Rp 1.234.600
-   Angka pembulatan di FE harus PERSIS sama dengan hasil server.
-   Pakai rumus yang sama dan ambil rounding_multiple dari /settings —
-   jangan hardcode 100 di frontend.
-3. Tombol simpan menampilkan total di dalamnya ("Simpan — Rp 1.234.600")
-   supaya operator melihat angka final sebelum menekan.
-4. Setelah sukses, form baru langsung siap dengan fokus di field customer.
+1. Form tambah/ubah akun COA (MASTER only) dengan checkbox is_cash_account dan
+   requires_outflow_approval, keduanya berlabel bahasa manusia.
+2. Dropdown ar_account_id di form pelanggan: TERSARING hanya akun bertipe piutang
+   yang aktif. Bukan seluruh COA lalu berharap Master memilih yang benar.
+3. Sisa polish Fase 4.
 
 DEFINITION OF DONE:
-- Total di FE = total dari server pada 20 kombinasi uji, tanpa satu pun selisih
-- stockWarning tampil sebagai peringatan, bukan error
-- Setelah simpan, siklus berikutnya siap dalam 1 tombol
+- Dropdown akun piutang tidak memuat satu pun akun non-piutang
+- Field terkunci saat pelanggan masih bersaldo, dengan penjelasan kenapa
 ```
 
 ### ✅ Verifikasi Hari 18
 
-- [ ] Total selalu kelipatan Rp100 (20 kombinasi diuji)
-- [ ] `rounding_amount` masuk jurnal, jurnal balance
-- [ ] PPN nol selama `company_is_pkp = false`; config dimatikan lagi setelah tes
-- [ ] `unit_cost_fifo` tersimpan per baris
-- [ ] Stok minus → tetap sukses + warning
-- [ ] Total FE = total BE, tanpa selisih
-- [ ] 4 invarian masih hijau
+- [ ] Akun kas baru langsung terpakai di form pembayaran
+- [ ] `ar_account_id` terkunci saat saldo ≠ 0
+- [ ] Grep: tidak ada pembacaan akun piutang di luar `resolveArAccount()`
+- [ ] Dropdown akun piutang tersaring
+- [ ] Sisa Fase 4 beres, drift tercatat di `PROGRESS.md` §0
 - [ ] `./scripts/verify.sh` hijau
 
 ---
+---
 
-## Hari 19 — Edit/VOID Sales Invoice + Cetak Nota A4
+# FASE 5 — PENJUALAN (Hari 19–23A)
+
+---
+
+## Hari 19 ♻️ — Sales Order + Saluran Penjualan  *(v2: Hari 16)*
 
 ### 🔧 Backend
 
 ```
-KONTEKS: Hari 19 dari 34.
+KONTEKS: Hari 19 dari 37. Di sistem lama, order penjualan berjumlah 0 record —
+selama ini ditulis manual di kertas. Klien ingin memindahkannya ke program.
+Ini satu-satunya modul di daftar potong yang TIDAK BOLEH dipotong.
 
 TUGAS (BACKEND):
-1. PATCH /sales-invoices/:id — syarat sama seperti pembelian:
-   belum ada pembayaran teralokasi. Untuk penjualan, tambahan: belum ada
-   surat jalan (delivery order) yang berstatus DELIVERED.
-   Pola: void internal + recreate, nomor invoice dipertahankan.
-   Saat void internal, kembalikan qty_remaining ke lot ASAL sesuai
-   stock_cost_consumptions — jangan membuat lot baru.
-2. POST /sales-invoices/:id/void:
-   - OPERATOR wajib step-up
-   - jurnal pembalik bertanggal hari ini
-   - stok kembali ke LOT ASAL (lewat stock_cost_consumptions), bukan lot baru
-     dengan harga baru. Ini yang menjaga invarian FIFO tetap benar.
-   - kalau invoice sudah punya pembayaran → tolak, minta batalkan pembayaran dulu
-3. GET /sales-invoices/:id/print-data → payload siap cetak
-   (data toko dari settings, customer, baris dengan satuan tampilan, terbilang).
-   Sertakan helper "terbilang" (angka → kata bahasa Indonesia) di backend
-   supaya konsisten antara layar dan cetakan.
+1. Migration `sales_orders`(+lines) + nomor SO + CRUD + convert-to-invoice.
+2. SALURAN PENJUALAN sebagai field EKSPLISIT di faktur (bukan disimpulkan):
+     PENGIRIMAN : Sales Order WAJIB, surat jalan ya, nota dibawa sopir untuk menagih
+     TOKO       : Sales Order tidak perlu, tanpa surat jalan, nota diserahkan di tempat
+   Validasi: faktur bersaluran PENGIRIMAN tanpa SO -> ditolak.
+   Jangan menyimpulkan saluran dari ada/tidaknya surat jalan. Simpulan itu benar
+   99% waktu dan salah persis saat ada yang tidak beres.
+3. SALES ORDER TIDAK IKUT KUNCI CETAK dan TIDAK MASUK Laporan Kontinuitas Nomor
+   (keputusan 29 Juli). SO bukan dokumen yang mengikat uang atau stok.
+4. SALES ORDER TIDAK MENAHAN STOK. Qty terikat SO terbuka hanya DITAMPILKAN
+   sebagai informasi. Stok berkurang saat faktur, bukan saat SO.
+   Sediakan endpoint GET /products/:id/committed-qty untuk angka informatif itu.
+5. SO yang sudah CONVERTED tidak bisa diubah.
+
+ATURAN WAJIB HARI INI:
+- Tidak ada status DRAFT di dokumen mana pun. Draft membakar nomor dokumen dan
+  meninggalkan lubang yang harus dijustifikasi ke pemilik. Kalau butuh "simpan
+  sementara", itulah gunanya Sales Order.
 
 DEFINITION OF DONE:
-- VOID mengembalikan qty_remaining ke lot asal (buktikan dengan isi tabel lots
-  sebelum & sesudah — lot_id yang sama, bukan lot baru)
-- invoice dengan pembayaran → VOID ditolak
-- terbilang(1234600) → "satu juta dua ratus tiga puluh empat ribu enam ratus rupiah"
-- rekonsiliasi stok = 0 setelah VOID
+- Faktur PENGIRIMAN tanpa SO -> ditolak dengan pesan jelas
+- Faktur TOKO tanpa SO -> sukses
+- SO terbuka TIDAK mengurangi qty tersedia di endpoint stok mana pun
+- SO CONVERTED tidak bisa diubah
+- Nomor SO tidak pernah lompat, bahkan saat pembuatan gagal di tengah
 ```
 
 ### 🎨 Frontend
 
 ```
-KONTEKS: Hari 19 dari 34.
-
-⚠️ PRASYARAT: format nota A4 dari klien. Kalau BELUM diterima,
-JANGAN menunggu — pakai layout standar (kop toko, no. nota, tanggal, customer,
-tabel barang, subtotal/pembulatan/total, terbilang, kolom tanda tangan
-"Hormat kami" & "Penerima"), lalu catat di PROGRESS.md §3 bahwa revisi format
-masuk pasca-MVP. Beri tahu saya kalau ini yang terjadi.
+KONTEKS: Hari 19 dari 37.
 
 TUGAS (FRONTEND):
-1. Halaman detail Sales Invoice: header, baris, ringkasan (subtotal, PPN,
-   pembulatan, total), panel jurnal yang bisa di-expand, panel HPP & lot terpakai,
-   status pembayaran, tombol Ubah/Batalkan/Cetak/Buat Surat Jalan.
-   Tombol Ubah & Batalkan mengikuti { canEdit, canVoid, reasons } dari server.
-2. CETAK NOTA A4 — 2 RANGKAP IDENTIK:
-   - satu halaman A4 berisi DUA salinan identik (atas & bawah), bukan dua halaman
-   - pisahkan dengan garis potong putus-putus
-   - print stylesheet terpisah: sembunyikan sidebar/topbar/tombol,
-     margin cetak sesuai, font ukuran cetak (bukan ukuran layar)
-   - qty ditampilkan dalam satuan pecahan ("12 dus 15 renceng")
-   - terbilang di bawah total
-   - uji di print preview Chrome, bukan hanya di layar
-3. Tombol cetak langsung memicu dialog print (window.print) tanpa halaman perantara.
+1. Halaman Sales Order: form mirip faktur tapi lebih ringan (tanpa harga pokok,
+   tanpa jurnal). Tombol "Jadikan Faktur".
+2. Di layar stok dan autocomplete produk, tampilkan "terikat SO: N" sebagai
+   INFORMASI terpisah dari sisa stok. Jangan mengurangi angka sisa stok —
+   operator harus melihat keduanya, bukan satu angka yang sudah dicampur.
+3. Pilihan saluran penjualan di form faktur: dua tombol besar (PENGIRIMAN / TOKO),
+   dipilih SEBELUM mengisi baris, karena menentukan wajib-tidaknya SO.
 
 DEFINITION OF DONE:
-- Print preview: 1 halaman A4, 2 salinan identik, tidak ada elemen UI ikut tercetak
-- Nota dengan 8 baris masih muat 2 rangkap dalam 1 halaman
-  (kalau lebih dari 8 baris, salinan kedua boleh pindah halaman — konfirmasi ke saya)
-- Terbilang benar
+- Sisa stok dan qty terikat SO tampil sebagai dua angka terpisah
+- Memilih PENGIRIMAN tanpa SO menampilkan penjelasan sebelum submit, bukan setelah
 ```
 
 ### ✅ Verifikasi Hari 19
 
-- [ ] VOID mengembalikan stok ke **lot asal**
-- [ ] VOID atas invoice yang sudah dibayar → ditolak
-- [ ] Nota A4 2 rangkap identik, rapi di print preview
-- [ ] Terbilang benar
-- [ ] Status format nota dari klien tercatat di PROGRESS.md §1
+- [ ] Faktur `PENGIRIMAN` tanpa SO ditolak; `TOKO` tanpa SO sukses
+- [ ] SO terbuka tidak mengurangi stok tersedia di endpoint mana pun
+- [ ] Sisa stok & qty terikat SO tampil terpisah di layar
+- [ ] SO `CONVERTED` tidak bisa diubah
+- [ ] Tidak ada status DRAFT di dokumen mana pun
 - [ ] `./scripts/verify.sh` hijau
 
 ---
 
-## Hari 20 — Retur Penjualan
+## Hari 20 ⚠️🛑 — Price Suggestion + Skema Faktur Penjualan  *(v2: Hari 17)*
+
+> **Panel riwayat harga bukan kenyamanan.** Harga jual berbeda per pelanggan dan
+> fluktuatif — produk yang sama bisa 119 rb, 120 rb, 121 rb ke pelanggan berbeda.
+> Harga master hanya seed dan tidak dipakai di lapangan. Tanpa panel ini operator
+> **tidak punya cara** mengetahui harga yang benar. Ini di daftar tidak-boleh-dipotong.
 
 ### 🔧 Backend
 
 ```
-KONTEKS: Hari 20 dari 34. Jurnal 4 sisi + kasus retur atas invoice yang SUDAH LUNAS
-(ini dominan di kanal toko, karena pembeli toko bayar seketika).
+KONTEKS: Hari 20 dari 37. Ini JALUR TERPANAS APLIKASI — dipanggil tiap kali
+operator mengetik baris faktur.
+
+BERHENTI DAN BACA DULU — PR TERBUKA #3 (KONTEKS_REVISI Sec.4.2):
+Panel disaring per satuan. Kalau sebuah produk belum pernah dijual dalam satuan
+renceng ke siapa pun, fallback terakhir adalah harga master — yang klien bilang
+tidak dipakai. Belum diputuskan: tampilkan harga master, atau tampilkan kosong
+dengan pesan jelas? Bangun fallback tingkat 1 dan 2 sekarang; tingkat 3 tulis
+di belakang satu flag dan BERHENTI.
 
 TUGAS (BACKEND):
-1. Migration `sales_returns` + `sales_return_lines`:
-   header: id, return_number (RJ/YYMM/NNNN), sales_invoice_id, customer_id,
-           return_date, subtotal, tax_amount, total_amount,
-           settlement_type ENUM('REDUCE_INVOICE','CASH'),
-           cash_account_id (nullable, wajib bila CASH),
-           warehouse_id, status, journal_entry_id, notes, timestamps
-   lines:  id, sales_return_id, sales_invoice_line_id, product_id,
-           qty_base_unit, unit_price, unit_cost_fifo, line_total, line_cost
+1. GET /price-suggestion?customerId=&productId=&unitId=
+   - 10 TRANSAKSI TERAKHIR untuk kombinasi pelanggan + produk + SATUAN YANG
+     SEDANG DIKETIK, dari faktur yang TIDAK VOID
+   - kolom: Tanggal, Qty, Satuan, @Harga
+   - fallback berurutan:
+     (1) pelanggan + produk + satuan
+     (2) produk + satuan, ke pelanggan mana pun
+     (3) harga master   <- PR #3, di belakang flag
+2. OPTIMASI YANG DIPUTUSKAN SEKARANG, BUKAN NANTI:
+   customer_id DIDENORMALISASI ke sales_invoice_lines, dengan indeks
+   (customer_id, product_id, unit_id, id DESC).
+   Ini ditulis DI MIGRATION INI. Menambahkannya setelah tabel berisi data berarti
+   backfill + reindex di mesin klien yang HDD.
+3. Migration `sales_invoices`(+lines):
+   - saluran penjualan, salesman_id, term_days (diinput PER FAKTUR, bukan dari
+     master pelanggan; nilai default boleh diambil dari faktur terakhir pelanggan itu)
+   - unit_cost_fifo per baris (diisi saat posting Hari 21) — retur penjualan
+     nanti WAJIB memakai angka ini, bukan harga pokok baru
+   - kolom kunci cetak + review_status + void_reason_*
 
-2. POST /sales-returns — satu transaction:
-   a. validasi qty retur <= qty terjual − qty sudah diretur, per baris invoice
-   b. HARGA POKOK WAJIB dari sales_invoice_lines.unit_cost_fifo.
-      DILARANG menghitung FIFO baru atau memakai harga pasar.
-      Kalau unit_cost_fifo kosong (data lama), tolak dengan pesan jelas.
-   c. barang MASUK ke Gudang Toko (bukan bad stock — bad stock diinput
-      terpisah lewat mutasi gudang). Buat lot baru dengan unit_cost = unit_cost_fifo.
-   d. JURNAL 4 SISI:
-        Retur Penjualan  (D) subtotal (DPP)
-        PPN Keluaran     (D) tax_amount        -- hanya bila > 0
-        Piutang atau Kas (K) total_amount
-        --- dan ---
-        Persediaan       (D) Σ line_cost
-        HPP              (K) Σ line_cost
-      settlement_type = REDUCE_INVOICE → kredit ke Piutang, kurangi outstanding
-      settlement_type = CASH           → kredit ke akun Kas terpilih
-   e. KASUS PENTING — retur atas invoice LUNAS dengan settlement CASH:
-      paid_amount invoice TIDAK BOLEH melebihi total_amount setelah retur.
-      Sesuaikan paid_amount/status invoice dengan benar dan buat testnya.
-3. VOID retur penjualan lewat VoidEngine.
+ATURAN WAJIB HARI INI:
+- BAHAYA YANG HARUS DICEGAH: harga dus dan harga renceng berbeda sebesar angka
+  konversi (bisa 25x). Panel WAJIB menampilkan kolom satuan, dan WAJIB berganti
+  isi saat satuan yang diketik berganti. Kalau tidak, operator akan melihat harga
+  dus lalu memakainya untuk renceng.
+- Target < 300 ms. Kalau meleset, cek indeks dulu, jangan tambah cache.
 
 DEFINITION OF DONE:
-- jurnal 4 sisi balance
-- unit_cost_fifo memakai nilai ASLI dari invoice (buktikan: ubah harga beli
-  produk itu setelah penjualan, lalu retur — harga pokok retur tetap yang lama)
-- retur atas invoice LUNAS + CASH → jurnal kas benar, paid_amount <= total_amount,
-  status invoice konsisten
-- retur melebihi qty terjual → 400
-- barang masuk ke Gudang Toko, bukan bad stock
-- rekonsiliasi stok = 0
+- Pilih pelanggan + produk -> 10 harga terakhir muncul < 300 ms
+- Ganti satuan DUS -> RENCENG mengubah isi panel
+- Faktur VOID tidak pernah muncul di panel
+- EXPLAIN ANALYZE menunjukkan indeks (customer_id, product_id, unit_id, id DESC)
+  benar-benar dipakai — tempelkan outputnya
 ```
 
 ### 🎨 Frontend
 
 ```
-KONTEKS: Hari 20 dari 34.
+KONTEKS: Hari 20 dari 37. Form penjualan adalah layar yang paling sering dilihat
+operator. Tiga hal di daftar tidak-boleh-dipotong ada di sini: panel riwayat harga,
+sisa stok saat mengetik, dan modal tambah pelanggan.
 
 TUGAS (FRONTEND):
-1. Halaman Retur Penjualan:
-   - pilih Sales Invoice (autocomplete by nomor/customer) → baris tampil dengan
-     "terjual / sudah diretur / sisa bisa diretur"
-   - centang baris + isi qty, harga jual otomatis dari invoice (read-only)
-   - pilihan penyelesaian sebagai dua kartu besar berbahasa awam:
-     "Kurangi Tagihan — piutang customer berkurang"
-     "Uang Dikembalikan — kita mengembalikan uang ke customer"
-     kalau invoice sudah LUNAS, kartu "Kurangi Tagihan" otomatis nonaktif
-     dengan penjelasan "Nota ini sudah lunas" ← detail kecil yang mencegah salah pilih
-   - panel info: status pembayaran invoice, sisa tagihan
-2. Cetak retur penjualan A4 (pola sama dengan retur pembelian).
+1. Mulai form Sales Invoice:
+   - autocomplete produk berdasarkan display_name (operator mencari lewat nama,
+     bukan kode)
+   - kolom ISI ditampilkan di grid
+   - qty: satu angka + pilihan satuan, default DUS
+   - <StockBadge> dari Hari 10: sisa stok tampil SAAT MENGETIK, bukan setelah simpan
+2. PANEL RIWAYAT HARGA di sebelah baris yang sedang diketik:
+   - 10 baris: Tanggal, Qty, Satuan, @Harga
+   - KOLOM SATUAN WAJIB TERLIHAT, jangan disembunyikan demi ruang
+   - panel ini REFERENSI, bukan pilihan: harga tetap diketik manual.
+     Klien secara eksplisit meminta ini. Jangan bikin baris panel bisa diklik
+     untuk mengisi harga.
+3. MODAL TAMBAH PELANGGAN dari dalam form (bukan pindah halaman).
+   Modal ini menyimpan ar_account_id NULL — operator tidak pernah melihat
+   field itu, dan tidak butuh akses COA.
+4. Ctrl+H (ubah harga) dan Ctrl+D (ubah diskon): pola dari sistem lama yang
+   dipertahankan, TAPI WAJIB DIBUAT TERLIHAT. Operator lama tidak tahu cara
+   memakainya selama bertahun-tahun. Tampilkan petunjuknya di layar, jangan
+   mengandalkan orang mengingat.
+
+ATURAN WAJIB HARI INI:
+- Ergonomi keyboard diturunkan ke "cukup baik" (disetujui klien): navigasi
+  keyboard tetap dibangun, tapi tidak dipoles sampai bebas-mouse total.
+  Yang TIDAK boleh diturunkan: panel harga, sisa stok, modal tambah pelanggan.
 
 DEFINITION OF DONE:
-- Kartu "Kurangi Tagihan" nonaktif otomatis untuk invoice lunas
-- Qty retur tidak bisa melebihi sisa
-- Cetak rapi di print preview
+- Panel muncul < 300 ms setelah produk dipilih, dengan kolom satuan terlihat
+- Mengganti satuan mengubah isi panel
+- Modal tambah pelanggan menyimpan dan langsung terpilih di form
+- Petunjuk Ctrl+H / Ctrl+D terlihat tanpa perlu dihafal
 ```
 
 ### ✅ Verifikasi Hari 20
 
-- [ ] Jurnal 4 sisi balance
-- [ ] `unit_cost_fifo` asli dipakai (dibuktikan dengan skenario harga berubah)
-- [ ] Retur atas invoice lunas + CASH → `paid_amount` ≤ `total_amount`
-- [ ] Barang masuk Gudang Toko
-- [ ] Rekonsiliasi stok = 0
-- [ ] 4 invarian hijau
+- [ ] Panel 10 harga muncul < 300 ms, **kolom satuan terlihat**
+- [ ] Ganti satuan → isi panel ikut berganti
+- [ ] Faktur VOID tidak muncul di panel
+- [ ] `EXPLAIN ANALYZE` membuktikan indeks denormalisasi dipakai
+- [ ] Baris panel **tidak** bisa diklik untuk mengisi harga
+- [ ] Modal tambah pelanggan jalan, `ar_account_id` NULL
+- [ ] Sisa stok tampil saat mengetik
+- [ ] **Pertanyaan PR #3 sudah dikirim ke klien**
 - [ ] `./scripts/verify.sh` hijau
-- [ ] **UAT Minggu 3 (~16 Agu): pembelian, retur, penjualan — bersama operator**
 
 ---
----
 
-# FASE 5 — PENGIRIMAN & PEMBAYARAN (Hari 21–25)
-
-> Hari 23–24 adalah dua hari tersulit sisanya. Pelunasan pecah multi-metode
-> dengan alokasi yang bisa diedit adalah fitur yang paling mudah salah dan
-> paling mahal kalau salah — uang.
-
-## Hari 21 — Agen, Kendaraan, Surat Jalan (skema)
+## Hari 21 ⚠️♻️ — POST /sales-invoices + Batas Jual di Bawah Harga Pokok  *(v2: Hari 18)*
 
 ### 🔧 Backend
 
 ```
-KONTEKS: Hari 21 dari 34.
-⚠️ PRASYARAT: format nomor surat jalan dari klien. Kalau belum ada,
-pakai SJ/YYMM/NNNN dan catat di PROGRESS.md §1. Jangan menunggu.
+KONTEKS: Hari 21 dari 37. Endpoint paling ramai di aplikasi.
 
 TUGAS (BACKEND):
-1. Migration `agents`: id, name, phone, is_active, timestamps
-   Migration `vehicles`: id, name, plate_number, is_active, timestamps
-   CRUD keduanya (sederhana, pakai pola master data Hari 4).
-2. Migration `delivery_orders` + `delivery_order_lines`:
-   header: id, delivery_number (SJ/YYMM/NNNN), sales_invoice_id, customer_id,
-           delivery_date, agent_id, vehicle_id,
-           status ENUM('PENDING','DELIVERED','POSTPONED','RETURNED'),
-           status_note, delivered_at, notes, created_by, timestamps
-   lines:  id, delivery_order_id, sales_invoice_line_id, product_id,
-           qty_base_unit, unit_name, qty_input, line_order
-3. Surat jalan TIDAK menyentuh stok dan TIDAK menghasilkan jurnal.
-   Stok sudah berkurang saat Sales Invoice. Surat jalan hanya dokumen pengantar.
-   Tulis komentar ini di kode — ini pertanyaan yang akan muncul lagi nanti.
-4. POST /delivery-orders dari sales_invoice_id:
-   - baris tersalin dari invoice (boleh sebagian: pengiriman bertahap)
-   - validasi: qty kumulatif surat jalan per baris invoice <= qty invoice
-   - satu invoice boleh punya beberapa surat jalan
-   - satu surat jalan = satu customer (tidak digabung)
+1. POST /sales-invoices alur penuh dalam SATU transaction:
+   nomor -> faktur -> StockRecorder.recordOut -> JournalPoster -> selesai.
+   Gagal di tengah = rollback penuh, termasuk nomornya.
+2. RUMUS (CLAUDE.md Sec.4):
+   baris_kotor   = qty x unit_price
+   diskon_baris  = persen ATAU rupiah (alternatif, bukan bertingkat)
+   baris_bersih  = baris_kotor - diskon_baris
+   subtotal      = Sigma baris_bersih
+   diskon_faktur = persen ATAU rupiah, atas subtotal
+   total_diskon  = Sigma diskon_baris + diskon_faktur
+   ppn           = company_is_pkp ? (subtotal - diskon_faktur) x tarif : 0
+   total_amount  = subtotal - diskon_faktur + ppn      <- EKSAK, TIDAK DIBULATKAN
+
+   TIDAK ADA PEMBULATAN di dokumen mana pun. Aturan pembulatan kelipatan 100 dari
+   v1 SUDAH DICABUT dan akun Pendapatan Pembulatan TIDAK dibuat. Selisih
+   diselesaikan saat alokasi pembayaran (CLAUDE.md Sec.2 aturan 18), bukan di sini.
+
+   Syarat PPN keluaran HANYA company_is_pkp. Status PKP pelanggan TIDAK menentukan
+   apakah PPN dipungut — hanya menentukan apakah pelanggan bisa mengkreditkannya.
+
+3. Jurnal metode BRUTO (pendapatan dicatat kotor, diskon jadi akun kontra):
+   Piutang/Kas      (D) total_amount
+   Diskon Penjualan (D) total_diskon
+       Pendapatan       (K) Sigma baris_kotor
+       PPN Keluaran     (K) ppn
+   HPP              (D) totalCOGS
+       Persediaan       (K) totalCOGS
+   Akun piutang lewat resolveArAccount(), BUKAN akun default langsung.
+
+4. BATAS JUAL DI BAWAH HARGA POKOK:
+   - batas = getLatestCostBasis(product) dari Hari 10 (lot terbaru yang
+     unit_cost > 0 — LOT BONUS BERHARGA NOL WAJIB DILEWATI) x angka konversi
+     ke satuan baris
+   - dibandingkan terhadap HARGA BERSIH SETELAH DISKON, bukan harga kotor
+   - nilai batasnya TIDAK DITAMPILKAN ke operator; hanya menghadang saat dilanggar
+   - produk yang belum pernah dibeli (belum ada lot) -> TIDAK ADA batas, jangan error
+   - actionType SELL_BELOW_COST, SATU PERMINTAAN PER FAKTUR yang memuat SEMUA
+     baris yang melanggar — bukan satu permintaan per baris. Operator tidak boleh
+     dipaksa memanggil supervisor lima kali untuk satu nota.
+
+ATURAN WAJIB HARI INI:
+- Kalau lot bonus tidak dilewati, batas jual-rugi jadi nol dan kontrol ini
+  BERHENTI BEKERJA tanpa satu pun error muncul. Tulis test khusus untuk kasus:
+  produk dibeli 100.000, lalu dapat bonus (lot 0), lalu dijual 50.000 ->
+  HARUS tetap tertahan.
+- unit_cost_fifo per baris WAJIB disimpan. Retur penjualan Hari 23 memakainya.
 
 DEFINITION OF DONE:
-- surat jalan terbentuk dari invoice, membawa agent_id & vehicle_id
-- membuat surat jalan tidak menghasilkan stock_movements maupun journal_entries
-- qty surat jalan melebihi qty invoice → 400
-- pengiriman bertahap: 2 surat jalan atas 1 invoice, totalnya tepat
+- Faktur bertotal 33.253.125 tersimpan APA ADANYA (tidak jadi 33.253.100)
+- Produk yang lot terbarunya bonus tetap memakai lot berbayar terakhir sebagai batas
+- Produk tanpa lot -> tidak ada batas, tidak error
+- Satu faktur dengan 3 baris melanggar -> SATU permintaan approval, bukan tiga
+- Jurnal balance; invarian 1-5 Hari 11 semuanya tetap hijau
+- unit_cost_fifo terisi di setiap baris
 ```
 
 ### 🎨 Frontend
 
 ```
-KONTEKS: Hari 21 dari 34.
+KONTEKS: Hari 21 dari 37. Melanjutkan form dari Hari 20.
 
 TUGAS (FRONTEND):
-1. Halaman Agen (list + form): nama, telepon, aktif.
-2. Halaman Kendaraan (list + form): nama, plat nomor, aktif.
-   Keduanya memakai <DataTable> + <CrudFormPage> — harusnya masing-masing
-   di bawah 40 baris. Kalau lebih, komponen enginenya kurang.
-3. Tambahkan keduanya ke menu Master Data.
-4. Sisa waktu: siapkan kerangka halaman Surat Jalan untuk besok
-   (list + tombol "Buat dari Faktur").
+1. Preview total live: subtotal, diskon baris, diskon faktur, PPN, TOTAL.
+   Angka yang tampil = angka yang disimpan. Tidak ada pembulatan tampilan.
+2. Diskon per baris DAN per faktur, keduanya persen ATAU rupiah (alternatif,
+   bukan bertingkat). Diskon jarang dipakai tapi tetap ada sebagai konvensi.
+3. Saat backend menolak dengan SELL_BELOW_COST:
+   - <StepUpDialog> muncul SEKALI untuk seluruh faktur
+   - daftar baris yang melanggar ditampilkan TANPA menyebut nilai batasnya
+   - setelah disetujui, faktur dikirim ulang otomatis
+4. Ctrl+H dan Ctrl+D dengan petunjuk terlihat (lanjutan Hari 20).
 
 DEFINITION OF DONE:
-- Halaman agen & kendaraan masing-masing < 40 baris kode
-- Menu Master Data lengkap
+- Total di layar identik dengan total di DB, sampai satuan rupiah
+- Tiga baris melanggar -> satu dialog, bukan tiga
+- Tidak ada angka harga pokok atau batas yang bocor ke layar operator
 ```
 
 ### ✅ Verifikasi Hari 21
 
-- [ ] Surat jalan tidak menyentuh stok/jurnal
-- [ ] Pengiriman bertahap tervalidasi benar
-- [ ] Halaman agen/kendaraan ringkas (bukti abstraksi FE masih sehat)
+- [ ] Total eksak, tidak dibulatkan, di layar maupun di DB
+- [ ] Tidak ada akun Pendapatan Pembulatan di COA
+- [ ] PPN keluaran hanya digerbangi `company_is_pkp`
+- [ ] Batas jual-rugi **melewati** lot bonus — ada test khususnya
+- [ ] Produk tanpa lot tidak error
+- [ ] Satu permintaan approval per faktur, bukan per baris
+- [ ] Batas tidak pernah ditampilkan ke operator
+- [ ] `unit_cost_fifo` terisi; invarian 1–5 hijau
 - [ ] `./scripts/verify.sh` hijau
 
 ---
 
-## Hari 22 — Endpoint Surat Jalan + Cetak
+## Hari 22 ♻️ — Edit/VOID Penjualan + Cetak Nota A5  *(v2: Hari 19)*
 
 ### 🔧 Backend
 
 ```
-KONTEKS: Hari 22 dari 34.
+KONTEKS: Hari 22 dari 37. Mekanisme kunci cetak sudah ada sejak Hari 15 —
+hari ini memakainya, bukan membangunnya ulang.
 
 TUGAS (BACKEND):
-1. PATCH /delivery-orders/:id/status { status, note }:
-   PENDING → DELIVERED (isi delivered_at)
-   PENDING → POSTPONED (barang tidak jadi terkirim, note wajib)
-   PENDING → RETURNED  (barang dibawa pulang, note wajib)
-   POSTPONED → PENDING/DELIVERED (bisa dicoba lagi hari berikutnya)
-   Transisi lain ditolak dengan pesan jelas.
-   CATATAN: kendaraan BUKAN gudang terlacak (keputusan §1.6) — status ini saja
-   yang menandai barang belum sampai. Jangan membuat stok di kendaraan.
-2. GET /delivery-orders dengan filter: status, tanggal, agen, kendaraan, customer.
-   Tambah endpoint GET /delivery-orders/undelivered → daftar POSTPONED + PENDING
-   yang tanggalnya sudah lewat. Ini yang dilihat operator tiap pagi.
-3. GET /delivery-orders/:id/print-data.
+1. Edit bersyarat + VOID Sales Invoice lewat VoidEngine + print-lock.
+   VOID oleh OPERATOR WAJIB lewat authorization_requests (step-up).
+2. VOID mengembalikan qty_remaining ke LOT ASAL sesuai stock_cost_consumptions,
+   bukan membuat lot baru.
+3. Endpoint cetak: kembalikan data + nomor revisi + penanda VOID bila perlu.
+4. Faktur yang di-VOID tetap punya nomor dan tetap muncul di Laporan Kontinuitas
+   (Hari 28). Nomor tidak boleh hilang, dan void_reason_note WAJIB terisi.
 
 DEFINITION OF DONE:
-- transisi status valid berhasil, transisi tidak valid ditolak
-- endpoint undelivered menampilkan daftar yang benar
-- perubahan status tercatat di audit_logs
+- VOID mengembalikan stok & lot persis seperti semula (bandingkan isi tabel lots
+  sebelum dan sesudah)
+- VOID oleh Operator memicu step-up; oleh Master tidak
+- Edit setelah dicetak tanpa batal cetak -> ditolak
+- Nota revisi membawa nomor revisi yang naik
 ```
 
 ### 🎨 Frontend
 
 ```
-KONTEKS: Hari 22 dari 34.
-⚠️ PRASYARAT: format surat jalan dari klien. Kalau belum ada, pakai layout standar
-dan catat di PROGRESS.md §3.
+KONTEKS: Hari 22 dari 37. FORMAT NOTA: klien menjanjikan contoh 27 Juli dan
+belum mengirimkannya (PROGRESS.md Sec.1). Kalau sampai hari ini belum ada,
+pakai LAYOUT STANDAR sesuai aturan cadangan, dan catat di PROGRESS.md Sec.3
+bahwa revisi format masuk pasca-MVP.
 
 TUGAS (FRONTEND):
-1. Halaman Surat Jalan:
-   - list dengan tab: Belum Terkirim / Terkirim / Ditunda / Kembali
-   - tab "Belum Terkirim" adalah default (ini yang dipakai tiap pagi)
-   - aksi cepat dari baris list: tandai Terkirim / Ditunda / Kembali
-     lewat modal kecil dengan field catatan
-   - kolom: no. SJ, tanggal, customer, agen, kendaraan, no. faktur, status
-2. Buat Surat Jalan dari faktur: pilih faktur → baris tampil dengan
-   "qty faktur / sudah dikirim / sisa" → centang + qty → pilih agen & kendaraan.
-3. CETAK A4 surat jalan:
-   - kop, no. SJ, tanggal, customer + alamat, tabel barang (satuan pecahan),
-     nama agen & kendaraan/plat, kolom tanda tangan penerima
-   - TIDAK menampilkan harga (surat jalan dibawa ke lapangan)
-     ← konfirmasi ke klien kalau mereka justru menginginkan harga
-   - print stylesheet terpisah, uji di print preview
+1. CETAK NOTA — semua dokumen A5 LANDSCAPE, DUA PER LEMBAR A4 PORTRAIT,
+   dipotong mendatar. Klien mencetak di kertas A5 kosong hasil membelah A4.
+   - MUAT 14 BARIS per halaman; lebih dari itu lanjut ke halaman 2 (Hal. 1/2)
+   - di lapangan tidak pernah lebih dari 20 SKU, rata-rata 2-7
+2. Kepala nota: identitas toko dari settings (nama, kota, telepon) — yang kosong
+   TIDAK DICETAK. Lalu nama toko tujuan (pelanggan) dan kotanya bila ada.
+3. Kolom mengikuti kebiasaan nota lama klien:
+   NO, BARCODE, NAMA PRODUK, QTY, HARGA @, DISC %, DISC RP, JUMLAH
+   plus JTH. TEMPO, MEMO, SALES.
+   Satuan TIDAK perlu dicetak eksplisit di kolom QTY — hampir semua transaksi
+   memakai satuan Dus.
+4. Kaki nota: baris audit cetak (siapa & kapan), sesuai kebiasaan sistem lama.
+5. Dokumen VOIDED dicetak DENGAN TANDA VOID yang jelas, untuk arsip.
+6. Nota revisi mencantumkan nomor revisi.
+
+ATURAN WAJIB HARI INI:
+- Uji cetak SUNGGUHAN ke kertas, bukan hanya preview browser. Dua nota A5 harus
+  jatuh presisi di satu lembar A4 dan garis potongnya masuk akal.
 
 DEFINITION OF DONE:
-- Tab "Belum Terkirim" menampilkan POSTPONED + PENDING lewat
-- Tandai status dari list tanpa membuka halaman detail
-- Cetak A4 rapi, tanpa harga
+- Nota 16 baris pecah ke 2 halaman dengan benar (Hal. 1/2, Hal. 2/2)
+- Dua nota A5 muat presisi di satu A4 saat dicetak sungguhan
+- Identitas toko kosong tidak meninggalkan baris kosong menganga
+- Nota VOID bertanda jelas
 ```
 
 ### ✅ Verifikasi Hari 22
 
-- [ ] Status POSTPONED terlihat di daftar "belum terkirim"
-- [ ] Transisi status tidak valid ditolak
-- [ ] Cetak A4 surat jalan rapi
-- [ ] Pertanyaan "harga muncul di surat jalan?" dikonfirmasi ke klien
+- [ ] VOID mengembalikan lot asal, bukan lot baru
+- [ ] VOID oleh Operator memicu step-up
+- [ ] Nota 16 baris pecah 2 halaman dengan penomoran benar
+- [ ] **Uji cetak sungguhan** ke A4, dua A5 presisi
+- [ ] Nota VOID bertanda; nota revisi bernomor revisi
+- [ ] Kalau format klien belum datang: dicatat di `PROGRESS.md` §3
 - [ ] `./scripts/verify.sh` hijau
 
 ---
 
-## Hari 23 ⚠️ — Payment: Skema + Preview Alokasi
+## Hari 22A 🆕 — Halaman Pengecekan Invoice Harian (Supervisor)
+
+> Klien menyatakan tugas supervisor hanya **dua**: menyetujui invoice dan menyetujui
+> step-up. Supervisor **tidak punya dashboard**. Pengecekan dilakukan **di akhir hari**
+> untuk mencocokkan dengan realita — **tidak memblokir** operasional.
 
 ### 🔧 Backend
 
 ```
-KONTEKS: Hari 23 dari 34. Hari berisiko tinggi. Ini menyangkut uang —
-kesalahan di sini paling mahal dan paling sulit ditemukan belakangan.
+KONTEKS: Hari 22A dari 37 (hari sisipan). Faktur penjualan dan pembelian sudah
+lengkap, jadi sekarang ada yang bisa dicek.
 
 TUGAS (BACKEND):
-1. Migration:
-   `payment_batches`: id, batch_number (PAY/YYMM/NNNN), payment_date,
-     direction ENUM('IN','OUT'),          -- IN = terima dari customer, OUT = bayar supplier
-     party_type ENUM('CUSTOMER','SUPPLIER'), party_id,
-     total_amount, agent_id (nullable), vehicle_id (nullable),
-     status ENUM('POSTED','VOID'), journal_entry_id, notes, created_by, timestamps
-     CATATAN: TIDAK ADA payment_account_id di sini — pindah ke payment_batch_methods.
-   `payment_batch_methods`: id, payment_batch_id, cash_account_id, amount,
-     reference_number (nullable, no. transfer), line_order
-   `payments`: id, payment_batch_id, invoice_type ENUM('SALES','PURCHASE'),
-     invoice_id, allocated_amount, line_order
+1. review_status (BELUM_DICEK -> DISETUJUI / BERMASALAH) + review_note +
+   reviewed_by + reviewed_at, di sales_invoices DAN purchase_invoices.
+2. PAKAI ULANG endpoint yang sudah ada:
+   GET /sales-invoices?reviewStatus=&date=
+   GET /purchase-invoices?reviewStatus=&date=
+   DILARANG membuat keluarga endpoint /supervisor/*. Dua keluarga endpoint untuk
+   data yang sama berarti dua tempat memperbaiki bug filter, dan yang kedua
+   selalu terlupakan.
+3. PATCH /sales-invoices/:id/review — SUPERVISOR & MASTER saja.
+   Supervisor TIDAK PERNAH menulis ke isi faktur. Ia hanya mengubah review_status.
+   Kalau menemukan kesalahan, ia menandai BERMASALAH dan MEMINTA OPERATOR
+   memperbaiki. Ini yang menjaga permission matrix tetap utuh.
+4. Selisih pembayaran di atas Rp 10.000 (Hari 27) OTOMATIS ditandai di layar ini.
+   Siapkan field penanda sekarang. Ditandai — bukan diblokir, bukan minta step-up.
 
-2. POST /payments/preview-allocation
-   Body: { partyType, partyId, totalAmount, invoiceIds? }
-   Logika:
-   - ambil invoice OUTSTANDING pihak tsb (total_amount − paid_amount > 0),
-     urut FIFO berdasarkan invoice_date lalu invoice_number
-   - kalau invoiceIds diberikan, batasi ke itu saja (tetap urut FIFO)
-   - alokasikan totalAmount berurutan sampai habis
-   - OVERPAYMENT DITOLAK: kalau totalAmount > Σ outstanding → 400
-     "Jumlah pembayaran melebihi total tagihan (tagihan: Rp X)"
-   - response: {
-       allocations: [{ invoiceId, invoiceNumber, invoiceDate, totalAmount,
-                       paidAmount, outstanding, allocated, remainingAfter }],
-       unallocated: number,        // 0 kalau pas
-       totalOutstanding: number
-     }
-   Endpoint ini PURE — tidak menulis apa pun ke DB.
-
-3. Validasi multi-metode (dipakai Hari 24, siapkan sekarang):
-   Σ payment_batch_methods.amount HARUS = payment_batches.total_amount.
-   Buat validator terpisah + testnya hari ini.
-
-ATURAN WAJIB:
-- Hitung dalam integer sen. Alokasi pembayaran yang meleset 1 rupiah akan
-  menghasilkan invoice yang "hampir lunas" selamanya.
-- preview tidak boleh punya efek samping apa pun.
+ATURAN WAJIB HARI INI:
+- Pengecekan bersifat SETELAH-FAKTA dan TIDAK MEMBLOKIR. Operator tidak pernah
+  menunggu supervisor untuk mencetak nota atau melanjutkan hari.
 
 DEFINITION OF DONE:
-- 3 invoice outstanding (10jt, 30jt, 60jt), bayar 80jt →
-  alokasi 10jt + 30jt + 40jt, invoice ketiga sisa 20jt
-- bayar 150jt (outstanding 100jt) → 400 overpayment
-- invoiceIds dibatasi 2 invoice → hanya keduanya yang dialokasi
-- validator multi-metode: 30jt + 50jt vs total 100jt → error;
-  30jt + 70jt vs total 100jt → lolos
-- preview dipanggil 2× → tidak ada perubahan di DB
+- SUPERVISOR mencoba PATCH isi faktur -> 403
+- SUPERVISOR mengubah review_status -> 200
+- Filter reviewStatus jalan di kedua endpoint yang SUDAH ADA
+- Tidak ada satu pun route /supervisor/* di aplikasi
 ```
 
 ### 🎨 Frontend
 
 ```
-KONTEKS: Hari 23 dari 34. Halaman pembayaran = 2 langkah.
-Hari ini langkah 1, besok langkah 2.
+KONTEKS: Hari 22A dari 37 (hari sisipan).
 
-TUGAS (FRONTEND) — Payment Langkah 1:
-1. Pilih arah: "Terima Pembayaran (dari Customer)" / "Bayar Supplier".
-2. Pilih pihak (autocomplete). Setelah terpilih, tampilkan panel ringkas:
-   total outstanding, jumlah invoice belum lunas, invoice tertua.
-3. INPUT MULTI-METODE — inti hari ini:
-   - repeater: akun kas/bank (select dari akun is_cash_account) + jumlah
-     + no. referensi (opsional, untuk transfer)
-   - contoh nyata: baris 1 = Kas Besar 30.000.000, baris 2 = BCA 50.000.000
-   - total dari semua metode tampil besar dan live
-   - Enter menambah baris metode
-   - peringatan inline kalau total melebihi outstanding (sebelum submit)
-4. Opsional (kanal agen): pilih agen + kendaraan.
-   Beri hint "untuk rekap setoran per mobil".
-5. Tombol "Lihat Alokasi" memanggil preview-allocation dan pindah ke langkah 2
-   (halamannya dibuat besok — hari ini cukup tampilkan hasil preview mentah
-   dalam tabel sederhana untuk verifikasi).
+TUGAS (FRONTEND):
+1. Halaman Pengecekan Invoice Harian:
+   - default: hari ini, status BELUM_DICEK
+   - kolom: nomor invoice, toko/pelanggan, nominal, status, tombol detail
+   - detail membuka faktur READ-ONLY dengan tombol [Setujui] [Tandai Bermasalah]
+   - "Tandai Bermasalah" wajib mengisi catatan yang akan dibaca operator
+   - penanda otomatis untuk selisih pembayaran > Rp 10.000
+2. NAVIGASI SUPERVISOR HANYA 3 ITEM:
+   Pengecekan Invoice - Antrian Persetujuan - Laporan.
+   TIDAK ADA DASHBOARD. Kalau supervisor membuka /, arahkan ke Pengecekan Invoice.
+3. Sisi operator: faktur ber-status BERMASALAH muncul menonjol di daftar faktur
+   operator, dengan catatan supervisornya terbaca.
 
 DEFINITION OF DONE:
-- Input 30jt kas + 50jt transfer atas tagihan 100jt → preview menunjukkan
-  alokasi benar dan sisa 20jt tetap outstanding
-- Total metode > outstanding → peringatan muncul sebelum submit
-- Enter menambah baris metode
+- Login SUPERVISOR: sidebar 3 item, tidak ada dashboard, / -> Pengecekan
+- Supervisor tidak menemukan satu pun tombol edit di detail faktur
+- Operator melihat faktur BERMASALAH beserta catatannya
+- Mencetak nota sebagai operator tetap bisa meski faktur BELUM_DICEK
+```
+
+### ✅ Verifikasi Hari 22A
+
+- [ ] Supervisor: sidebar 3 item, tanpa dashboard
+- [ ] Supervisor PATCH isi faktur → 403; ubah `review_status` → 200
+- [ ] Tidak ada route `/supervisor/*`
+- [ ] Operator melihat catatan `BERMASALAH` dan bisa memperbaiki
+- [ ] Pengecekan tidak memblokir cetak nota
+- [ ] `./scripts/verify.sh` hijau
+
+---
+
+## Hari 23 ♻️ — Retur Penjualan  *(v2: Hari 20)*
+
+### 🔧 Backend
+
+```
+KONTEKS: Hari 23 dari 37. Di sistem lama retur penjualan hanya 1 record —
+jarang terjadi, tapi ketika terjadi harus benar.
+
+TUGAS (BACKEND):
+1. Migration `sales_returns`(+lines) + nomor RJ. Ikut kunci cetak.
+2. RETUR PENJUALAN WAJIB MENUNJUK FAKTUR ASAL. Beda dari retur pembelian
+   (yang menunjuk supplier). Tanpa faktur asal, harga pokoknya tidak bisa
+   ditentukan dengan benar.
+3. Harga pokok WAJIB dari sales_invoice_lines.unit_cost_fifo (Hari 21),
+   BUKAN harga pokok baru. Barang yang kembali harus dinilai dengan biaya yang
+   dulu dikeluarkan untuknya, bukan dengan harga hari ini.
+4. Barang masuk gudang BAD_STOCK, SELALU. Retur pelanggan TIDAK PERNAH kembali
+   langsung ke stok jual.
+5. Jurnal:
+   Retur Penjualan (D) DPP
+   PPN Keluaran    (D) bila ada
+       Piutang/Kas     (K) total
+   Persediaan      (D) HPP asli (unit_cost_fifo faktur asal)
+       HPP             (K) HPP asli
+   Akun Retur Penjualan TETAP ADA (kontra pendapatan) — beda dari retur pembelian.
+6. settlement_type: REDUCE_INVOICE | CASH.
+
+DEFINITION OF DONE:
+- Retur tanpa faktur asal -> ditolak
+- Lot yang terbentuk di BAD_STOCK ber-unit_cost SAMA PERSIS dengan unit_cost_fifo
+  faktur asal (bandingkan isi tabelnya)
+- Retur atas faktur LUNAS dengan CASH -> jurnal kas benar, paid_amount tidak
+  pernah melebihi total_amount
+- Invarian 1-5 Hari 11 tetap hijau
+```
+
+### 🎨 Frontend
+
+```
+KONTEKS: Hari 23 dari 37.
+
+TUGAS (FRONTEND):
+1. Halaman Retur Penjualan: cari faktur asal dulu -> baris faktur muncul ->
+   pilih baris & qty yang diretur. Qty retur tidak boleh melebihi qty faktur.
+2. Cetak dokumen retur A5 + <DocumentActions>.
+3. Tampilkan penjelasan bahwa barang masuk gudang bad stock, supaya operator
+   tidak mencarinya di stok jual.
+
+DEFINITION OF DONE:
+- Qty retur > qty faktur -> ditahan di layar sebelum submit
+- Dokumen retur tercetak A5 dan ikut terkunci setelah dicetak
 ```
 
 ### ✅ Verifikasi Hari 23
 
-- [ ] Preview alokasi FIFO benar (skenario 10/30/60 vs 80jt)
-- [ ] Overpayment ditolak
-- [ ] Validator multi-metode hijau
-- [ ] Preview tanpa efek samping
-- [ ] FE: 30jt kas + 50jt transfer → preview benar, sisa 20jt
+- [ ] Retur tanpa faktur asal ditolak
+- [ ] `unit_cost` lot BS = `unit_cost_fifo` faktur asal
+- [ ] Barang selalu masuk BAD_STOCK
+- [ ] Retur atas faktur lunas dengan CASH → jurnal kas benar
+- [ ] Akun Retur Penjualan ada (kontra pendapatan)
+- [ ] Invarian 1–5 hijau
 - [ ] `./scripts/verify.sh` hijau
 
 ---
 
-## Hari 24 ⚠️ — Payment Confirm + Alokasi Manual
+## Hari 23A ⏸ — Tutup Bulan + Buka Kembali · **DITUNDA KE PASCA-MVP**
+
+> **Jangan dikerjakan sebelum 30 Agustus.** Bulan pertama yang perlu ditutup adalah September,
+> sekitar 1 Oktober — sebulan setelah serah terima. Prompt ini disimpan utuh dan tinggal
+> dijalankan nanti.
+>
+> **Yang TETAP dikerjakan di MVP:** validator backdate 2 hari (sudah ada sejak Hari 6) dengan
+> bentuk `PeriodLockValidator` sebagai satu titik masuk, supaya pemeriksaan periode tinggal
+> diselipkan tanpa menyentuh semua modul lagi.
+>
+> Aman **hanya karena** jurnal pembalik bertanggal hari ini (aturan §2.2 CLAUDE.md).
+> Kalau suatu saat ada yang "memperbaiki" jurnal pembalik agar bertanggal dokumen asli,
+> tutup bulan ikut rusak dan tidak ada test yang memberi tahu — kecuali yang ditulis hari ini.
 
 ### 🔧 Backend
 
 ```
-KONTEKS: Hari 24 dari 34. Hari berisiko tinggi terakhir sebelum fase laporan.
+KONTEKS: Hari 23A dari 37 (hari sisipan). Klien tidak jadi memakai konsep
+closing harian; yang dipakai adalah TUTUP BULAN.
 
 TUGAS (BACKEND):
-1. POST /payments/confirm — SATU TRANSACTION:
-   Body: {
-     partyType, partyId, paymentDate, direction,
-     methods: [{ cashAccountId, amount, referenceNumber? }],
-     allocations: [{ invoiceId, allocatedAmount }],   // BOLEH HASIL EDIT MANUAL
-     agentId?, vehicleId?, notes?
-   }
-   Langkah:
-   a. validasi Σ methods.amount = Σ allocations.allocatedAmount = total_amount
-   b. validasi tiap alokasi <= outstanding invoice tsb SAAT INI
-      (re-cek, jangan percaya angka dari preview yang bisa basi)
-   c. validasi semua invoice milik pihak yang sama dan belum VOID
-   d. validasi cashAccountId semuanya is_cash_account = true
-   e. buat batch + methods + payments
-   f. update paid_amount tiap invoice, set status PAID/PARTIAL
-   g. jurnal:
-      direction IN (dari customer):
-        Kas/Bank A   (D) amount_A
-        Kas/Bank B   (D) amount_B          -- satu baris per metode
-        Piutang Usaha (K) total_amount
-      direction OUT (ke supplier):
-        Hutang Usaha (D) total_amount
-        Kas/Bank A   (K) amount_A
-        Kas/Bank B   (K) amount_B
-      AR dan AP harus SIMETRIS — pakai satu fungsi dengan parameter arah,
-      jangan dua fungsi terpisah yang bisa menyimpang.
+1. Migration `accounting_periods`: tahun, bulan, status (OPEN/CLOSED),
+   closed_by, closed_at, reopened_count, reopen_reason, reopened_at, reopened_by.
+2. Tutup bulan dilakukan MASTER. Setelah ditutup, untuk dokumen bulan itu:
+   - edit DITOLAK
+   - VOID DITOLAK
+   - tidak ada transaksi baru bertanggal di dalamnya
+   Koreksi jalannya lewat Retur Penjualan / Retur Pembelian — dan itu memang
+   akuntansi yang benar, karena barang yang kembali di bulan berikutnya adalah
+   peristiwa bulan berikutnya.
+3. SATU VALIDATOR BERSAMA — PeriodLockValidator di src/core/ — yang menggabungkan
+   DUA pemeriksaan:
+     (a) backdate maksimum 2 hari  -> lebih dari itu 400
+     (b) tanggal tidak jatuh di periode CLOSED
+   Dipanggil SEMUA modul transaksi. Dua validator terpisah akan berpisah
+   perilakunya dalam sebulan.
+4. BUKA KEMBALI: MASTER boleh membuka bulan mana pun, WAJIB mengisi alasan,
+   tercatat di audit_logs, dan bulan yang pernah dibuka diberi PENANDA PERMANEN
+   di daftar periode (reopened_count tidak pernah direset).
+5. Endpoint daftar periode + status.
+6. CLOSING & SALDO AWAL PERIODE (aturan klien, CLAUDE.md Sec.2.15):
+   - akun LABA-RUGI ditutup, saldonya TIDAK terbawa ke bulan berikutnya
+   - akun NERACA: saldo akhir bulan N jadi saldo awal bulan N+1, dan buku besarnya
+     dibuka dengan baris Saldo Awal di posisi normalnya
+   - contoh baku klien: piutang A 5 jt tgl 29 belum dibayar -> neraca tgl 31 memuat
+     saldo akhir 5 jt di KREDIT -> tgl 1 bulan berikutnya buku besar AR dibuka dengan
+     saldo awal 5 jt di DEBIT -> saat A membayar, muncul 5 jt di KREDIT
+   BERHENTI DAN TANYA sebelum menulis kodenya: apakah baris Saldo Awal/Saldo Akhir itu
+   JURNAL SUNGGUHAN (ada journal_entries penutup & pembuka tiap bulan) atau KONSTRUKSI
+   TAMPILAN buku besar per periode? Keduanya menghasilkan laporan yang sama tapi skema,
+   jumlah baris jurnal, dan invarian testnya berbeda.
 
-2. POST /payment-batches/:id/void:
-   - jurnal pembalik bertanggal hari ini
-   - kembalikan paid_amount tiap invoice + perbaiki status
-   - OPERATOR wajib step-up
-   - kalau invoice sudah di-VOID setelah pembayaran → tetap boleh void payment,
-     tapi beri peringatan di response
-
-3. GET /payment-batches (list + filter) dan GET /:id (detail + methods + allocations).
+ATURAN WAJIB HARI INI:
+- PEMBAYARAN DAN RETUR ATAS FAKTUR BULAN TERTUTUP TETAP HARUS BISA JALAN.
+  Faktur kredit hampir selalu ditagih setelah bulannya ditutup. Yang diblokir adalah
+  EDIT dan VOID dokumen; memperbarui paid_amount/sisa tagihan adalah perubahan status
+  sub-ledger dengan jurnal bertanggal hari ini, dan itu WAJIB diizinkan.
+  Tulis test khusus: tutup bulan Juli, lalu bayar faktur Juli di bulan Agustus -> HARUS SUKSES.
+- Mem-VOID dokumen bulan LALU saat bulan itu sudah ditutup -> DITOLAK.
+- Mem-VOID dokumen bulan lalu saat bulan itu MASIH TERBUKA -> boleh, dan jurnal
+  pembaliknya BERTANGGAL HARI INI. Konsekuensinya angka bulan lalu tidak bergerak.
+  Tulis test yang membuktikan ini, karena inilah satu-satunya alasan tutup bulan aman.
 
 DEFINITION OF DONE:
-- alokasi HASIL EDIT MANUAL tersimpan PERSIS seperti yang dikirim
-  (uji: preview menyarankan invoice lama, operator mengalihkan ke invoice hari ini,
-   yang tersimpan adalah pilihan operator)
-- Σ methods = Σ allocations, ketidaksesuaian → 400
-- jurnal multi-metode: satu baris kas per metode, semua balance
-- AR dan AP simetris (bandingkan struktur jurnal keduanya di test)
-- VOID batch mengembalikan paid_amount dan status invoice dengan benar
-- alokasi melebihi outstanding saat ini → 400 meski preview bilang boleh
-
-SETELAH SELESAI: tampilkan jurnal dari pembayaran 30jt kas + 50jt BCA
-atas 2 invoice, dan buktikan balance.
+- Tutup bulan Juli, lalu coba edit faktur Juli -> ditolak
+- Tutup bulan Juli, lalu coba VOID faktur Juli -> ditolak
+- Tutup bulan Juli, lalu coba buat faktur bertanggal 30 Juli -> ditolak
+- Buka kembali tanpa alasan -> ditolak
+- Bulan yang pernah dibuka tetap bertanda meski ditutup lagi
+- Grep membuktikan hanya ADA SATU validator periode+backdate, dan semua modul
+  transaksi memanggilnya
 ```
 
 ### 🎨 Frontend
 
 ```
-KONTEKS: Hari 24 dari 34.
+KONTEKS: Hari 23A dari 37 (hari sisipan).
 
-TUGAS (FRONTEND) — Payment Langkah 2 + riwayat:
-1. Layar alokasi:
-   - tabel invoice outstanding: no. nota, tanggal, total, sudah dibayar,
-     sisa, KOLOM ALOKASI (dapat diedit)
-   - alokasi otomatis FIFO terisi sebagai awalan
-   - operator BISA MENGUBAH angka alokasi per baris —
-     ini kebutuhan nyata: customer sering membayar nota hari ini
-     lebih dulu daripada tunggakan lama
-   - tombol "Isi Otomatis (FIFO)" untuk mengembalikan ke saran
-   - indikator live: "Dialokasikan Rp X dari Rp Y · Sisa Rp Z"
-     tombol Konfirmasi terkunci selama sisa ≠ 0
-   - ringkasan metode pembayaran ditampilkan di samping (read-only,
-     dengan tombol kembali ke langkah 1)
-2. Setelah konfirmasi: layar sukses dengan no. batch, ringkasan alokasi,
-   dan tombol cetak tanda terima sederhana.
-3. Halaman Riwayat Pembayaran (list batch):
-   filter tanggal/pihak/arah/agen, detail menampilkan metode + alokasi,
-   tombol Batalkan (dengan step-up untuk OPERATOR).
+TUGAS (FRONTEND):
+1. Halaman Periode Akuntansi (MASTER only): daftar bulan + status + tombol
+   Tutup / Buka Kembali.
+2. Dialog Buka Kembali WAJIB memperingatkan secara eksplisit bahwa laporan yang
+   sudah diserahkan ke pemilik/auditor BISA BERUBAH. Alasan wajib diisi.
+3. Bulan yang pernah dibuka diberi penanda permanen di daftar, dengan berapa kali.
+4. Pesan error di modul transaksi harus menyebut BULANNYA, bukan cuma "periode
+   tertutup" — operator perlu tahu bulan mana yang bermasalah.
 
 DEFINITION OF DONE:
-- Ubah alokasi manual → tersimpan sesuai editan (verifikasi di detail batch)
-- Tombol konfirmasi terkunci selama sisa ≠ 0
-- "Isi Otomatis" mengembalikan saran FIFO
-- Riwayat batch menampilkan metode ganda dengan benar
+- Peringatan buka-kembali muncul sebelum konfirmasi, bukan sesudah
+- Penanda "pernah dibuka" tidak hilang setelah bulan ditutup lagi
+- Pesan error menyebut bulan yang tertutup
+```
+
+### ✅ Verifikasi Hari 23A
+
+- [ ] Edit, VOID, dan transaksi baru di bulan tertutup → ketiganya ditolak
+- [ ] **Pembayaran atas faktur bulan tertutup tetap sukses** — ada test-nya
+- [ ] Bentuk closing (jurnal sungguhan vs tampilan) sudah dikonfirmasi klien sebelum dikoding
+- [ ] VOID dokumen bulan **terbuka** → jurnal pembalik bertanggal hari ini
+- [ ] Angka bulan tertutup tidak bergerak setelah VOID dokumen lama (ada test-nya)
+- [ ] Buka kembali tanpa alasan ditolak; penanda permanen bertahan
+- [ ] **Satu** validator periode+backdate, dipanggil semua modul (grep)
+- [ ] `./scripts/verify.sh` hijau
+
+---
+---
+
+# FASE 6 — PENGIRIMAN & PEMBAYARAN (Hari 24–28)
+
+---
+
+## Hari 24 — Agen, Kendaraan, Skema Surat Jalan  *(v2: Hari 21)*
+
+### 🔧 Backend
+
+```
+KONTEKS: Hari 24 dari 37. Rekap setoran agen SUDAH DIPOTONG dari scope, tapi
+agen dan kendaraan TETAP DIBANGUN — surat jalan membawa keduanya, dan sopir
+adalah orang yang menagih dengan nota.
+
+TUGAS (BACKEND):
+1. Migration `agents`, `vehicles` + CRUD sederhana (kode, nama, aktif).
+2. Migration `delivery_orders`(+lines) + nomor SJ. Ikut kunci cetak.
+3. Surat jalan terbentuk DARI faktur bersaluran PENGIRIMAN, membawa agent_id
+   dan vehicle_id. Faktur bersaluran TOKO tidak punya surat jalan.
+4. Format nomor surat jalan mengikuti format baku KODE/RM01-YYMMXXXX.
+
+ATURAN WAJIB HARI INI:
+- Jangan membangun rekap setoran agen. Item itu dipotong 28 Juli dan
+  penggantinya adalah kontrol manual (lihat Hari 28).
+
+DEFINITION OF DONE:
+- Surat jalan dari faktur PENGIRIMAN membawa agen & kendaraan
+- Faktur TOKO tidak bisa dibuatkan surat jalan
+- Nomor SJ mengikuti format baku
+```
+
+### 🎨 Frontend
+
+```
+KONTEKS: Hari 24 dari 37.
+
+TUGAS (FRONTEND):
+1. Halaman Agen dan Kendaraan — <DataTable> + <CrudFormPage>, sederhana saja.
+2. Tombol "Buat Surat Jalan" di detail faktur PENGIRIMAN.
+
+DEFINITION OF DONE:
+- Tombol surat jalan hanya muncul untuk faktur PENGIRIMAN
 ```
 
 ### ✅ Verifikasi Hari 24
 
-- [ ] Alokasi manual tersimpan sesuai editan
-- [ ] Σ metode = Σ alokasi = total, ketidaksesuaian ditolak
-- [ ] Jurnal multi-metode balance, AR & AP simetris
-- [ ] VOID batch mengembalikan `paid_amount` & status
-- [ ] FE: tombol konfirmasi terkunci saat sisa ≠ 0
+- [ ] Surat jalan terbentuk dari faktur `PENGIRIMAN`, membawa agen & kendaraan
+- [ ] Faktur `TOKO` tidak bisa dibuatkan surat jalan
+- [ ] Tidak ada kode rekap setoran agen yang terlanjur dibangun
 - [ ] `./scripts/verify.sh` hijau
 
 ---
 
-## Hari 25 — Rekap Setoran Agen
+## Hari 25 ♻️ — Endpoint & Cetak Surat Jalan  *(v2: Hari 22)*
 
 ### 🔧 Backend
 
 ```
-KONTEKS: Hari 25 dari 34.
-CATATAN: modul ini nomor 3 di daftar potong darurat. Cek drift dulu.
+KONTEKS: Hari 25 dari 37.
 
 TUGAS (BACKEND):
-1. GET /reports/agent-deposits?dateFrom=&dateTo=&vehicleId=&agentId=
-   Dikelompokkan per KENDARAAN + TANGGAL (sesuai keputusan §1.6):
-   {
-     groups: [{
-       date, vehicleId, vehicleName, plateNumber, agentNames: [],
-       totalDeposit,                        // Σ payment_batches dgn vehicle_id ini
-       methodBreakdown: [{ accountName, amount }],
-       invoiceCount,
-       totalInvoiceAmount,                  // Σ nota yang dikirim kendaraan ini hari itu
-                                            // (lewat delivery_orders)
-       difference,                          // totalInvoiceAmount − totalDeposit
-       batches: [{ batchNumber, customerName, amount }]
-     }],
-     grandTotal
-   }
-   Kolom `difference` adalah alasan laporan ini ada: mencocokkan
-   uang yang dibawa pulang dengan nota yang dibawa berangkat.
-2. Uang setoran agen masuk Kas Besar (default) — tapi tetap pakai
-   akun yang dipilih di payment_batch_methods, jangan dipaksa.
-3. Dukung ?format=xlsx|pdf lewat interceptor export Hari 5.
+1. Endpoint surat jalan + status: PENDING / DELIVERED / POSTPONED / RETURNED.
+2. POSTPONED harus bisa ditarik sebagai daftar "belum terkirim" — inilah yang
+   dilihat orang toko keesokan harinya.
+3. Surat jalan IKUT KUNCI CETAK (Hari 15): setelah dicetak, edit wajib batal
+   cetak dulu. Sopir sudah membawa lembar itu ke jalan.
 
 DEFINITION OF DONE:
-- total uang per mobil per tanggal dapat dicocokkan dengan total nota hari itu
-- difference dihitung benar termasuk saat ada pembayaran sebagian
-- export xlsx berisi grup yang sama dengan layar
+- Daftar "belum terkirim" menampilkan seluruh SJ ber-status POSTPONED
+- Edit SJ yang sudah dicetak tanpa batal cetak -> ditolak
 ```
 
 ### 🎨 Frontend
 
 ```
-KONTEKS: Hari 25 dari 34.
+KONTEKS: Hari 25 dari 37.
 
 TUGAS (FRONTEND):
-1. Halaman Rekap Setoran Agen:
-   - filter rentang tanggal (default: hari ini), kendaraan, agen
-   - tampilan berkelompok per kendaraan per tanggal (accordion),
-     header grup menampilkan: kendaraan · plat · total nota · total setoran · SELISIH
-   - selisih 0 → hijau, selisih ≠ 0 → merah dengan nominal
-   - expand → daftar batch pembayaran + rincian metode
-   - <ExportButton> xlsx/pdf
-2. Halaman ini dipakai tiap sore saat agen pulang — buat ringkas dan cepat dibaca,
-   angka besar, tidak perlu banyak klik.
+1. Halaman Surat Jalan + filter status.
+2. CETAK A5 (landscape, 2-up di A4) — sama seperti nota. Isinya qty dan barang,
+   tanpa nilai rupiah kalau klien tidak memintanya.
+3. <DocumentActions> untuk kunci cetak.
 
 DEFINITION OF DONE:
-- Selisih tampil menonjol dan benar
-- Filter default = hari ini
-- Export berfungsi
+- Surat jalan tercetak A5, dua per lembar A4
+- Status POSTPONED tampil sebagai daftar tersendiri
 ```
 
 ### ✅ Verifikasi Hari 25
 
-- [ ] Total uang per mobil cocok dengan total nota hari itu
-- [ ] Selisih dihitung & ditampilkan menonjol
-- [ ] Export xlsx/pdf berfungsi
+- [ ] SJ tercetak A5 2-up
+- [ ] Kunci cetak berlaku untuk SJ
+- [ ] Daftar "belum terkirim" jalan
 - [ ] `./scripts/verify.sh` hijau
-- [ ] **UAT Minggu 4 (~23 Agu): pengiriman, pembayaran, rekap agen**
-
----
----
-
-# FASE 6 — LAPORAN & SERAH TERIMA (Hari 26–34)
-
-## Template Prompt Laporan (dipakai Hari 26–29)
-
-Lima hari laporan mengikuti pola yang sama. Pakai template ini dan ganti
-bagian `LAPORAN HARI INI`, supaya tidak menulis ulang aturan yang sama tiap hari.
-
-```
-KONTEKS: Hari <N> dari 34, fase laporan.
-
-ATURAN LAPORAN (berlaku untuk SEMUA laporan di proyek ini):
-- Baca dari tabel transaksi, JANGAN membuat tabel ringkasan baru.
-- Semua qty ditampilkan dalam SATUAN PECAHAN ("12 dus 15 renceng")
-  memakai formatQtyBreakdown dari Hari 7 — bukan desimal.
-- Semua endpoint laporan mendukung ?format=xlsx|pdf lewat interceptor export Hari 5.
-- Semua laporan mendukung filter rentang tanggal, dan mengembalikan
-  { rows, summary, meta: { generatedAt, filters } }.
-- Dokumen berstatus VOID DIKECUALIKAN dari semua laporan,
-  kecuali laporan yang memang khusus menampilkannya.
-- Query yang menyentuh > 10.000 baris wajib punya index pendukung.
-  Jalankan EXPLAIN ANALYZE dan lampirkan hasilnya.
-- Angka di laporan harus bisa ditelusuri: setiap baris ringkasan bisa
-  di-drill-down ke dokumen sumbernya (minimal: kolom nomor dokumen).
-
-LAPORAN HARI INI:
-<daftar laporan>
-
-DEFINITION OF DONE:
-- setiap laporan diuji dengan data hasil UAT (bukan data buatan)
-- total di laporan COCOK dengan total di modul transaksi terkait
-  (mis. total penjualan bulan ini = Σ sales_invoices non-VOID bulan ini)
-- export xlsx & pdf terbuka rapi dan berisi data yang sama dengan layar
-- EXPLAIN ANALYZE dilampirkan untuk query terberat
-
-SETELAH SELESAI: untuk setiap laporan, tunjukkan satu angka di laporan
-dan buktikan asalnya dengan query langsung ke tabel transaksi.
-```
 
 ---
 
-## Hari 26 — Laporan Stok & Barang Titipan
+## Hari 26 ⚠️🛑 — Payment: Skema + Preview Alokasi  *(v2: Hari 23)*
+
+> **Modul ini belum pernah dibahas dengan klien** dan plan menandainya sebagai bagian
+> tersulit. Dua hari (26–27) dialokasikan untuk sesuatu yang bentuknya belum diketahui.
+> Kalau jawaban klien belum turun saat hari ini tiba, itu risiko jadwal — catat di §3
+> `PROGRESS.md` hari itu juga, jangan diserap diam-diam.
 
 ### 🔧 Backend
-Pakai template di atas dengan:
+
 ```
-LAPORAN HARI INI:
-1. GET /reports/stock — stok per gudang
-   kolom: produk, gudang, qty (satuan pecahan), nilai persediaan (Σ lot × unit_cost),
-          harga pokok rata-rata
-   filter: gudang, produk, kategori, "sembunyikan stok nol"
-   summary: total nilai persediaan per gudang
-   ← total nilai ini WAJIB cocok dengan saldo GL Persediaan. Tampilkan
-     keduanya berdampingan beserta selisihnya. Ini kontrol kunci.
-2. GET /reports/consigned-goods — barang titipan
-   SUMBER: warehouse_mutations (bukan stock_movements — barang titipan
-   tidak ada di stock_movements, ini konsekuensi keputusan §1.5)
-   kolom: customer, produk, qty dititip, qty dibeli, sisa, tanggal mutasi terakhir
-   filter: customer, produk
-3. GET /reports/stock-card?productId=&warehouseId= — kartu stok
-   baris kronologis: tanggal, dokumen, masuk, keluar, saldo, harga pokok
+KONTEKS: Hari 26 dari 37.
+
+BERHENTI DAN BACA DULU: modul Pembayaran / Kas & Bank BELUM DIBAHAS SAMA SEKALI
+(KONTEKS_REVISI Sec.4.1 dan Sec.4.2 PR #8). Yang boleh dikerjakan hari ini adalah
+skema + preview alokasi berdasarkan plan v2. Yang HARUS ditunggu sebelum menulis
+jurnalnya (Hari 27): bentuk setoran sopir, pembayaran sebagian, dan pembayaran
+yang menutup beberapa faktur sekaligus.
+
+Kalau selama mengerjakan kamu menemukan pertanyaan yang jawabannya menentukan
+bentuk tabel, BERHENTI dan tulis pertanyaannya. Mengubah skema pembayaran setelah
+data masuk jauh lebih mahal daripada menunggu sehari.
+
+TUGAS (BACKEND):
+1. Migration:
+   `payment_batches`: id, batch_number (PAY/RM01-YYMMXXXX), payment_date,
+     party_type ENUM('CUSTOMER','SUPPLIER'), party_id, total_amount,
+     agent_id, vehicle_id (untuk setoran yang dibawa sopir),
+     posting_status, print_status, void_reason_*
+   `payment_batch_methods`: id, payment_batch_id, cash_account_id, amount
+     (multi-metode: sebagian kas, sebagian transfer)
+   `payments`: id, payment_batch_id, invoice_type ENUM('SALES','PURCHASE'),
+     invoice_id, allocated_amount
+2. POST /payments/preview-allocation:
+   - alokasi FIFO ke faktur tertua yang belum lunas
+   - TOLAK overpayment
+   - kembalikan rincian: faktur mana, dialokasikan berapa, sisa berapa
+3. Akun kas dari chart_of_accounts.is_cash_account (Hari 18), bukan hardcode.
+
+DEFINITION OF DONE:
+- 30 jt kas + 50 jt transfer atas tagihan 100 jt -> preview benar,
+  sisa 20 jt tetap outstanding
+- Pembayaran melebihi total tagihan -> ditolak
+- Preview TIDAK menulis apa pun ke DB
+
+SETELAH SELESAI: verify.sh + checklist DoD + daftar pertanyaan pembayaran dalam
+bentuk yang bisa saya kirim langsung ke klien.
 ```
 
 ### 🎨 Frontend
+
 ```
-TUGAS (FRONTEND) Hari 26:
-1. Halaman Laporan Stok: <DataTable> + <ExportButton>, dengan panel atas
-   menampilkan "Nilai Persediaan: Rp X · Saldo GL: Rp Y · Selisih: Rp Z"
-   (hijau kalau 0, merah kalau tidak).
-2. Halaman Barang Titipan.
-3. Kartu Stok: dibuka dari klik baris di Laporan Stok, tampil sebagai
-   halaman/drawer dengan riwayat kronologis dan saldo berjalan.
-4. Buat komponen <ReportPage> (header + filter bar + tabel + export)
-   dan pakai untuk SEMUA laporan Hari 26–29. Jangan menulis layout laporan
-   berulang kali — sisa 4 hari laporan akan jauh lebih cepat.
+KONTEKS: Hari 26 dari 37.
+
+TUGAS (FRONTEND):
+1. Payment step 1: pilih pihak (pelanggan/supplier) -> daftar faktur outstanding
+   -> input multi-metode (baris: akun kas + nominal, bisa lebih dari satu).
+2. Tampilkan preview alokasi hasil endpoint, jangan menghitung sendiri di frontend.
+   Perhitungan uang hidup di satu tempat: backend.
+3. JANGAN membangun layar setoran sopir. Bentuknya belum diputuskan.
 
 DEFINITION OF DONE:
-- Qty tampil sebagai "12 dus 15 renceng", bukan 12,75
-- Panel selisih GL tampil dan akurat
-- <ReportPage> dipakai ketiga laporan hari ini
+- Preview alokasi tampil sebelum konfirmasi
+- Tidak ada satu pun perhitungan alokasi di sisi frontend
 ```
 
 ### ✅ Verifikasi Hari 26
-- [ ] Qty tampil dalam satuan pecahan
-- [ ] Nilai persediaan = saldo GL Persediaan (selisih 0)
-- [ ] Laporan titipan bersumber dari `warehouse_mutations`
-- [ ] `<ReportPage>` dibuat & dipakai
+
+- [ ] Preview multi-metode benar, sisa tetap outstanding
+- [ ] Overpayment ditolak
+- [ ] Preview tidak menulis ke DB
+- [ ] Tidak ada perhitungan uang di frontend
+- [ ] **Pertanyaan modul pembayaran sudah dikirim ke klien**
 - [ ] `./scripts/verify.sh` hijau
 
 ---
 
-## Hari 27 — Laporan Penjualan, Piutang, Hutang
+## Hari 27 ⚠️♻️🛑 — Payment: Confirm + Selisih Pembayaran  *(v2: Hari 24)*
 
 ### 🔧 Backend
-Pakai template laporan dengan:
+
 ```
-LAPORAN HARI INI:
-1. GET /reports/sales — rekap penjualan
-   mode: per tanggal / per customer / per produk / per agen (parameter groupBy)
-   kolom: qty, subtotal, HPP, laba kotor, margin %
-   summary: total penjualan, total HPP, total laba kotor
-2. GET /reports/receivables — piutang customer
-   kolom: customer, no. nota, tanggal, total, dibayar, sisa, umur (hari)
-   pengelompokan umur: 0-30 / 31-60 / 61-90 / >90 hari
-   summary per bucket umur
-   ← walau tidak ada termin, umur piutang tetap berguna untuk penagihan
-3. GET /reports/payables — hutang supplier
-   struktur sama dengan piutang
-   ← untuk OPERATOR, nama supplier tetap TER-MASK di laporan ini.
-     Jangan sampai laporan jadi jalan bocor masking.
+KONTEKS: Hari 27 dari 37. Lanjutan Hari 26 — jangan mulai sebelum pertanyaan
+klien terjawab.
+
+TUGAS (BACKEND):
+1. POST /payments/confirm — multi-metode, AR dan AP simetris, satu transaction.
+2. SELISIH PEMBAYARAN. Aturan klien, presisinya penting:
+   - Muncul HANYA saat operator menyatakan faktur LUNAS. Pembayaran sebagian
+     BUKAN selisih — itu cuma belum lunas.
+   - Klien TIDAK memakai pembulatan sama sekali. Selisih diakui sebagai selisih,
+     bukan diakali jadi angka bulat.
+   - SATU akun "Selisih Pembayaran", dipakai DUA ARAH:
+       Pelanggan kurang bayar : Kas (D) - Selisih Pembayaran (D) - Piutang (K)
+       Pelanggan lebih bayar  : Kas (D) - Piutang (K) - Selisih Pembayaran (K)
+       Kita kurang bayar supplier : Hutang (D) - Kas (K) - Selisih Pembayaran (K)
+       Kita lebih bayar supplier  : Hutang (D) - Selisih Pembayaran (D) - Kas (K)
+   - Contoh nyata dari klien: tagihan 33.253.125 dibayar 33.253.000 -> 125 jadi
+     selisih; dibayar 33.254.000 -> 875 jadi selisih arah sebaliknya.
+   - TIDAK ADA BATAS nominal. Selisih bisa 2-3 ribu. Yang ada hanyalah:
+     selisih di atas Rp 10.000 OTOMATIS DITANDAI di layar pengecekan supervisor
+     (Hari 22A). DITANDAI — bukan diblokir, bukan minta step-up.
+3. VOID payment batch lewat VoidEngine.
+4. Akun piutang lewat resolveArAccount(), bukan akun default langsung.
+
+DEFINITION OF DONE:
+- 33.253.125 dibayar 33.253.000 -> faktur LUNAS, 125 di akun Selisih Pembayaran
+  sisi debit, jurnal balance
+- 33.253.125 dibayar 33.254.000 -> faktur LUNAS, 875 sisi kredit, jurnal balance
+- Pembayaran sebagian -> TIDAK menghasilkan baris selisih apa pun
+- Selisih Rp 15.000 -> faktur ditandai di layar pengecekan, TIDAK diblokir
+- VOID batch membalik seluruh alokasi dan jurnalnya
 ```
 
 ### 🎨 Frontend
+
 ```
-TUGAS (FRONTEND) Hari 27:
-1. Tiga halaman laporan memakai <ReportPage>.
-2. Laporan Penjualan: selector groupBy sebagai tab (Tanggal/Customer/Produk/Agen).
-3. Laporan Piutang & Hutang: kolom umur diberi warna bertingkat
-   (hijau → kuning → oranye → merah), baris bisa diklik ke detail nota.
-4. Tambahkan ketiganya ke menu Laporan.
+KONTEKS: Hari 27 dari 37.
+
+TUGAS (FRONTEND):
+1. Payment step 2: alokasi DAPAT DIEDIT MANUAL. Operator kadang perlu
+   mengalokasikan ke faktur hari ini, bukan ke tunggakan lama — itu keputusan
+   bisnis, bukan bug.
+2. Saat operator menandai LUNAS sementara nominal tidak persis: tampilkan selisih
+   dengan jelas beserta arahnya, minta konfirmasi sekali, lalu lanjut. Jangan
+   memaksa membulatkan.
+3. Riwayat batch pembayaran + cetak kwitansi A5 (ikut kunci cetak).
 
 DEFINITION OF DONE:
-- Total penjualan bulan berjalan = Σ sales_invoices non-VOID bulan itu
-- Total piutang = Σ (total_amount − paid_amount) invoice OPEN/PARTIAL
-- Nama supplier ter-mask untuk OPERATOR di laporan hutang
+- Alokasi hasil edit manual tersimpan sesuai editan, bukan hasil FIFO
+- Selisih tampil dengan arah yang benar sebelum konfirmasi
+- Kwitansi tercetak A5 dan terkunci setelah dicetak
 ```
 
 ### ✅ Verifikasi Hari 27
-- [ ] Total tiap laporan cocok dengan tabel transaksi
-- [ ] Umur piutang dihitung benar
-- [ ] Masking supplier tetap berlaku di laporan
+
+- [ ] Dua contoh selisih klien menghasilkan jurnal balance dengan arah benar
+- [ ] Pembayaran sebagian tidak menghasilkan selisih
+- [ ] Selisih > Rp 10.000 ditandai, **tidak** diblokir
+- [ ] Alokasi manual tersimpan sesuai editan
+- [ ] Kwitansi A5 + kunci cetak
 - [ ] `./scripts/verify.sh` hijau
 
 ---
 
-## Hari 28 — Laporan Biaya, Rekap Kas Harian, Cash Opname
+## Hari 28 🆕♻️ — Laporan Kontinuitas Nomor Dokumen  *(v2: Hari 25, rekap setoran agen dipotong)*
+
+> Inilah dokumen yang diserahkan ke pemilik/auditor. Klien menyatakan nomor invoice
+> **tidak boleh hilang** dan nomor yang tidak terpakai **perlu justifikasi**.
 
 ### 🔧 Backend
-Pakai template laporan dengan:
+
 ```
-LAPORAN HARI INI:
-1. GET /reports/expenses — biaya operasional per jenis & periode
-   kolom: tanggal, jenis biaya, dibayar dari, jumlah, keterangan
-   summary: total per akun biaya + grand total
-2. GET /reports/daily-cash?date= — REKAP KAS HARIAN PER AKUN
-   ← laporan yang paling sering dibuka setiap sore. Buat cepat dan jelas.
-   Untuk SETIAP akun kas/bank:
-     saldo_awal (saldo akhir hari sebelumnya)
-     + penerimaan (dari payment_batch_methods direction IN)
-     − pengeluaran (payment OUT + operational_expenses + retur CASH)
-     = saldo_akhir
-   Sertakan rincian transaksi per akun supaya bisa dicocokkan satu per satu.
-3. GET /reports/cash-opname?date= — LAPORAN SAJA (keputusan §1.2)
-   kolom: akun kas, saldo sistem, kolom "saldo fisik" (KOSONG, diisi tangan
-   di kertas), kolom selisih (kosong)
-   Koreksi dilakukan lewat Jurnal Manual, BUKAN dari layar ini.
-   Beri catatan tercetak di laporan: "Selisih dikoreksi lewat Jurnal Manual."
+KONTEKS: Hari 28 dari 37. Contoh kasus dari klien: INV 95/96/97 dibuat untuk toko
+A/B/C sebelum pengiriman. Toko A tutup dan membatalkan -> INV 95 di-VOID, arsipnya
+tetap ada, tidak boleh dihapus.
+
+TUGAS (BACKEND):
+1. GET /reports/document-continuity?type=&year=&month=
+   Menampilkan SETIAP nomor dari 0001 sampai terakhir terbit untuk jenis dokumen
+   dan periode itu, beserta:
+     - status (POSTED / VOIDED)
+     - tanggal, pihak, nominal
+     - void_reason_code + void_reason_note untuk yang VOID
+2. Deteksi LUBANG: nomor yang tidak ada barisnya sama sekali ditandai MERAH
+   sebagai "hilang tanpa penjelasan". Secara desain ini tidak boleh pernah terjadi
+   (counter berupa tabel di dalam transaction pemanggil, jadi rollback mengembalikan
+   nomor) — tapi laporan ini justru ada untuk membuktikannya, bukan mengasumsikannya.
+3. Berlaku untuk semua jenis dokumen KECUALI Sales Order (keputusan 29 Juli:
+   SO tidak ikut kunci cetak dan tidak masuk laporan ini).
+4. Export Excel.
+
+DEFINITION OF DONE:
+- VOID satu faktur di tengah bulan -> nomor itu TETAP MUNCUL, dengan alasannya
+- Tidak ada satu pun lubang antara 0001 dan nomor terakhir
+- Buat 5 faktur, gagalkan yang ke-3 di tengah transaksi (paksa error), lalu buka
+  laporan: nomor harus tetap berurutan 1-2-3-4, tanpa lubang
+- Laporan bisa ditarik untuk semua jenis dokumen selain SO
 ```
 
 ### 🎨 Frontend
+
 ```
-TUGAS (FRONTEND) Hari 28:
-1. Halaman Kas dengan 3 tab: Rekap Harian · Biaya Operasional · Cash Opname.
-2. Rekap Kas Harian: kartu besar per akun kas
-   (saldo awal → masuk → keluar → saldo akhir), klik kartu → rincian transaksi.
-   Default tanggal = hari ini, dengan tombol panah ke hari sebelumnya/berikutnya.
-3. Cash Opname: layout siap cetak dengan kolom kosong untuk diisi tangan.
+KONTEKS: Hari 28 dari 37.
+
+TUGAS (FRONTEND):
+1. Halaman Laporan Kontinuitas Nomor Dokumen: pilih jenis dokumen + periode,
+   tabel menampilkan seluruh nomor berurutan, baris VOID berwarna berbeda dengan
+   alasannya terbaca, baris hilang berwarna merah.
+2. Export Excel.
 
 DEFINITION OF DONE:
-- Saldo akhir kas = saldo awal + masuk − keluar, dan cocok dengan saldo GL akun tsb
-- Navigasi hari sebelumnya/berikutnya berfungsi
-- Cash opname tercetak dengan kolom kosong yang cukup lebar untuk tulisan tangan
+- Baris VOID menampilkan alasan tanpa perlu diklik
+- Export Excel memuat kolom yang sama dengan layar
 ```
+
+### ⚠️ Kontrol pengganti yang WAJIB dipastikan hari ini
+
+Rekap setoran agen **dipotong** dari scope. Rekap itu berdiri persis di titik uang tunai
+berpindah tangan — sopir membawa pulang uang. "Manual bulan pertama" gampang berubah jadi
+tidak ada yang mengerjakan.
+
+- [ ] **Siapa** yang mencocokkan setoran sopir dengan faktur terkirim: `__________`
+- [ ] **Kapan**: `__________` (tempelkan ke ritual pengecekan sore supervisor — itu gratis)
+- [ ] **Siapa yang memeriksa** bahwa pencocokan itu benar-benar dilakukan: `__________`
+
+Kalau ketiga baris ini masih kosong saat Hari 28 selesai, catat di `PROGRESS.md` §3
+sebagai risiko terbuka dan bawa ke klien. Jangan diserahterimakan dalam keadaan kosong.
 
 ### ✅ Verifikasi Hari 28
-- [ ] Saldo akhir kas cocok dengan saldo GL akun kas
-- [ ] Rekap harian dapat ditelusuri ke transaksi
-- [ ] Cash opname hanya laporan (tidak ada tombol koreksi)
+
+- [ ] Nomor VOID tetap muncul beserta alasannya
+- [ ] Tidak ada lubang nomor, termasuk setelah transaksi yang sengaja digagalkan
+- [ ] Laporan jalan untuk semua jenis dokumen selain SO
+- [ ] Export Excel
+- [ ] Tiga baris kontrol pengganti terisi **atau** tercatat sebagai risiko
 - [ ] `./scripts/verify.sh` hijau
 
 ---
+---
 
-## Hari 29 — Laporan Retur, Stok Minus, Rekonsiliasi
+# FASE 7 — LAPORAN & SERAH TERIMA (Hari 29–37)
 
-### 🔧 Backend
-Pakai template laporan dengan:
+## Template Prompt Laporan (dipakai Hari 29–32)
+
 ```
-LAPORAN HARI INI:
-1. GET /reports/returns — retur penjualan & pembelian
-   filter: jenis (jual/beli), tanggal, customer/supplier, produk
-   summary: total nilai retur per jenis, produk yang paling sering diretur
-2. GET /reports/negative-stock — PRODUK DENGAN HISTORI STOK MINUS
-   ← ini mekanisme deteksi yang menggantikan penolakan stok minus (§1.5).
-     Bukan laporan pelengkap; ini pengganti kontrol yang sengaja tidak dipasang.
-   Dua bagian:
-   a. produk yang SAAT INI balance-nya negatif
-   b. produk yang PERNAH negatif dalam periode (dari histori stock_movements
-      dengan saldo berjalan) meski sekarang sudah positif
-   kolom: produk, gudang, saldo terkini, saldo terminus, tanggal kejadian,
-          dokumen yang menyebabkan
-3. GET /reports/stock-reconciliation — endpoint rekonsiliasi
-   membandingkan SUM(stock_movements) vs product_stock_balance per (produk, gudang)
-   melaporkan semua selisih ≠ 0.
-   Sediakan juga POST /reports/stock-reconciliation/fix (MASTER only)
-   yang memperbaiki cache product_stock_balance dari stock_movements —
-   dengan konfirmasi eksplisit dan tercatat di audit_logs.
+KONTEKS: Hari <N> dari 37. Modul laporan.
+
+CATATAN: isi laporan yang benar-benar dipakai klien BELUM DIBAHAS
+(KONTEKS_REVISI Sec.4.1). Bangun yang jelas dibutuhkan mesin akuntansi dan
+operasional harian; jangan menambah laporan "kalau-kalau berguna". Setiap laporan
+tambahan adalah query yang harus tetap benar setelah setiap perubahan skema.
+
+TUGAS (BACKEND):
+1. Endpoint laporan <nama>, parameter periode + filter yang relevan.
+2. Semua nilai uang dari BUKU BESAR atau dari tabel transaksi — tidak pernah
+   dihitung ulang dengan rumus yang disalin dari modul lain. Kalau butuh rumus
+   yang sama, panggil fungsinya, jangan salin.
+3. Export Excel lewat modul export generik Hari 5. Export PDF SUDAH DIPOTONG.
+
+ATURAN WAJIB:
+- Angka di laporan wajib bisa ditelusuri ke dokumen sumbernya. Kalau ada angka
+  yang tidak bisa diklik sampai ke dokumen, itu angka yang tidak bisa dipercaya.
+- Stok ditampilkan dalam pecahan satuan lewat formatQtyBreakdown, bukan desimal.
 
 DEFINITION OF DONE:
-- laporan stok minus menemukan produk yang pernah minus meski sekarang positif
-- endpoint rekonsiliasi melaporkan 0 selisih pada data sehat
-- rusak data cache secara sengaja → rekonsiliasi mendeteksinya → fix memperbaikinya
+- Angka laporan cocok dengan buku besar untuk periode yang sama (buktikan dengan
+  satu contoh yang dihitung manual)
+- Export Excel jalan
+```
+
+---
+
+## Hari 29 🛑 — Laporan Stok & Barang Titipan  *(v2: Hari 26)*
+
+### 🔧 Backend
+
+```
+KONTEKS: Hari 29 dari 37.
+
+TUGAS (BACKEND):
+1. Laporan stok per gudang. Satuan DIPECAH ("12 dus 15 renceng"), bukan desimal.
+   Tiga gudang punya arti berbeda dan harus dipisah di laporan:
+   STORE (barang jual), BAD_STOCK (rusak/retur, tidak dijual lagi),
+   TITIPAN_PELANGGAN (bukan milik toko lagi).
+2. LAPORAN BARANG TITIPAN PER PELANGGAN — sumbernya warehouse_mutations,
+   BUKAN stock_movements (mutasi titipan sengaja tidak membuat movement).
+   Klien meminta laporan ini secara eksplisit.
+3. Daftar titipan WAJIB MUNCUL DI PROSES STOK OPNAME sebagai penjelasan selisih
+   fisik. Barang titipan ada di gudang secara fisik tapi bukan milik toko —
+   tanpa daftar ini, stok opname akan selalu menemukan selisih yang tidak
+   terjelaskan dan orang akan berhenti mempercayainya.
+
+DEFINITION OF DONE:
+- Stok 255 renceng dengan konversi 1 dus = 20 -> "12 dus 15 renceng"
+- Laporan titipan menampilkan per pelanggan, angkanya cocok dengan
+  warehouse_mutations
+- Layar stok opname menampilkan daftar titipan sebagai penjelas
 ```
 
 ### 🎨 Frontend
+
 ```
-TUGAS (FRONTEND) Hari 29:
-1. Halaman Laporan Retur.
-2. Halaman Stok Minus — beri penekanan visual, ini laporan pengawasan.
-   Bagian "sedang minus" di atas dengan latar merah muda;
-   bagian "pernah minus" di bawah.
-3. Halaman Rekonsiliasi Stok (MASTER only): tampilkan selisih, tombol
-   "Perbaiki Cache" dengan dialog konfirmasi yang menjelaskan apa yang akan terjadi.
-4. Tambahkan kartu "Stok Minus" di dashboard yang menampilkan jumlah produk
-   sedang minus dan menautkan ke laporan ini.
+TUGAS (FRONTEND):
+1. Halaman Laporan Stok (filter gudang) dan Laporan Barang Titipan (filter pelanggan).
+2. Export Excel.
 
 DEFINITION OF DONE:
-- Dashboard menampilkan hitungan stok minus yang benar
-- Tombol perbaiki cache memerlukan konfirmasi eksplisit
+- Tiga jenis gudang tampil terpisah, tidak dijumlahkan jadi satu angka
 ```
 
 ### ✅ Verifikasi Hari 29
-- [ ] Laporan stok minus mendeteksi kejadian historis
-- [ ] Rekonsiliasi mendeteksi & memperbaiki cache rusak
-- [ ] Dashboard menampilkan stok minus
+
+- [ ] Stok tampil dalam pecahan satuan
+- [ ] Laporan titipan per pelanggan cocok dengan `warehouse_mutations`
+- [ ] Titipan muncul sebagai penjelas di stok opname
+- [ ] Tiga gudang tidak dijumlahkan jadi satu
 - [ ] `./scripts/verify.sh` hijau
 
 ---
 
-## Hari 30 — Export Excel & PDF Seluruh Laporan
+## Hari 30 ⏸ — Laporan Penjualan, Piutang, Hutang · **DITUNDA KE PASCA-MVP**  *(v2: Hari 27)*
+
+> **Jangan dikerjakan sebelum 30 Agustus.** Di bulan pertama, daftar faktur outstanding per
+> pelanggan dan per supplier sudah tersedia di **layar pembayaran** (Hari 26) — itu yang
+> dipakai untuk menagih dan membayar. Yang ditunda adalah laporan umur piutang, umur hutang,
+> dan penjualan per salesman.
+>
+> ⚠️ Pastikan layar pembayaran benar-benar menampilkan sisa tagihan per faktur dengan jelas.
+> Selama laporan piutang belum ada, layar itulah satu-satunya cara klien melihat siapa
+> berutang berapa.
 
 ### 🔧 Backend
 
 ```
-KONTEKS: Hari 30 dari 34.
-CATATAN: export PDF adalah nomor 1 di daftar potong darurat. Cek drift dulu —
-kalau ≥ 3 hari, kerjakan Excel saja dan lapor ke saya.
+KONTEKS: Hari 30 dari 37.
 
 TUGAS (BACKEND):
-1. Pastikan SEMUA endpoint laporan (Hari 25–29) mendukung ?format=xlsx|pdf
-   lewat interceptor export dari Hari 5. Kalau ada yang belum, sambungkan.
-2. Perbaiki kualitas keluaran:
-   Excel: header tebal + freeze pane baris judul, lebar kolom otomatis,
-          format angka Indonesia (#.##0), format tanggal dd/mm/yyyy,
-          baris summary dengan garis atas, nama sheet informatif
-   PDF:   orientasi otomatis (landscape kalau > 6 kolom), header berulang
-          tiap halaman, nomor halaman "Hal. 1 dari 3", footer dengan
-          nama pencetak & waktu cetak, kop toko dari settings
-3. Nama file: <jenis-laporan>-<periode>-<timestamp>.<ext>
-4. Batasi ukuran: kalau baris > 50.000, tolak PDF dengan saran memakai Excel.
-5. Uji setiap laporan dalam kedua format. Buat daftar centang di jawabanmu.
+1. Laporan penjualan: per periode, per pelanggan, PER SALESMAN.
+   Salesman dipilih per faktur (bukan per pelanggan) dan tercetak di nota.
+   TIDAK ADA KOMISI — laporan ini untuk melihat kinerja, bukan menghitung upah.
+2. Laporan piutang (umur piutang) — akun piutang lewat resolveArAccount().
+   Pelanggan yang punya akun piutang custom TIDAK BOLEH hilang dari laporan
+   hanya karena query memfilter akun default.
+3. Laporan hutang per supplier, umur dari due_date (= tanggal faktur supplier
+   + termin, bukan tanggal terima barang).
 
 DEFINITION OF DONE:
-- Semua laporan (minimal 10) terekspor xlsx & pdf tanpa error
-- Excel terbuka di LibreOffice/Excel tanpa peringatan format
-- PDF: kolom tidak terpotong, header berulang di tiap halaman
-- Angka di file = angka di layar (uji 3 laporan secara acak)
+- Total piutang di laporan = saldo akun-akun piutang di buku besar
+- Pelanggan ber-ar_account_id custom muncul di laporan
+- Umur hutang dihitung dari due_date, dibuktikan dengan satu faktur yang tiga
+  tanggalnya sengaja berbeda
 ```
 
 ### 🎨 Frontend
 
 ```
-TUGAS (FRONTEND) Hari 30:
-1. Pasang <ExportButton> di SEMUA halaman laporan (dropdown Excel/PDF).
-2. Tombol export membawa filter yang sedang aktif — jangan mengekspor
-   seluruh data saat layar sedang terfilter. Ini kesalahan yang sering terjadi
-   dan baru ketahuan saat klien memakainya.
-3. Indikator loading saat menyiapkan file + penanganan error yang jelas.
-4. Nama file unduhan mencerminkan filter aktif.
+TUGAS (FRONTEND):
+1. Tiga halaman laporan + export Excel.
+2. Angka bisa diklik sampai ke dokumen sumbernya.
 
 DEFINITION OF DONE:
-- Filter aktif ikut ke file hasil export (uji dengan filter tanggal sempit)
-- Semua halaman laporan punya tombol export
+- Klik nominal piutang -> membuka faktur yang membentuknya
 ```
 
 ### ✅ Verifikasi Hari 30
-- [ ] Semua laporan bisa diekspor xlsx & pdf
-- [ ] Filter aktif ikut terbawa ke file
-- [ ] Angka di file = angka di layar
+
+- [ ] Total piutang laporan = saldo buku besar
+- [ ] Pelanggan ber-akun custom tidak hilang dari laporan
+- [ ] Umur hutang dari `due_date`
+- [ ] Angka bisa ditelusuri ke dokumen
 - [ ] `./scripts/verify.sh` hijau
 
 ---
 
-## Hari 31 — BUFFER (perbaikan temuan UAT)
-
-```
-KONTEKS: Hari 31 dari 34. Hari BUFFER. Tidak ada fitur baru hari ini.
-
-LANGKAH 1 — Inventarisasi:
-Baca PROGRESS.md §5 (UAT Mingguan) dan §3 (Catatan Harian).
-Susun daftar semua temuan yang BELUM diperbaiki, kelompokkan:
-  A. BUG yang menghalangi pemakaian (blocker operasional)
-  B. BUG yang mengganggu tapi ada jalan memutar
-  C. Permintaan fitur baru  ← ini BUKAN untuk hari ini, masuk backlog
-  D. Utang teknis internal (tidak terlihat klien)
-Tampilkan daftarnya beserta estimasi waktu masing-masing. TUNGGU persetujuan saya
-sebelum mulai memperbaiki.
-
-LANGKAH 2 — setelah saya setujui:
-Kerjakan A dulu sampai habis, lalu B sebanyak yang muat.
-Jangan menyentuh C. Utang teknis D hanya kalau A dan B sudah habis.
-
-ATURAN:
-- Setiap perbaikan wajib disertai test regresi kalau menyentuh engine.
-- Setelah setiap perbaikan, jalankan 4 invarian Hari 8.
-- Kalau sebuah perbaikan ternyata membutuhkan > 2 jam, berhenti dan lapor —
-  mungkin itu bukan bug melainkan perubahan scope yang menyamar.
-
-DEFINITION OF DONE:
-- Semua temuan kategori A tuntas
-- 4 invarian hijau
-- PROGRESS.md §5 kolom "Sudah diperbaiki" terisi
-```
-
-### ✅ Verifikasi Hari 31
-- [ ] Daftar temuan dibuat & dikategorikan sebelum mulai
-- [ ] Semua bug blocker (A) tuntas
-- [ ] Tidak ada fitur baru yang menyelinap masuk
-- [ ] 4 invarian hijau
-- [ ] **Hitung drift kumulatif** — 3 hari tersisa, ini titik keputusan terakhir
-- [ ] Kalau drift ≥ 3 hari: jalankan daftar potong darurat SEKARANG, jangan menunggu
-
----
-
-## Hari 32 — Audit Permission Matrix
+## Hari 31 ♻️ — Rekap Kas Harian  *(v2: Hari 28 — cash opname dipotong, laporan biaya ⏸ pasca-MVP)*
 
 ### 🔧 Backend
 
 ```
-KONTEKS: Hari 32 dari 34. Audit keamanan menyeluruh.
-Sumber kebenaran: plan v2 §7 dan CLAUDE.md §5.
+KONTEKS: Hari 31 dari 37. Cash opname SUDAH DIPOTONG dari scope.
 
 TUGAS (BACKEND):
-1. Tulis SATU file test e2e: test/permission-matrix.e2e-spec.ts
-   yang menguji SETIAP baris matrix di plan §7, untuk KETIGA role.
-   Strukturnya: untuk setiap (role, endpoint, method) → status yang diharapkan.
-   Test ini harus gagal kalau ada guard yang lepas.
-
-   Wajib termasuk:
-   - SUPERVISOR: POST/PATCH sales-orders, sales-invoices, purchase-invoices → 403
-   - SUPERVISOR: GET chart-of-accounts → 200, POST/PATCH/DELETE → 403
-   - SUPERVISOR: jurnal manual → 403; approve authorization → 200
-   - OPERATOR: GET/POST/PATCH chart-of-accounts → 403
-   - OPERATOR: jurnal manual, saldo awal, settings → 403
-   - OPERATOR: GET /suppliers → ter-mask di list, detail, DAN export
-   - OPERATOR: VOID apa pun → 428 (step-up) sebelum approve
-   - SEMUA role: tidak ada route DELETE terdaftar di seluruh aplikasi
-     (enumerasi router Nest dan assert tidak ada method DELETE)
-
-2. Audit tambahan yang mudah terlewat:
-   - endpoint export: apakah masking supplier tetap berlaku? (uji langsung)
-   - endpoint laporan: apakah OPERATOR bisa melihat data yang seharusnya tertutup?
-   - endpoint /:id: apakah user bisa mengakses data yang bukan haknya lewat ID tebakan?
-   - apakah ada endpoint yang lupa @Roles dan jadi terbuka untuk semua?
-     (enumerasi semua route, daftar yang tidak punya decorator @Roles maupun @Public)
-
-3. Perbaiki semua temuan hari ini juga.
+1. LAPORAN BIAYA OPERASIONAL DITUNDA KE PASCA-MVP (keputusan 29 Juli).
+   Jangan dibangun hari ini.
+2. REKAP KAS HARIAN PER AKUN — TETAP DIBANGUN. Ini yang dipakai menutup hari
+   secara praktis dan sudah jadi pengganti cash opname yang dipotong: saldo awal, masuk, keluar, saldo akhir per akun kas.
+   Ini yang dipakai menutup hari secara praktis, dan ini pengganti terdekat dari
+   cash opname yang dipotong.
+3. JANGAN membangun cash opname (input hitungan fisik + selisih). Dipotong.
+4. Hari ini jadi setengah hari. Sisanya dipakai melunasi utang teknis yang tercatat
+   di PROGRESS.md, bukan menambah fitur.
 
 DEFINITION OF DONE:
-- test permission matrix hijau, mencakup seluruh baris plan §7
-- daftar route tanpa @Roles/@Public = kosong (atau setiap pengecualian dijelaskan)
-- masking supplier berlaku di list, detail, export, dan laporan
-- tidak ada route DELETE di seluruh aplikasi
-
-SETELAH SELESAI: tampilkan tabel hasil (role × endpoint × status) secara utuh.
+- Rekap kas harian cocok dengan mutasi akun kas di buku besar untuk tanggal sama
+- Saldo akhir hari N = saldo awal hari N+1
 ```
 
 ### 🎨 Frontend
 
 ```
-TUGAS (FRONTEND) Hari 32:
-1. Audit menu & halaman untuk ketiga role:
-   - login sebagai masing-masing role, daftar menu apa yang terlihat
-   - coba akses SETIAP route terproteksi lewat URL langsung (paste di address bar)
-   - pastikan tidak ada halaman yang "berkedip" tampil sebelum ditolak
-2. Audit tombol: tombol aksi yang tidak boleh dipakai role tsb harus
-   TIDAK ADA (bukan sekadar nonaktif) — kecuali kalau menonaktifkannya
-   memberi informasi berguna (mis. tombol VOID nonaktif dengan alasan).
-3. Pastikan setiap kegagalan 403 dari API menampilkan pesan yang ramah,
-   bukan layar error mentah.
-4. Buat tabel hasil audit di docs/permission-audit-frontend.md.
+TUGAS (FRONTEND):
+1. Halaman Kas: rekap harian per akun. Export Excel. (Laporan biaya pasca-MVP.)
 
 DEFINITION OF DONE:
-- Tabel audit lengkap untuk 3 role × semua halaman
-- Akses URL langsung ke halaman terlarang → ditolak bersih
-- Tidak ada tombol terlarang yang tampil
+- Rekap kas bisa ditarik per tanggal dan per akun
+```
+
+### ✅ Verifikasi Hari 31
+
+- [ ] Rekap kas cocok dengan buku besar
+- [ ] Saldo bersambung antar hari
+- [ ] Tidak ada cash opname maupun laporan biaya yang terlanjur dibangun
+- [ ] `./scripts/verify.sh` hijau
+
+---
+
+## Hari 32 ♻️ — Rekonsiliasi Stok  *(v2: Hari 29, laporan retur & stok minus dipotong)*
+
+### 🔧 Backend
+
+```
+KONTEKS: Hari 32 dari 37. Laporan retur dan laporan produk stok minus SUDAH
+DIPOTONG (sementara pakai query manual).
+
+TUGAS (BACKEND):
+1. Endpoint rekonsiliasi stok: bandingkan SUM(stock_movements) dengan
+   product_stock_balance per (produk, gudang) — memakai reconcile() dari Hari 10.
+2. Sertakan daftar barang titipan sebagai PENJELAS selisih fisik.
+3. Sediakan satu query SQL siap pakai untuk stok minus dan untuk retur, disimpan
+   di docs/queries.md supaya "manual" berarti "jalankan query ini", bukan
+   "karang sendiri nanti".
+
+DEFINITION OF DONE:
+- Rekonsiliasi mengembalikan selisih 0 pada DB yang sehat
+- Selisih fisik yang disebabkan barang titipan terjelaskan otomatis
+- docs/queries.md berisi query stok minus dan retur yang sudah diuji jalan
+```
+
+### 🎨 Frontend
+
+```
+TUGAS (FRONTEND):
+1. Halaman Rekonsiliasi Stok + export Excel.
+
+DEFINITION OF DONE:
+- Baris berselisih ditandai jelas; baris yang terjelaskan titipan diberi keterangan
 ```
 
 ### ✅ Verifikasi Hari 32
-- [ ] Test permission matrix mencakup seluruh plan §7 dan hijau
-- [ ] Tidak ada route tanpa `@Roles`/`@Public`
-- [ ] Tidak ada route DELETE
-- [ ] Masking supplier berlaku di export & laporan
-- [ ] Audit FE terdokumentasi
+
+- [ ] Rekonsiliasi selisih 0 di DB sehat
+- [ ] Selisih karena titipan terjelaskan
+- [ ] `docs/queries.md` berisi query pengganti yang sudah diuji
 - [ ] `./scripts/verify.sh` hijau
 
 ---
 
-## Hari 33 — BUFFER
+## Hari 33 ⚠️♻️ — Deploy Windows-Native + Export Excel  *(v2: Hari 30)*
+
+> Hari paling berisiko di fase akhir. Mesin klien: **i5-4690, 8 GB DDR3, 1 TB HDD**,
+> merangkap komputer operator. Tanpa Docker, tanpa mini PC. Risiko HDD bukan kecepatan
+> (11–12 transaksi/hari = satu tiap ~50 menit) melainkan **kegagalan mekanis** —
+> dan backup adalah satu-satunya jaring pengaman.
+
+### 🔧 Backend + Deploy
 
 ```
-KONTEKS: Hari 33 dari 34. Buffer terakhir. Setelah hari ini tidak ada lagi cadangan.
+KONTEKS: Hari 33 dari 37. Deploy ke mesin klien sungguhan, di toko.
 
-LANGKAH 1 — Laporkan status jujur:
-- Berapa sub-item di PROGRESS.md yang masih [ ] atau [~]?
-- Apakah ada yang termasuk kategori "TIDAK boleh dipotong" (plan §9.2)?
-- Item mana dari go-live checklist (§8) yang belum bisa dikerjakan karena
-  menunggu klien?
-Tampilkan sebagai daftar, TUNGGU keputusan saya sebelum mulai.
+TUGAS:
+1. Postgres NATIVE Windows (bukan Docker). docker-compose.yml TETAP di repo untuk
+   kemungkinan pindah mesin, tapi tidak dipakai di produksi.
+2. NestJS sebagai Windows service lewat nssm. Auto-start saat boot.
+3. nginx melayani frontend STATIS (nuxt generate, ssr: false). Tidak ada manfaat
+   SSR untuk aplikasi LAN satu toko.
+4. Tuning Postgres untuk mesin yang dipakai bersama:
+   shared_buffers 1GB
+   effective_cache_size 3GB
+   checkpoint_timeout 15min
+   checkpoint_completion_target 0.9
+   max_wal_size 2GB
+   random_page_cost 4.0        <- biarkan, ini nilai yang benar untuk HDD
+   synchronous_commit ON       <- JANGAN dimatikan demi kecepatan. Pada 11-12
+                                  transaksi/hari, commit 10-20 ms tidak akan
+                                  pernah terasa. Yang hilang kalau dimatikan
+                                  adalah transaksi terakhir saat listrik padam.
+5. GRATIS DAN WAJIB:
+   - matikan restart otomatis Windows Update
+   - pg_dump terjadwal DI LUAR JAM KERJA, hasilnya disalin ke media terpisah
+   - Postgres & NestJS auto-start sebagai service
+6. UPS terpasang dan DIUJI.
+7. Export EXCEL seluruh laporan (export PDF sudah dipotong).
 
-LANGKAH 2 — prioritas kalau saya tidak memberi arahan lain:
-1. Item "tidak boleh dipotong" yang belum tuntas
-2. Bug kategori A yang tersisa dari Hari 31
-3. Persiapan Hari 34: mulai menulis dokumentasi setup & deploy
-   (jangan tunggu besok — Hari 34 sudah padat)
-4. Bug kategori B
-
-JANGAN kerjakan: fitur baru, refactor kosmetik, optimasi tanpa data pengukuran.
+ATURAN WAJIB HARI INI:
+- Backup yang belum pernah di-restore bukan backup. Uji restore hari ini juga,
+  ke database terpisah, dan catat langkahnya.
 
 DEFINITION OF DONE:
-- Status jujur dilaporkan sebelum mulai
-- Tidak ada item "tidak boleh dipotong" yang tersisa
-- Kerangka dokumentasi deploy sudah ada
+- Reboot mesin -> aplikasi hidup sendiri tanpa disentuh
+- Cabut listrik saat 3 faktur sedang diinput -> setelah listrik kembali, DB
+  konsisten dan tidak ada dokumen setengah jadi
+- pg_dump terjadwal jalan, hasilnya BERHASIL DI-RESTORE ke DB terpisah
+- Operator membuka aplikasi dari komputernya sendiri, supervisor dari komputernya,
+  keduanya lewat LAN
+- Waktu buka halaman faktur < 2 detik di mesin itu
 ```
 
 ### ✅ Verifikasi Hari 33
-- [ ] Daftar sisa pekerjaan dilaporkan sebelum mulai
-- [ ] Item "tidak boleh dipotong" tuntas semua
-- [ ] Kerangka dokumentasi deploy ada
+
+- [ ] Reboot → aplikasi hidup sendiri
+- [ ] Cabut listrik → DB konsisten, tidak ada dokumen setengah jadi
+- [ ] UPS terpasang dan diuji
+- [ ] `pg_dump` terjadwal **dan** restore-nya terbukti jalan
+- [ ] `synchronous_commit` tetap `on`
+- [ ] Dua komputer mengakses lewat LAN
+- [ ] Export Excel jalan di semua laporan
 - [ ] `./scripts/verify.sh` hijau
 
 ---
 
-## Hari 34 — Smoke Test, Dokumentasi, Serah Terima
+## Hari 34 — BUFFER
+
+```
+KONTEKS: Hari 34 dari 37. BUFFER.
+
+TUGAS: perbaikan temuan UAT minggu 1-4. Kerjakan dari yang paling menyentuh
+kebenaran data, bukan yang paling mudah.
+
+Kalau tidak ada temuan tersisa, JANGAN menambah fitur. Pakai hari ini untuk:
+1. menjalankan seluruh test suite dan mengukur waktunya
+2. membaca ulang CLAUDE.md Sec.2 dan mencari aturan yang diam-diam dilanggar
+3. memperbaiki pesan error yang masih berbahasa teknis
+```
+
+### ✅ Verifikasi Hari 34
+
+- [ ] Semua temuan UAT berstatus jelas: selesai, ditunda dengan alasan, atau ditolak
+- [ ] Tidak ada fitur baru yang diselipkan
+- [ ] `./scripts/verify.sh` hijau
+
+---
+
+## Hari 35 — Audit Permission Matrix  *(v2: Hari 32)*
+
+### 🔧 Backend + Frontend
+
+```
+KONTEKS: Hari 35 dari 37. Audit menyeluruh, bukan sampling.
+
+TUGAS:
+1. Telusuri SETIAP endpoint terhadap matriks di CLAUDE.md Sec.5. Buat tabel hasil:
+   endpoint, role, harapan, hasil nyata.
+2. Titik yang paling gampang meleset:
+   - SUPERVISOR: tidak punya dashboard, hanya 3 menu, TIDAK PERNAH menulis ke faktur
+   - OPERATOR: GET /chart-of-accounts -> 403; supplier ter-mask
+     (name, contact_phone, contact_address), display_code tetap tampil
+   - Jurnal Manual ditolak untuk Persediaan/Piutang/Hutang MESKI Master
+   - Tutup/buka bulan: MASTER saja
+   - Approve authorization_requests: MASTER & SUPERVISOR
+3. Audit juga sisi frontend: menu yang tidak boleh terlihat memang tidak
+   ter-render, bukan sekadar disembunyikan CSS.
+
+DEFINITION OF DONE:
+- Tabel audit lengkap, setiap baris terbukti dengan curl atau test
+- Tidak ada satu pun baris merah yang dibiarkan
+```
+
+### ✅ Verifikasi Hari 35
+
+- [ ] Tabel audit permission lengkap dan hijau
+- [ ] Supervisor: 3 menu, tanpa dashboard, tidak bisa menulis faktur
+- [ ] Operator: COA 403, supplier ter-mask
+- [ ] Menu terlarang tidak ter-render di DOM
+- [ ] `./scripts/verify.sh` hijau
+
+---
+
+## Hari 36 — INPUT SALDO AWAL (buffer terpakai)
+
+```
+KONTEKS: Hari 36 dari 37, 29 Agustus. Buffer terakhir, dan sudah punya pemilik:
+INPUT SALDO AWAL. Mesinnya dibangun Hari 12; hari ini mengisinya dengan angka
+sungguhan dari klien.
+
+TUGAS:
+1. Input saldo awal STOK (qty + harga pokok per produk), PIUTANG per pelanggan,
+   dan HUTANG per supplier. Semuanya BERTANGGAL 1 SEPTEMBER 2026.
+2. Jalankan GET /opening-balance/verify: selisih Sigma nilai lot pembuka vs saldo
+   akun Persediaan harus 0.
+3. Jalankan invarian 1-5 Hari 11 SETELAH saldo awal masuk. Saldo awal adalah
+   suntikan data terbesar yang pernah masuk sekaligus — kalau ada yang retak,
+   di sinilah retaknya muncul.
+4. CATAT TANGGAL POTONG yang dipakai klien saat menyiapkan angkanya.
+
+PERINGATAN YANG HARUS DISAMPAIKAN KE KLIEN HARI INI:
+Angka yang diinput hari ini adalah angka per tanggal potong, sementara klien masih
+memakai sistem lama sampai 31 Agustus. Transaksi 29-31 Agustus BELUM tercermin.
+Sebelum operasi pertama 1 September, selisih tiga hari itu WAJIB disesuaikan —
+entah dengan mengulang input saldo awal, atau memasukkannya sebagai transaksi biasa.
+Tanyakan ke klien mana yang mereka pilih, dan tulis jawabannya di PROGRESS.md Sec.3.
+
+Kalau saldo awal selesai lebih cepat, sisa hari dipakai untuk perbaikan tertunda.
+Kalau ada yang belum selesai dan tidak bisa selesai hari ini, KATAKAN SEKARANG,
+bukan besok. Klien masih punya satu hari untuk menyesuaikan rencana.
+```
+
+### ✅ Verifikasi Hari 36
+
+- [ ] Saldo awal stok, piutang, hutang masuk, bertanggal **1 September 2026**
+- [ ] `GET /opening-balance/verify` selisih 0
+- [ ] Invarian 1–5 tetap hijau **setelah** saldo awal masuk
+- [ ] Rencana penyesuaian selisih 29–31 Agustus sudah disepakati klien dan dicatat
+- [ ] Semua yang menyentuh mesin akuntansi sudah selesai
+- [ ] Yang belum selesai sudah dikomunikasikan ke klien hari ini juga
+- [ ] `./scripts/verify.sh` hijau
+
+---
+
+## Hari 37 — Smoke Test, Dokumentasi, Serah Terima  *(v2: Hari 34)*
 
 ### 🔧 Backend + Frontend (satu sesi, ini hari integrasi)
 
 ```
-KONTEKS: Hari 34 dari 34. HARI TERAKHIR. Cut-over 1 September.
-Tidak ada kode fitur baru hari ini. Kalau tergoda menambahkan sesuatu, jangan.
+KONTEKS: Hari 37 dari 37. Cut-over 1 September, TANPA periode paralel.
+Tidak ada jaring pengaman berupa "sistem lama masih jalan" — jadi yang belum
+benar hari ini akan ketahuan oleh operator di hari pertama, bukan oleh kita.
 
-TUGAS A — SMOKE TEST END-TO-END (jalankan di DB BERSIH, bukan DB development):
-Skrip satu alur penuh, tiap langkah diverifikasi:
- 1. login sebagai master
- 2. buat akun kas (Kas Besar) + akun bank (BCA) di COA
- 3. buat gudang: Gudang Toko (default) + Gudang Bad Stock
- 4. buat 2 produk dengan konversi satuan, 2 customer, 1 supplier, 1 agen, 1 kendaraan
- 5. input saldo awal stok + kas → VERIFIKASI nilai lot = saldo GL Persediaan
- 6. purchase invoice 2 baris → cek jurnal balance, lot terbentuk
- 7. sales invoice 2 baris → cek pembulatan, HPP, unit_cost_fifo tersimpan
- 8. buat surat jalan → tandai DELIVERED
- 9. terima pembayaran multi-metode (kas + transfer) dengan alokasi diedit manual
-10. retur penjualan sebagian dengan settlement CASH
-11. mutasi ke gudang bad stock + mutasi ke gudang titip
-12. VOID salah satu dokumen (lewat step-up sebagai operator)
-13. buka SEMUA laporan, export masing-masing ke xlsx & pdf
-14. jalankan endpoint rekonsiliasi stok → HARUS 0 selisih
-15. jalankan 4 invarian → HARUS hijau
-16. logout
-Laporkan hasil tiap langkah. Kalau ada yang gagal, ITU prioritas hari ini.
-
-TUGAS B — DOKUMENTASI (buat di docs/, bahasa Indonesia, untuk orang yang
-belum pernah melihat proyek ini — asumsikan bukan developer yang sama):
- 1. docs/SETUP.md — instalasi dari nol: prasyarat, clone, env, docker compose,
-    migration, seed, build, jalankan. Sertakan perintah yang bisa disalin.
- 2. docs/DEPLOY.md — deploy ke mini PC: konfigurasi IP lokal tetap,
-    Docker Compose produksi, cara update versi, cara rollback.
- 3. docs/BACKUP.md — pg_dump harian otomatis (cron/systemd timer) ke disk
-    eksternal + cloud, DAN prosedur restore langkah demi langkah.
-    ← Prosedur restore WAJIB sudah diuji minimal sekali. Tulis hasil ujinya.
- 4. docs/OPERASIONAL.md — untuk klien: 3 kredensial awal (dan perintah
-    menggantinya), alur harian operator, apa yang harus dilakukan kalau
-    listrik mati / sistem tidak bisa diakses, siapa yang dihubungi.
- 5. docs/ARSITEKTUR.md — ringkasan modul, diagram alur transaksi
-    (purchase → stok → jurnal), penjelasan keempat invarian dan cara menjalankannya,
-    daftar keputusan yang sengaja diambil (dari plan §1.7) beserta konsekuensinya.
-    ← Bagian terakhir ini yang paling berharga untuk developer berikutnya.
-
-TUGAS C — SERAH TERIMA:
- 1. Jalankan checklist go-live (plan §8) — tandai mana yang sudah, mana yang
-    menunggu klien, mana yang harus dikerjakan sebelum 1 September.
- 2. Pastikan repo siap dipindah ke akun klien (README, LICENSE kalau perlu,
-    tidak ada kredensial ter-commit — jalankan pemeriksaan git history
-    untuk .env atau password yang pernah masuk).
- 3. Tulis ringkasan serah terima: apa yang selesai, apa yang ditunda
-    (dengan konsekuensinya), apa yang perlu dikerjakan segera setelah cut-over.
+TUGAS:
+1. SMOKE TEST END-TO-END dengan data yang menyerupai hari kerja sungguhan:
+   login -> master data -> faktur pembelian (dengan bonus) -> mutasi ke bad stock
+   -> retur pembelian -> sales order -> faktur penjualan (dengan step-up jual rugi)
+   -> cetak nota -> surat jalan -> pembayaran dengan selisih -> pengecekan
+   supervisor -> tutup bulan -> laporan -> logout.
+   Jalankan sebagai TIGA role bergantian.
+2. DOKUMENTASI:
+   - setup & deploy (termasuk cara menyalakan ulang service)
+   - PROSEDUR RESTORE BACKUP, ditulis untuk orang yang panik
+   - panduan operator: alur input harian, arti tiga status dokumen,
+     cara meminta persetujuan supervisor
+   - panduan master: tutup bulan, buka kembali, saldo awal, CRUD COA
+3. Serah terima: repo dipindah ke akun klien, kredensial diserahkan,
+   Checklist Go-Live dijalankan bersama.
 
 DEFINITION OF DONE:
-- Smoke test 16 langkah semuanya hijau di DB bersih
-- 5 dokumen ada dan bisa diikuti orang lain
-- Restore backup sudah diuji dan hasilnya tertulis
-- git history bersih dari kredensial
-- Checklist go-live tertandai dengan jujur
+- Smoke test lolos untuk ketiga role tanpa satu pun error
+- KLIEN MENJALANKAN RESTORE BACKUP SENDIRI dengan panduan tertulis, tanpa dibantu.
+  Kalau tidak bisa, backup itu tidak nyata dan dokumentasinya belum selesai.
+- Repo sudah di akun klien
+- Operator berhasil menginput satu faktur lengkap sendiri, tanpa dipandu
 ```
 
-### ✅ Verifikasi Hari 34 (Gerbang Serah Terima)
+### ✅ Verifikasi Hari 37 (Gerbang Serah Terima)
 
-- [ ] Smoke test 16 langkah hijau **di DB bersih**
-- [ ] 4 invarian hijau
-- [ ] Rekonsiliasi stok = 0
-- [ ] Semua laporan terekspor xlsx & pdf
-- [ ] 5 dokumen lengkap
-- [ ] **Restore backup sudah diuji, bukan hanya backup-nya**
-- [ ] Git history bersih dari kredensial
-- [ ] Kredensial default sudah diganti (atau diinstruksikan ke klien)
-- [ ] Repo dipindah ke akun klien
-- [ ] Checklist go-live §8 tertandai
-- [ ] **Gladi bersih dijadwalkan sebelum 1 September**
-- [ ] UAT Minggu 5 (~29 Agu) selesai
+- [ ] Smoke test end-to-end lolos untuk 3 role
+- [ ] Dokumentasi setup, deploy, **restore backup**, panduan operator & master
+- [ ] **Klien berhasil restore backup sendiri**
+- [ ] Operator menginput satu faktur lengkap tanpa dipandu
+- [ ] Repo di akun klien, kredensial diserahkan
+- [ ] Checklist Go-Live dijalankan bersama klien
+- [ ] `./scripts/verify.sh` hijau
 
 ---
----
-
 # Lampiran A — `scripts/verify.sh`
 
 Skrip inilah yang dimaksud "checkmark untuk memastikan program dapat berjalan".
@@ -2848,40 +3235,61 @@ Yang diperiksa:
 | 2 | `npm run build` BE | ada error TypeScript |
 | 3 | `npm run lint` BE | konvensi kode dilanggar |
 | 4 | Migration up → down → up di DB sementara | migration tidak reversible |
-| 5 | `npm run test` BE (termasuk 4 invarian setelah Hari 8) | logika bisnis rusak |
+| 5 | `npm run test` BE (termasuk **5 invarian** setelah Hari 11) | logika bisnis rusak |
 | 6 | Server start & `GET /health` 200 | aplikasi tidak bisa dijalankan |
 | 7 | `npm run build` FE | ada error di frontend |
 | 8 | `npm run lint` FE | konvensi FE dilanggar |
 | 9 | Tidak ada route DELETE terdaftar | melanggar aturan no-hard-delete |
 | 10 | `.env` tidak ter-stage di git | risiko kebocoran kredensial |
+| 11 | `migration:run` sudah diterapkan ke DB dev harian | migration baru dibuat tapi lupa dijalankan (kejadian di Hari 6) |
+| 12 | Grep bersih: `INV/`, `YYMM/`, `CUSTOMER_CONSIGNMENT`, `428`, `tax_status` | sisa istilah dari aturan yang sudah dicabut |
 
 Keluarannya berupa daftar ✅/❌ dan exit code 1 kalau ada yang gagal —
 sehingga bisa dipasang sebagai pre-push hook.
+
+> **Pemeriksaan 11 ditambahkan setelah kejadian Hari 6:** migration dibuat tapi lupa
+> dijalankan di DB dev, dan yang menemukannya adalah integration test yang gagal, bukan
+> `verify.sh` — karena skrip itu hanya menguji up→down→up di DB sementara.
+>
+> **Pemeriksaan 12** menjaga agar istilah dari aturan yang sudah dicabut tidak diam-diam
+> hidup lagi lewat copy-paste dari kode lama.
 
 ---
 
 # Lampiran B — Prompt Darurat
 
-## Kalau drift ≥ 3 hari
+## Kalau drift ≥ 1 hari — **DAFTAR POTONG SUDAH HABIS**
+
+> Prompt ini menggantikan prosedur potong darurat v2. Keempat item yang bisa dipotong
+> sudah diambil 28 Juli untuk membiayai revisi klien, dan dua sisanya (Sales Order,
+> Bad Stock) sudah dinyatakan tidak bisa dipotong. Margin sekarang **nol**.
 
 ```
-Baca PROGRESS.md §0 dan §6, serta plan v2 §9.3.
+Baca PROGRESS.md Sec.0 (neraca kapasitas) dan Sec.6.
 
-Drift saat ini <N> hari. Jalankan prosedur potong darurat:
-1. Hitung berapa hari yang perlu dihemat untuk kembali ke jalur.
-2. Ambil item dari daftar potong SECARA BERURUTAN (jangan melompat) sampai
-   penghematannya cukup. Daftarnya sudah disepakati di muka justru supaya
-   tidak diputuskan dalam keadaan panik.
-3. Untuk tiap item yang dipotong, tuliskan:
-   - apa konsekuensinya bagi operasional klien di bulan pertama
-   - apa jalan memutar manualnya
-   - kapan idealnya dikerjakan pasca-MVP
-4. Update PROGRESS.md §6 dan §3.
-5. Susun draf pesan singkat untuk klien: apa yang ditunda, kenapa, dan
-   bagaimana mereka menanganinya sementara.
+Drift saat ini <N> hari. Daftar potong darurat SUDAH HABIS — jangan mencari
+item untuk dipotong, tidak ada lagi. Yang tersisa hanya dua tuas, dan keduanya
+keputusan KLIEN, bukan keputusan saya:
+
+  A. TUKAR SCOPE  — buang pekerjaan yang belum dikerjakan, senilai drift-nya
+  B. GESER CUT-OVER — mundurkan 1 September
+
+Bantu saya menyiapkan bahan untuk klien:
+1. Sebutkan penyebab drift-nya secara spesifik, bukan "lebih lama dari perkiraan".
+2. Kalau tuas A: daftar 3 kandidat yang bisa ditukar, masing-masing dengan
+   berapa hari yang dihemat, apa konsekuensinya bagi operasional bulan pertama,
+   dan apa jalan memutar manualnya.
+   JANGAN mengusulkan yang ada di daftar tidak-boleh-dipotong.
+3. Kalau tuas B: berapa hari mundur yang realistis, dan apa konsekuensinya bagi
+   klien (sistem lama harus jalan lebih lama, tutup buku bulan Agustus di mana).
+4. Rekomendasi saya harus mana, dan kenapa.
+5. Draf pesan singkat, jujur, dan konkret untuk klien. Tanpa menyalahkan siapa pun
+   dan tanpa menjanjikan "akan dikejar" kalau memang tidak ada ruang mengejar.
 
 JANGAN memotong: Journal Poster, Stock Recorder + FIFO, VOID + reversing,
-integration test Hari 8, alur Saldo Awal, ergonomi input.
+integration test Hari 11, alur Saldo Awal, validator tutup bulan + backdate,
+panel riwayat harga, sisa stok saat mengetik, modal tambah pelanggan,
+batas jual di bawah harga pokok, kunci cetak + jejak otorisasinya.
 ```
 
 ## Kalau ada bug yang menyentuh engine
@@ -2890,7 +3298,7 @@ integration test Hari 8, alur Saldo Awal, ergonomi input.
 Ada bug di <modul>. Sebelum memperbaiki:
 1. Tulis test yang GAGAL karena bug ini. Tunjukkan test-nya gagal.
 2. Baru perbaiki. Tunjukkan test-nya lulus.
-3. Jalankan 4 invarian Hari 8 — pastikan tidak ada yang pecah.
+3. Jalankan 5 invarian Hari 11 — pastikan tidak ada yang pecah.
 4. Jalankan endpoint rekonsiliasi stok — pastikan 0 selisih.
 5. Kalau bug ini merusak data yang sudah tersimpan, tulis juga
    skrip perbaikan data + cara memverifikasinya, dan jangan jalankan
@@ -2910,6 +3318,21 @@ Bantu saya menyusun jawabannya:
 4. Apakah fitur ini bisa ditunda ke pasca-MVP tanpa memblokir cut-over
    1 September? Kalau ya, itu rekomendasi utama.
 5. Susun draf balasan singkat, sopan, dan konkret untuk klien.
+```
+
+## Kalau klien memberi jawaban yang membuka PR terbuka
+
+```
+Klien menjawab PR #<nomor> dari KONTEKS_REVISI Sec.4.2: <jawaban>.
+
+Lakukan:
+1. Terjemahkan jawaban itu jadi aturan konkret, dan periksa apakah ia bertabrakan
+   dengan aturan mana pun di CLAUDE.md Sec.2. Kalau ya, SEBUTKAN dan berhenti.
+2. Sebutkan hari mana saja yang terpengaruh, termasuk hari yang SUDAH selesai.
+3. Kalau ada hari yang sudah selesai dan perlu rework, estimasi berapa lama, dan
+   ingat: margin jadwal nol, jadi rework berarti drift.
+4. Update PROGRESS.md Sec.1 (kolom Diterima tgl) dan Sec.3.
+5. Baru setelah itu kerjakan, kalau saya setuju.
 ```
 
 ## Kalau tertinggal dan tergoda melewatkan test

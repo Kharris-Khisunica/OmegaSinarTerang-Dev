@@ -133,14 +133,14 @@ export class WarehousesService {
     warehouseType: WarehouseType,
     customerId: string | null,
   ): void {
-    if (warehouseType === WarehouseType.CUSTOMER_CONSIGNMENT && !customerId) {
+    if (warehouseType === WarehouseType.TITIPAN_PELANGGAN && !customerId) {
       throw new BadRequestException(
-        'customer_id wajib diisi untuk gudang bertipe CUSTOMER_CONSIGNMENT.',
+        'customer_id wajib diisi untuk gudang bertipe TITIPAN_PELANGGAN.',
       );
     }
-    if (warehouseType !== WarehouseType.CUSTOMER_CONSIGNMENT && customerId) {
+    if (warehouseType !== WarehouseType.TITIPAN_PELANGGAN && customerId) {
       throw new BadRequestException(
-        'customer_id hanya boleh diisi untuk gudang bertipe CUSTOMER_CONSIGNMENT.',
+        'customer_id hanya boleh diisi untuk gudang bertipe TITIPAN_PELANGGAN.',
       );
     }
   }

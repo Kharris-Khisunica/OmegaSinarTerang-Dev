@@ -7,14 +7,14 @@ definePageMeta({ title: 'Gudang' })
 interface WarehouseRow extends Record<string, unknown> {
   id: string
   name: string
-  warehouseType: 'STORE' | 'CUSTOMER_CONSIGNMENT' | 'BAD_STOCK'
+  warehouseType: 'STORE' | 'TITIPAN_PELANGGAN' | 'BAD_STOCK'
   isDefault: boolean
   isActive: boolean
 }
 
 const TYPE_LABEL: Record<string, string> = {
   STORE: 'Gudang Toko',
-  CUSTOMER_CONSIGNMENT: 'Titipan Customer',
+  TITIPAN_PELANGGAN: 'Titipan Pelanggan',
   BAD_STOCK: 'Barang Rusak'
 }
 

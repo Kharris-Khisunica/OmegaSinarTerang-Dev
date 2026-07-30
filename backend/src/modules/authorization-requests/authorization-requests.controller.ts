@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Post, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  ForbiddenException,
+  Get,
+  Param,
+  Post,
+  Req,
+} from '@nestjs/common';
 import { Request } from 'express';
 import { Role } from '../../common/enums/role.enum';
 import { Audit } from '../audit/decorators/audit.decorator';
@@ -7,6 +15,7 @@ import { AuthenticatedUser } from '../auth/types/jwt-payload.interface';
 import { AuthorizationRequestsService } from './authorization-requests.service';
 import { RequiresStepUp } from './decorators/requires-step-up.decorator';
 import { CreateAuthorizationRequestDto } from './dto/create-authorization-request.dto';
+import { RejectAuthorizationRequestDto } from './dto/reject-authorization-request.dto';
 
 interface RequestWithUser extends Request {
   user: AuthenticatedUser;
@@ -33,6 +42,24 @@ export class AuthorizationRequestsController {
     return this.authorizationRequestsService.findPending();
   }
 
+  // Tidak di-@Roles — dibatasi kepemilikan di bawah, bukan role. Ini yang
+  // dipoll <StepUpDialog> (FE Hari 10) untuk tahu status permintaannya
+  // sendiri (APPROVED/REJECTED/EXPIRED) tanpa perlu akses GET / yang
+  // MASTER/SUPERVISOR-only.
+  @Get(':id')
+  async findOne(@Param('id') id: string, @Req() req: RequestWithUser) {
+    const found = await this.authorizationRequestsService.findOneOrFail(id);
+    const isOwner = found.requesterId === req.user.sub;
+    const isReviewer =
+      req.user.role === Role.MASTER || req.user.role === Role.SUPERVISOR;
+    if (!isOwner && !isReviewer) {
+      throw new ForbiddenException(
+        'Anda tidak berhak melihat permintaan otorisasi ini.',
+      );
+    }
+    return found;
+  }
+
   @Roles(Role.MASTER, Role.SUPERVISOR)
   @Audit('APPROVE', 'authorization_requests')
   @Post(':id/approve')
@@ -43,8 +70,12 @@ export class AuthorizationRequestsController {
   @Roles(Role.MASTER, Role.SUPERVISOR)
   @Audit('REJECT', 'authorization_requests')
   @Post(':id/reject')
-  reject(@Param('id') id: string, @Req() req: RequestWithUser) {
-    return this.authorizationRequestsService.reject(id, req.user);
+  reject(
+    @Param('id') id: string,
+    @Body() dto: RejectAuthorizationRequestDto,
+    @Req() req: RequestWithUser,
+  ) {
+    return this.authorizationRequestsService.reject(id, req.user, dto.reason);
   }
 
   // Endpoint sementara HANYA untuk membuktikan StepUpGuard end-to-end hari ini

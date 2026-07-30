@@ -1,4 +1,4 @@
-import type { FieldDef } from '~/types/crud-form'
+import type { FieldDef, SelectOption } from '~/types/crud-form'
 
 interface UnitConversionRow {
   unitName: string
@@ -11,39 +11,131 @@ interface ServerUnitConversion {
   level: number
 }
 
+interface BrandOption {
+  id: string
+  name: string
+  isActive: boolean
+}
+
 /**
- * Skema form Produk (Hari 4), dipakai bareng create & edit.
- * Urutan field sengaja: nama duluan, baru kode — supaya "Simpan & Tambah Lagi"
- * (yang fokus ke field pertama) langsung siap ketik nama produk berikutnya.
+ * Daftar tetap satuan ukuran kemasan (gr/ml/kg, CLAUDE.md §3 — "UoM kemasan",
+ * BUKAN satuan jual/beli dari master `units` Hari 8). Deskriptif saja, tidak
+ * pernah dihitung, jadi cukup daftar statis di FE, tidak butuh master/endpoint
+ * tersendiri. Tambah baris di sini kalau klien butuh satuan kemasan baru.
+ */
+const PACKAGING_UOM_OPTIONS: SelectOption[] = [
+  { label: 'gr', value: 'gr' },
+  { label: 'kg', value: 'kg' },
+  { label: 'ml', value: 'ml' },
+  { label: 'liter', value: 'liter' },
+  { label: 'pcs', value: 'pcs' }
+]
+
+function buildDisplayName(
+  brandName: string | undefined,
+  keterangan: unknown,
+  kemasan: unknown,
+  ukuran: unknown,
+  uom: unknown
+): string {
+  const ukuranUom = [ukuran, uom]
+    .filter((part): part is string => typeof part === 'string' && part.trim() !== '')
+    .join(' ')
+  return [brandName, keterangan, kemasan, ukuranUom]
+    .filter((part): part is string => typeof part === 'string' && part.trim() !== '')
+    .map(part => part.trim())
+    .join(' ')
+}
+
+/**
+ * Skema form Produk (rework Hari 8) — mengganti skema Hari 4 (`name` tunggal).
+ * Nama sekarang tersusun 4 bagian (Merek + Keterangan + Kemasan + Ukuran+UoM,
+ * CLAUDE.md §3) dengan pratinjau `display_name` besar yang ter-update live —
+ * operator wajib melihat nama akhir sebelum menyimpan (DoD hari ini), karena
+ * kode produk dikunci permanen setelah transaksi pertama dan nama yang salah
+ * ketik tidak semudah itu diperbaiki di lapangan.
  *
- * Baris "Konversi Satuan" diinput dari satuan TERBESAR ke TERKECIL (mis. dus
- * dulu, baru renceng, baru — implisit — satuan dasar). `ratioToNext` = berapa
- * satuan di baris BAWAHNYA (baris terakhir = berapa satuan dasar produk), BUKAN
- * total dalam satuan dasar — lebih natural buat operator ("1 dus = 12 renceng")
- * daripada harus mengalikan sendiri ("1 dus = 120 pcs"). Perkalian bertingkat +
- * konversi ke level/qtyInBaseUnit absolut (kontrak backend, level 1 = satuan
- * terkecil, tidak berubah) terjadi di productTransformOut/In di bawah.
+ * `brandNameCache` menyimpan nama merek per id dari hasil loader dropdown,
+ * dipakai `compute()` pratinjau tanpa fetch ulang (loader jalan sekali saat
+ * form mount, sebelum operator sempat mengetik).
  */
 export function useProductSchema(): FieldDef[] {
+  const api = useApi()
+  const brandNameCache: Record<string, string> = {}
+
   return [
-    { key: 'name', label: 'Nama Produk', type: 'text', required: true, cols: 8 },
+    {
+      key: 'brandId',
+      label: 'Merek',
+      type: 'select',
+      required: true,
+      cols: 6,
+      placeholder: 'Pilih merek...',
+      options: async (): Promise<SelectOption[]> => {
+        const res = await api.get<{ data: BrandOption[] }>('/brands', { limit: 200 })
+        const active = res.data.filter(b => b.isActive)
+        for (const b of active) brandNameCache[b.id] = b.name
+        return active.map(b => ({ label: b.name, value: b.id }))
+      }
+    },
+    { key: 'keterangan', label: 'Keterangan', type: 'text', required: true, cols: 6, placeholder: 'Putih, Cokelat, Original, dsb.' },
+    { key: 'kemasan', label: 'Kemasan', type: 'text', cols: 6, placeholder: 'Sachet, Botol, Kaleng, dsb.' },
+    { key: 'ukuran', label: 'Ukuran', type: 'text', cols: 3, placeholder: '37' },
+    {
+      key: 'ukuranUomPart',
+      label: 'Satuan Ukuran',
+      type: 'select',
+      cols: 3,
+      placeholder: 'gr',
+      options: PACKAGING_UOM_OPTIONS
+    },
+    {
+      key: 'displayNamePreview',
+      label: 'Pratinjau Nama Produk',
+      type: 'display',
+      cols: 12,
+      compute: form => buildDisplayName(
+        brandNameCache[form.brandId as string],
+        form.keterangan,
+        form.kemasan,
+        form.ukuran,
+        form.ukuranUomPart
+      ) || 'Nama akan muncul di sini setelah Merek dan Keterangan diisi.'
+    },
     {
       key: 'code',
-      label: 'Kode',
+      label: 'Kode Produk',
       type: 'text',
-      required: true,
-      cols: 4,
-      placeholder: 'SKU',
-      hint: 'Kode unik, diketik manual (belum ada generator otomatis).'
+      cols: 6,
+      placeholder: 'Kosongkan lalu klik Bangkitkan, atau ketik manual',
+      hint: form => (form.isCodeLocked
+        ? 'Terkunci — produk ini sudah pernah dipakai transaksi, kode tidak bisa diubah lagi.'
+        : 'Format 10 digit YYMMDDXXXX. Kosongkan untuk dibangkitkan otomatis oleh sistem saat disimpan.'),
+      disabled: form => form.isCodeLocked === true,
+      action: {
+        icon: 'i-lucide-sparkles',
+        label: 'Bangkitkan',
+        hidden: form => form.isCodeLocked === true,
+        onClick: (_form, setField) => setField('code', '')
+      }
     },
-    { key: 'baseUnit', label: 'Satuan Dasar (terkecil)', type: 'text', required: true, cols: 6, placeholder: 'pcs' },
+    {
+      key: 'isBkp',
+      label: 'Barang Kena Pajak (PPN dari supplier dihitung)',
+      type: 'switch',
+      cols: 6,
+      hint: 'Aktifkan kalau produk ini dikenakan PPN saat dibeli dari supplier ber-PPN.'
+    },
     { key: 'isActive', label: 'Aktif', type: 'switch', cols: 6, defaultValue: true },
+    { key: 'baseUnit', label: 'Satuan Dasar (terkecil)', type: 'text', required: true, cols: 6, placeholder: 'pcs' },
+    // Metadata dari server, tidak ditampilkan — dipakai disabled/hint/action di atas.
+    { key: 'isCodeLocked', label: 'Kode Terkunci', type: 'switch', cols: 12, showIf: () => false },
     {
       key: 'unitConversions',
-      label: 'Konversi Satuan',
+      label: 'Konversi Satuan Jual/Beli',
       type: 'repeater',
       cols: 12,
-      hint: 'Urutkan dari satuan PALING BESAR ke PALING KECIL (mis. dus, lalu renceng). Isi tiap baris = berapa satuan di baris bawahnya (baris terakhir = berapa satuan dasar). Baris dengan nama satuan kosong otomatis diabaikan saat disimpan.',
+      hint: 'Format tiap baris: 1 [satuan besar] = [Isi] [satuan di bawahnya]. Urutkan dari PALING BESAR ke PALING KECIL (mis. dus, lalu renceng) — baris terakhir menuju satuan dasar. Baris dengan nama satuan kosong otomatis diabaikan saat disimpan.',
       repeaterColumns: [
         { key: 'unitName', label: 'Nama Satuan', type: 'text', placeholder: 'dus' },
         {
@@ -60,7 +152,7 @@ export function useProductSchema(): FieldDef[] {
   ]
 }
 
-/** Response GET /products/:id -> bentuk form (rasio bertingkat, urut besar ke kecil). */
+/** Response GET /products/:id -> bentuk form (rasio bertingkat, urut besar ke kecil, ukuranUom dipecah). */
 export function productTransformIn(data: Record<string, unknown>): Record<string, unknown> {
   const conversions = (data.unitConversions as ServerUnitConversion[] | undefined) ?? []
   // Urut level naik = kecil ke besar (konvensi backend, level 1 = satuan terkecil).
@@ -74,13 +166,26 @@ export function productTransformIn(data: Record<string, unknown>): Record<string
 
   const rows = withRatio.length ? [...withRatio].reverse() : [{ unitName: '', ratioToNext: null }]
 
+  // ukuranUom disimpan server SEBAGAI SATU STRING gabungan (mis. "37 gr") — dipecah
+  // kembali jadi ukuran+satuan HANYA kalau token terakhirnya cocok salah satu opsi
+  // dropdown dikenal; kalau tidak, seluruh string ditaruh di "Ukuran" apa adanya
+  // (aman untuk data lama/tidak baku, tidak pernah gagal parse).
+  const ukuranUomRaw = String(data.ukuranUom ?? '').trim()
+  const parts = ukuranUomRaw.split(/\s+/).filter(Boolean)
+  const lastPart = parts[parts.length - 1] ?? ''
+  const knownUom = ['gr', 'kg', 'ml', 'liter', 'pcs'].includes(lastPart)
+  const ukuran = knownUom ? parts.slice(0, -1).join(' ') : ukuranUomRaw
+  const ukuranUomPart = knownUom ? lastPart : ''
+
   return {
     ...data,
+    ukuran,
+    ukuranUomPart,
     unitConversions: rows
   }
 }
 
-/** Form -> payload POST/PATCH /products (baris kosong dibuang, rasio bertingkat -> qty absolut + level). */
+/** Form -> payload POST/PATCH /products (baris kosong dibuang, rasio bertingkat -> qty absolut + level, ukuran+uom digabung lagi). */
 export function productTransformOut(form: Record<string, unknown>): Record<string, unknown> {
   const rows = ((form.unitConversions as UnitConversionRow[] | undefined) ?? [])
     .filter(row => typeof row.unitName === 'string' && row.unitName.trim() !== '')
@@ -104,11 +209,25 @@ export function productTransformOut(form: Record<string, unknown>): Record<strin
     level: count - index
   }))
 
-  return {
-    code: form.code,
-    name: form.name,
+  const ukuran = typeof form.ukuran === 'string' ? form.ukuran.trim() : ''
+  const uom = typeof form.ukuranUomPart === 'string' ? form.ukuranUomPart : ''
+  const ukuranUom = [ukuran, uom].filter(Boolean).join(' ').trim()
+
+  const payload: Record<string, unknown> = {
+    brandId: form.brandId,
+    keterangan: form.keterangan,
+    kemasan: form.kemasan || undefined,
+    ukuranUom: ukuranUom || undefined,
+    isBkp: form.isBkp,
     baseUnit: form.baseUnit,
     isActive: form.isActive,
     unitConversions
   }
+  // Kosong (mis. setelah klik "Bangkitkan") -> jangan kirim key ini sama sekali:
+  // saat CREATE, backend membangkitkan kode otomatis kalau `code` tidak dikirim;
+  // saat UPDATE, kode yang belum terkunci cukup dibiarkan seperti semula sampai
+  // operator mengetik nilai baru (backend tidak membangkitkan ulang saat edit).
+  if (form.code) payload.code = form.code
+
+  return payload
 }

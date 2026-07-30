@@ -132,6 +132,22 @@ function isVisible(field: FieldDef) {
   return field.showIf ? field.showIf(form) : true
 }
 
+function resolvedHint(field: FieldDef): string | undefined {
+  return typeof field.hint === 'function' ? field.hint(form) : field.hint
+}
+
+function computedValue(field: FieldDef): string {
+  return field.compute ? field.compute(form) : ''
+}
+
+function isActionHidden(field: FieldDef): boolean {
+  return field.action?.hidden ? field.action.hidden(form) : false
+}
+
+function runFieldAction(field: FieldDef) {
+  field.action?.onClick(form, setField)
+}
+
 function asString(key: string): string | undefined {
   const v = form[key]
   return v === null || v === undefined ? undefined : String(v)
@@ -327,16 +343,36 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
           :label="field.label"
           :required="field.required"
           :error="fieldErrors[field.key]"
-          :hint="field.hint"
+          :hint="resolvedHint(field)"
         >
-          <UInput
+          <div
             v-if="field.type === 'text'"
-            :model-value="asString(field.key)"
-            :placeholder="field.placeholder"
-            :disabled="isDisabled(field)"
-            class="w-full"
-            @update:model-value="(v) => setField(field.key, v)"
-          />
+            class="flex gap-2 items-start"
+          >
+            <UInput
+              :model-value="asString(field.key)"
+              :placeholder="field.placeholder"
+              :disabled="isDisabled(field)"
+              class="w-full"
+              @update:model-value="(v) => setField(field.key, v)"
+            />
+            <UButton
+              v-if="field.action && !isActionHidden(field)"
+              type="button"
+              color="neutral"
+              variant="subtle"
+              :icon="field.action.icon"
+              @click="runFieldAction(field)"
+            >
+              {{ field.action.label }}
+            </UButton>
+          </div>
+          <div
+            v-else-if="field.type === 'display'"
+            class="text-xl font-semibold px-4 py-2.5 min-h-9 flex items-center rounded-md border border-default bg-elevated/50"
+          >
+            {{ computedValue(field) }}
+          </div>
           <UTextarea
             v-else-if="field.type === 'textarea'"
             :model-value="asString(field.key)"

@@ -23,6 +23,11 @@ export class Supplier {
   @Column({ name: 'contact_address', nullable: true, type: 'text' })
   contactAddress: string | null;
 
+  // Menggerbangi PPN masukan bersama products.is_bkp (CLAUDE.md §2.11) —
+  // PPN masukan hanya dihitung kalau supplier.is_pkp DAN product.is_bkp.
+  @Column({ name: 'is_pkp', default: false })
+  isPkp: boolean;
+
   @Column({ name: 'is_active', default: true })
   isActive: boolean;
 

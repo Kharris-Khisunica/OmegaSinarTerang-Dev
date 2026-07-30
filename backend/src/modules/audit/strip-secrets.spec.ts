@@ -77,6 +77,32 @@ describe('stripSecrets', () => {
     expect(stripSecrets(42)).toBe(42);
   });
 
+  it('membuang field rahasia di dalam authorization_requests.payload nested (CLAUDE.md §12/§19)', () => {
+    // payload JSONB bebas bentuknya (StepUpGuard menaruh { params, body } apa
+    // adanya dari request) — kalau body request itu kebetulan memuat field
+    // rahasia (mis. VOID yang membawa ulang data user), audit_logs tidak
+    // boleh ikut menyimpannya.
+    const input = {
+      actionType: 'VOID_DOCUMENT',
+      contextSummary: 'VOID faktur JL/RM01-26070042',
+      payload: {
+        params: { id: 'inv-1' },
+        body: { reason: 'salah harga', password: 'harusnya-tidak-ada-di-sini' },
+      },
+    };
+
+    const result = stripSecrets(input);
+
+    expect(result).toEqual({
+      actionType: 'VOID_DOCUMENT',
+      contextSummary: 'VOID faktur JL/RM01-26070042',
+      payload: {
+        params: { id: 'inv-1' },
+        body: { reason: 'salah harga' },
+      },
+    });
+  });
+
   it('hasil JSON.stringify tidak pernah mengandung string "password"', () => {
     const input = {
       username: 'master',

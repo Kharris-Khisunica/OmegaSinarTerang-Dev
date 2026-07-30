@@ -15,5 +15,9 @@ export class UpdateSupplierDto {
 
   @IsOptional()
   @IsBoolean()
+  isPkp?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
   isActive?: boolean;
 }

@@ -4,13 +4,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import {
   buildPaginatedResult,
   PaginatedResult,
   resolveSortColumn,
   resolveSortDir,
 } from '../../common/pagination';
+import { Brand } from '../brands/entities/brand.entity';
 import { CreateProductDto } from './dto/create-product.dto';
 import { ProductQueryDto } from './dto/product-query.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -20,7 +21,7 @@ import { validateUnitConversions } from './validators/validate-unit-conversions'
 
 const SORTABLE_COLUMNS = [
   'code',
-  'name',
+  'displayName',
   'baseUnit',
   'isActive',
   'createdAt',
@@ -31,6 +32,8 @@ export class ProductsService {
   constructor(
     @InjectRepository(Product)
     private readonly productsRepository: Repository<Product>,
+    @InjectRepository(Brand)
+    private readonly brandsRepository: Repository<Brand>,
     @InjectDataSource()
     private readonly dataSource: DataSource,
   ) {}
@@ -41,7 +44,7 @@ export class ProductsService {
     const sortColumn = resolveSortColumn(
       query.sortBy,
       SORTABLE_COLUMNS,
-      'code',
+      'displayName',
     );
     const sortDir = resolveSortDir(query.sortDir);
 
@@ -50,11 +53,11 @@ export class ProductsService {
       .leftJoinAndSelect('product.unitConversions', 'unitConversions');
 
     if (query.search) {
+      // Jalur pencarian terpanas aplikasi (CLAUDE.md §3) — operator mencari
+      // lewat display_name (terindeks), bukan code.
       qb.andWhere(
-        '(product.code ILIKE :search OR product.name ILIKE :search)',
-        {
-          search: `%${query.search}%`,
-        },
+        '(product.code ILIKE :search OR product.displayName ILIKE :search)',
+        { search: `%${query.search}%` },
       );
     }
 
@@ -81,9 +84,23 @@ export class ProductsService {
     validateUnitConversions(dto.baseUnit, dto.unitConversions);
 
     return this.dataSource.transaction(async (manager) => {
+      const brand = await this.assertActiveBrand(dto.brandId, manager);
+      const code = dto.code ?? (await this.generateCode(manager));
+
       const product = manager.create(Product, {
-        code: dto.code,
-        name: dto.name,
+        code,
+        brandId: dto.brandId,
+        keterangan: dto.keterangan,
+        kemasan: dto.kemasan ?? null,
+        ukuranUom: dto.ukuranUom ?? null,
+        displayName: buildDisplayName(
+          brand.name,
+          dto.keterangan,
+          dto.kemasan ?? null,
+          dto.ukuranUom ?? null,
+        ),
+        isBkp: dto.isBkp ?? false,
+        eanBarcode: dto.eanBarcode ?? null,
         baseUnit: dto.baseUnit,
         isActive: dto.isActive ?? true,
       });
@@ -120,10 +137,50 @@ export class ProductsService {
       validateUnitConversions(baseUnit, dto.unitConversions);
     }
 
+    if (
+      dto.code !== undefined &&
+      dto.code !== existing.code &&
+      existing.isCodeLocked
+    ) {
+      throw new BadRequestException(
+        'Kode produk sudah terkunci karena sudah dipakai di transaksi pertama dan tidak bisa diubah lagi.',
+      );
+    }
+
     return this.dataSource.transaction(async (manager) => {
+      const brandId = dto.brandId ?? existing.brandId;
+      const keterangan = dto.keterangan ?? existing.keterangan;
+      const kemasan =
+        dto.kemasan !== undefined ? dto.kemasan : existing.kemasan;
+      const ukuranUom =
+        dto.ukuranUom !== undefined ? dto.ukuranUom : existing.ukuranUom;
+
+      const nameFieldsChanged =
+        dto.brandId !== undefined ||
+        dto.keterangan !== undefined ||
+        dto.kemasan !== undefined ||
+        dto.ukuranUom !== undefined;
+
+      let displayName: string | undefined;
+      if (nameFieldsChanged) {
+        const brand = await this.assertActiveBrand(brandId, manager);
+        displayName = buildDisplayName(
+          brand.name,
+          keterangan,
+          kemasan,
+          ukuranUom,
+        );
+      }
+
       await manager.update(Product, id, {
         ...(dto.code !== undefined && { code: dto.code }),
-        ...(dto.name !== undefined && { name: dto.name }),
+        ...(dto.brandId !== undefined && { brandId: dto.brandId }),
+        ...(dto.keterangan !== undefined && { keterangan: dto.keterangan }),
+        ...(dto.kemasan !== undefined && { kemasan: dto.kemasan }),
+        ...(dto.ukuranUom !== undefined && { ukuranUom: dto.ukuranUom }),
+        ...(displayName !== undefined && { displayName }),
+        ...(dto.isBkp !== undefined && { isBkp: dto.isBkp }),
+        ...(dto.eanBarcode !== undefined && { eanBarcode: dto.eanBarcode }),
         ...(dto.baseUnit !== undefined && { baseUnit: dto.baseUnit }),
         ...(dto.isActive !== undefined && { isActive: dto.isActive }),
       });
@@ -153,4 +210,56 @@ export class ProductsService {
       return result;
     });
   }
+
+  /**
+   * Titik masuk tunggal untuk mengunci kode produk setelah dipakai di
+   * transaksi pertama (CLAUDE.md §3) — dipanggil StockRecorder/Faktur
+   * Penjualan/Faktur Pembelian (Hari 10+) begitu produk tersentuh transaksi
+   * sungguhan pertama kalinya. Idempotent: no-op kalau sudah terkunci.
+   */
+  async lockCode(id: string, manager?: EntityManager): Promise<void> {
+    const runner = manager ?? this.dataSource.manager;
+    await runner.update(
+      Product,
+      { id, isCodeLocked: false },
+      {
+        isCodeLocked: true,
+      },
+    );
+  }
+
+  private async assertActiveBrand(
+    brandId: string,
+    manager: EntityManager,
+  ): Promise<Brand> {
+    const brand = await manager.findOne(Brand, { where: { id: brandId } });
+    if (!brand || !brand.isActive) {
+      throw new BadRequestException('brandId harus merek aktif.');
+    }
+    return brand;
+  }
+
+  private async generateCode(manager: EntityManager): Promise<string> {
+    const rows: { nextval: string }[] = await manager.query(
+      `SELECT nextval('product_code_seq') AS nextval`,
+    );
+    const sequence = String(Number(rows[0].nextval)).padStart(4, '0');
+    const now = new Date();
+    const yy = String(now.getFullYear() % 100).padStart(2, '0');
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    return `${yy}${mm}${dd}${sequence}`;
+  }
+}
+
+function buildDisplayName(
+  brandName: string,
+  keterangan: string,
+  kemasan: string | null,
+  ukuranUom: string | null,
+): string {
+  return [brandName, keterangan, kemasan, ukuranUom]
+    .filter((part): part is string => !!part && part.trim().length > 0)
+    .map((part) => part.trim())
+    .join(' ');
 }

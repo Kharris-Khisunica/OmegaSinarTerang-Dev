@@ -68,11 +68,15 @@ export function useApi() {
   }
 
   return {
-    get: <T>(path: string, query?: Record<string, unknown>) => request<T>(path, 'GET', { query }),
-    post: <T>(path: string, body?: unknown) => request<T>(path, 'POST', { body }),
-    patch: <T>(path: string, body?: unknown) => request<T>(path, 'PATCH', { body }),
-    put: <T>(path: string, body?: unknown) => request<T>(path, 'PUT', { body }),
-    delete: <T>(path: string) => request<T>(path, 'DELETE'),
+    get: <T>(path: string, query?: Record<string, unknown>, headers?: Record<string, string>) =>
+      request<T>(path, 'GET', { query, headers }),
+    post: <T>(path: string, body?: unknown, headers?: Record<string, string>) =>
+      request<T>(path, 'POST', { body, headers }),
+    patch: <T>(path: string, body?: unknown, headers?: Record<string, string>) =>
+      request<T>(path, 'PATCH', { body, headers }),
+    put: <T>(path: string, body?: unknown, headers?: Record<string, string>) =>
+      request<T>(path, 'PUT', { body, headers }),
+    delete: <T>(path: string, headers?: Record<string, string>) => request<T>(path, 'DELETE', { headers }),
     /** GET dengan response biner (download file) — tetap lewat auth + retry 401 yang sama. */
     getBlob: (path: string, query?: Record<string, unknown>) =>
       request<Blob>(path, 'GET', { query, responseType: 'blob' })

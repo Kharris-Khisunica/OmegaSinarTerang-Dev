@@ -5,16 +5,22 @@ export type DocumentType =
   | 'SALES_INVOICE'
   | 'SALES_ORDER'
   | 'PURCHASE_INVOICE'
+  | 'WAREHOUSE_MUTATION'
   | 'DELIVERY_ORDER'
   | 'SALES_RETURN'
   | 'PURCHASE_RETURN'
   | 'PAYMENT'
   | 'JOURNAL_ENTRY';
 
+// Kode persis dari sistem lama klien (CLAUDE.md §2.3) — JL/B1/GD sudah
+// tercetak di nota yang beredar. Jangan diganti jadi singkatan lama
+// (mis. kode invoice/purchase/warehouse yang terasa lebih rapi) meski itu
+// godaan wajar.
 const DOCUMENT_PREFIXES: Record<DocumentType, string> = {
-  SALES_INVOICE: 'INV',
+  SALES_INVOICE: 'JL',
   SALES_ORDER: 'SO',
-  PURCHASE_INVOICE: 'PI',
+  PURCHASE_INVOICE: 'B1',
+  WAREHOUSE_MUTATION: 'GD',
   DELIVERY_ORDER: 'SJ',
   SALES_RETURN: 'RJ',
   PURCHASE_RETURN: 'RB',
@@ -24,12 +30,19 @@ const DOCUMENT_PREFIXES: Record<DocumentType, string> = {
 
 @Injectable()
 export class DocumentCounterService {
+  /**
+   * Format: KODE/{settings.store_code}-YYMMXXXX — kode toko WAJIB dibaca
+   * dari settings, tidak boleh ada nilai contoh yang di-hardcode di sini.
+   * `store_code` WAJIB dibaca dari `settings` tiap panggilan lewat
+   * `manager` pemanggil (ikut transaction yang sama) — dilarang hardcode.
+   */
   async getNextNumber(
     docType: DocumentType,
     date: Date,
     manager: EntityManager,
   ): Promise<string> {
     const period = formatPeriod(date);
+    const storeCode = await this.getStoreCode(manager);
 
     // ON CONFLICT DO NOTHING dulu supaya baris period baru sudah pasti ada
     // sebelum di-lock — SELECT ... FOR UPDATE terhadap baris yang belum ada
@@ -58,7 +71,20 @@ export class DocumentCounterService {
     );
 
     const prefix = DOCUMENT_PREFIXES[docType];
-    return `${prefix}/${period}/${String(nextNumber).padStart(4, '0')}`;
+    const sequence = String(nextNumber).padStart(4, '0');
+    return `${prefix}/${storeCode}-${period}${sequence}`;
+  }
+
+  private async getStoreCode(manager: EntityManager): Promise<string> {
+    const rows: { value: string }[] = await manager.query(
+      `SELECT value FROM settings WHERE key = 'store_code'`,
+    );
+    if (!rows[0]?.value) {
+      throw new Error(
+        'settings.store_code belum di-set — tidak bisa membuat nomor dokumen.',
+      );
+    }
+    return rows[0].value;
   }
 }
 

@@ -70,6 +70,7 @@ export class SuppliersService {
       name: dto.name,
       contactPhone: dto.contactPhone ?? null,
       contactAddress: dto.contactAddress ?? null,
+      isPkp: dto.isPkp ?? false,
       isActive: dto.isActive ?? true,
     });
     return this.suppliersRepository.save(supplier);
@@ -83,6 +84,7 @@ export class SuppliersService {
       ...(dto.contactAddress !== undefined && {
         contactAddress: dto.contactAddress,
       }),
+      ...(dto.isPkp !== undefined && { isPkp: dto.isPkp }),
       ...(dto.isActive !== undefined && { isActive: dto.isActive }),
     });
     return this.findOne(id);

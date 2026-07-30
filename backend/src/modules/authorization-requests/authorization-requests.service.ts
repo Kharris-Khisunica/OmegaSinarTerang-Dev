@@ -5,14 +5,18 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { AuthenticatedUser } from '../auth/types/jwt-payload.interface';
 import { CreateAuthorizationRequestDto } from './dto/create-authorization-request.dto';
 import {
   AuthorizationRequest,
   AuthorizationRequestStatus,
 } from './entities/authorization-request.entity';
-import { StepUpNotReadyError } from './step-up-not-ready.error';
+import { matchesApprovedPayload } from './payload-matchers';
+import {
+  StepUpNotReadyError,
+  StepUpPayloadMismatchError,
+} from './step-up-not-ready.error';
 
 /**
  * TTL dipakai dua kali dengan makna berbeda (CLAUDE.md §13):
@@ -34,20 +38,32 @@ export class AuthorizationRequestsService {
     private readonly repo: Repository<AuthorizationRequest>,
   ) {}
 
+  // `manager` opsional dari pemanggil (pola sama ArAccountResolverService,
+  // Hari 8) — StepUpService.requireApproval() dipanggil DARI DALAM service
+  // bisnis lain (mis. VOID/pengeluaran kas), jadi konsumsi approval WAJIB
+  // ikut transaction yang sama: kalau aksi bisnisnya rollback, status
+  // EXECUTED authorization_request itu ikut rollback juga (CLAUDE.md §6).
+  private repoFor(manager?: EntityManager): Repository<AuthorizationRequest> {
+    return manager ? manager.getRepository(AuthorizationRequest) : this.repo;
+  }
+
   async create(
     user: AuthenticatedUser,
     dto: CreateAuthorizationRequestDto,
+    manager?: EntityManager,
   ): Promise<AuthorizationRequest> {
+    const repo = this.repoFor(manager);
     const now = new Date();
-    const entity = this.repo.create({
+    const entity = repo.create({
       requesterId: user.sub,
       actionType: dto.actionType,
       payload: dto.payload,
+      contextSummary: dto.contextSummary,
       reason: dto.reason,
       status: AuthorizationRequestStatus.PENDING,
       expiresAt: addMinutes(now, STEP_UP_TTL_MINUTES),
     });
-    return this.repo.save(entity);
+    return repo.save(entity);
   }
 
   async findPending(): Promise<AuthorizationRequest[]> {
@@ -63,12 +79,16 @@ export class AuthorizationRequestsService {
     );
   }
 
-  async findOneOrFail(id: string): Promise<AuthorizationRequest> {
-    const found = await this.repo.findOne({ where: { id } });
+  async findOneOrFail(
+    id: string,
+    manager?: EntityManager,
+  ): Promise<AuthorizationRequest> {
+    const repo = this.repoFor(manager);
+    const found = await repo.findOne({ where: { id } });
     if (!found) {
       throw new NotFoundException('Permintaan otorisasi tidak ditemukan.');
     }
-    return this.applyLazyExpiry(found);
+    return this.applyLazyExpiry(found, manager);
   }
 
   async approve(
@@ -102,6 +122,7 @@ export class AuthorizationRequestsService {
   async reject(
     id: string,
     approver: AuthenticatedUser,
+    reason: string,
   ): Promise<AuthorizationRequest> {
     const reqRow = await this.findOneOrFail(id);
 
@@ -118,22 +139,36 @@ export class AuthorizationRequestsService {
 
     reqRow.status = AuthorizationRequestStatus.REJECTED;
     reqRow.approverId = approver.sub;
+    // Menimpa `reason` (semula "kenapa step-up ini diminta") dengan alasan
+    // penolakan Supervisor/Master — begitu status REJECTED, field ini jadi
+    // satu-satunya tempat operator (lewat GET /:id) melihat kenapa ditolak.
+    reqRow.reason = reason;
     return this.repo.save(reqRow);
   }
 
   /**
-   * Dipakai StepUpGuard saat eksekusi aksi bersyarat. Bukan cuma baca status —
-   * transisi APPROVED->EXECUTED dilakukan lewat UPDATE ... WHERE status='APPROVED'
-   * AND expires_at > now() supaya expired dicek ULANG di level DB tepat saat
-   * eksekusi (bukan cuma dipercaya dari status yang mungkin sudah basi), dan
-   * sekali affected=1 request itu tidak bisa dipakai lagi (sekali pakai).
+   * Dipakai StepUpGuard/StepUpService saat eksekusi aksi bersyarat. Bukan
+   * cuma baca status — transisi APPROVED->EXECUTED dilakukan lewat
+   * UPDATE ... WHERE status='APPROVED' AND expires_at > now() supaya expired
+   * dicek ULANG di level DB tepat saat eksekusi (bukan cuma dipercaya dari
+   * status yang mungkin sudah basi), dan sekali affected=1 request itu tidak
+   * bisa dipakai lagi (sekali pakai).
+   *
+   * `currentPayload` adalah body/isi aksi yang SEDANG dieksekusi — WAJIB
+   * cocok dengan payload yang disetujui (CLAUDE.md §19), dicek per actionType
+   * lewat matchesApprovedPayload() SEBELUM update atomik di atas dijalankan.
+   * Kalau tidak cocok, approval TIDAK ikut terkonsumsi (tetap APPROVED) —
+   * request itu masih bisa dipakai kalau payload yang benar disusulkan.
    */
   async consumeApproval(
     id: string,
     user: AuthenticatedUser,
     actionType: string,
+    currentPayload: Record<string, unknown>,
+    manager?: EntityManager,
   ): Promise<AuthorizationRequest> {
-    const reqRow = await this.findOneOrFail(id);
+    const repo = this.repoFor(manager);
+    const reqRow = await this.findOneOrFail(id, manager);
 
     if (reqRow.requesterId !== user.sub) {
       throw new ForbiddenException(
@@ -165,7 +200,15 @@ export class AuthorizationRequestsService {
         break;
     }
 
-    const result = await this.repo
+    if (
+      !matchesApprovedPayload(reqRow.actionType, reqRow.payload, currentPayload)
+    ) {
+      throw new StepUpPayloadMismatchError(
+        'Isi permintaan yang dieksekusi tidak sama dengan yang disetujui Supervisor/Master.',
+      );
+    }
+
+    const result = await repo
       .createQueryBuilder()
       .update(AuthorizationRequest)
       .set({
@@ -185,11 +228,12 @@ export class AuthorizationRequestsService {
       );
     }
 
-    return this.findOneOrFail(id);
+    return this.findOneOrFail(id, manager);
   }
 
   private async applyLazyExpiry(
     reqRow: AuthorizationRequest,
+    manager?: EntityManager,
   ): Promise<AuthorizationRequest> {
     const isExpirable =
       reqRow.status === AuthorizationRequestStatus.PENDING ||
@@ -197,7 +241,7 @@ export class AuthorizationRequestsService {
 
     if (isExpirable && reqRow.expiresAt.getTime() <= Date.now()) {
       reqRow.status = AuthorizationRequestStatus.EXPIRED;
-      return this.repo.save(reqRow);
+      return this.repoFor(manager).save(reqRow);
     }
     return reqRow;
   }

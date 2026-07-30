@@ -8,7 +8,11 @@ import {
 
 export enum WarehouseType {
   STORE = 'STORE',
-  CUSTOMER_CONSIGNMENT = 'CUSTOMER_CONSIGNMENT',
+  // "Barang titipan": pelanggan sudah membeli & sudah bayar, belum ambil
+  // barang. BUKAN konsinyasi dari supplier — klien tidak menerima itu.
+  // Nama lama (istilah konsinyasi customer) menyesatkan, diganti 29 Juli
+  // (CLAUDE.md §3, migration Hari 8 rename value enum ini).
+  TITIPAN_PELANGGAN = 'TITIPAN_PELANGGAN',
   BAD_STOCK = 'BAD_STOCK',
 }
 

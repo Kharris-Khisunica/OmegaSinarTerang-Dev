@@ -10,5 +10,9 @@ export class CreateAuthorizationRequestDto {
 
   @IsString()
   @IsNotEmpty()
+  contextSummary: string;
+
+  @IsString()
+  @IsNotEmpty()
   reason: string;
 }

@@ -15,5 +15,9 @@ export class CreateSupplierDto {
 
   @IsOptional()
   @IsBoolean()
+  isPkp?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
   isActive?: boolean;
 }

@@ -204,7 +204,7 @@ describe('JournalPosterService', () => {
     ).rejects.toThrow(/maksimal mundur/i);
   });
 
-  it('posting valid -> entry_number berformat JE/YYMM/NNNN', async () => {
+  it('posting valid -> entry_number berformat JE/RM01-YYMMXXXX', async () => {
     const dto = balancedDto();
 
     const result = await dataSource.transaction((manager) =>
@@ -212,7 +212,7 @@ describe('JournalPosterService', () => {
     );
     createdEntryIds.push(result.id);
 
-    expect(result.entryNumber).toMatch(/^JE\/\d{4}\/\d{4}$/);
+    expect(result.entryNumber).toMatch(/^JE\/RM01-\d{8}$/);
     expect(result.lines).toHaveLength(2);
     expect(Number(result.lines[0].debitAmount)).toBe(100_000);
     expect(Number(result.lines[1].creditAmount)).toBe(100_000);

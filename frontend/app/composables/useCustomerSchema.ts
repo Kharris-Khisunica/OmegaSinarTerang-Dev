@@ -4,23 +4,32 @@ interface ChartOfAccountOption {
   id: string
   code: string
   name: string
+  isActive: boolean
+  isReceivableAccount: boolean
 }
 
 /**
- * Skema form Customer (Hari 4), dipakai bareng create & edit.
- * `arAccountId` memuat opsi dari GET /chart-of-accounts — endpoint itu BELUM
- * ada (CRUD penuh COA baru Hari 15, lihat komentar di ChartOfAccount entity),
- * jadi select ini akan kosong sampai saat itu. CrudFormPage menelan error
- * loader opsi dengan aman, form tetap bisa dipakai tanpa field ini terisi.
- * Begitu endpoint COA ada: `CustomersService.assertReceivableAccount` menolak
- * akun yang `isActive=false` atau `isReceivableAccount=false` — filter query
- * ini di endpoint (atau di loader di bawah) supaya operator tidak memilih
- * akun yang pasti ditolak backend.
+ * Skema form Customer, dipakai bareng create & edit.
+ *
+ * `arAccountId` (CLAUDE.md §3): "Operator tidak pernah melihat field ini."
+ * Digerbangi di level SCHEMA (field tidak dimasukkan ke array sama sekali
+ * untuk non-MASTER) — BUKAN `showIf` (yang cuma `v-show`, elemen tetap ada
+ * di DOM tersembunyi). DoD Hari 8 mensyaratkan field ini benar-benar tidak
+ * ada di DOM untuk OPERATOR, jadi filter harus terjadi sebelum sampai ke
+ * CrudFormPage. `GET /chart-of-accounts` juga sudah `@Roles(MASTER,
+ * SUPERVISOR)` di backend (403 untuk OPERATOR) — dua lapis, bukan cuma FE.
+ *
+ * Opsinya disaring `isActive && isReceivableAccount` (CLAUDE.md §3: MASTER
+ * "memilihnya dari dropdown tersaring hanya akun bertipe piutang yang
+ * aktif") — endpoint COA memang flat array (bukan `{data,meta}` paginated,
+ * lihat `ChartOfAccountsController.findAll()`), beda dari kebanyakan
+ * endpoint list lain di project ini.
  */
 export function useCustomerSchema(): FieldDef[] {
   const api = useApi()
+  const { activeRole } = useAuthUser()
 
-  return [
+  const fields: FieldDef[] = [
     { key: 'name', label: 'Nama Customer', type: 'text', required: true, cols: 8 },
     { key: 'code', label: 'Kode', type: 'text', required: true, cols: 4, hint: 'Kode unik, diketik manual.' },
     {
@@ -35,19 +44,26 @@ export function useCustomerSchema(): FieldDef[] {
     { key: 'address', label: 'Alamat Lengkap', type: 'textarea', cols: 12, placeholder: 'Nama jalan, nomor, RT/RW, patokan, dsb.' },
     { key: 'district', label: 'Kecamatan', type: 'text', cols: 4 },
     { key: 'city', label: 'Kota', type: 'text', cols: 4 },
-    { key: 'province', label: 'Provinsi', type: 'text', cols: 4 },
-    {
+    { key: 'province', label: 'Provinsi', type: 'text', cols: 4 }
+  ]
+
+  if (activeRole.value === 'MASTER') {
+    fields.push({
       key: 'arAccountId',
       label: 'Akun Piutang',
       type: 'select',
       cols: 12,
       placeholder: 'Pakai akun piutang default',
-      hint: 'Opsional — kosongkan untuk pakai akun piutang usaha default.',
+      hint: 'Opsional — kosongkan untuk pakai akun piutang usaha default. Hanya menampilkan akun piutang yang aktif.',
       options: async (): Promise<SelectOption[]> => {
-        const res = await api.get<{ data: ChartOfAccountOption[] }>('/chart-of-accounts', { limit: 200 })
-        return res.data.map(acc => ({ label: `${acc.code} - ${acc.name}`, value: acc.id }))
+        const res = await api.get<ChartOfAccountOption[]>('/chart-of-accounts')
+        return res
+          .filter(acc => acc.isActive && acc.isReceivableAccount)
+          .map(acc => ({ label: `${acc.code} - ${acc.name}`, value: acc.id }))
       }
-    },
-    { key: 'isActive', label: 'Aktif', type: 'switch', cols: 6, defaultValue: true }
-  ]
+    })
+  }
+
+  fields.push({ key: 'isActive', label: 'Aktif', type: 'switch', cols: 6, defaultValue: true })
+  return fields
 }
