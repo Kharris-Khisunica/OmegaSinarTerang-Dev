@@ -32,6 +32,7 @@ import { OpeningBalanceModule } from './modules/opening-balance/opening-balance.
 import { WarehouseMutationsModule } from './modules/warehouse-mutations/warehouse-mutations.module';
 import { AccountResolverModule } from './core/account-resolver/account-resolver.module';
 import { TaxRatesModule } from './core/tax-rates/tax-rates.module';
+import { PurchaseInvoicesModule } from './modules/purchase-invoices/purchase-invoices.module';
 import { TaxRatesHttpModule } from './modules/tax-rates/tax-rates.module';
 
 @Module({
@@ -77,6 +78,7 @@ import { TaxRatesHttpModule } from './modules/tax-rates/tax-rates.module';
     WarehouseMutationsModule,
     AccountResolverModule,
     TaxRatesModule,
+    PurchaseInvoicesModule,
     TaxRatesHttpModule,
   ],
   controllers: [AppController],
