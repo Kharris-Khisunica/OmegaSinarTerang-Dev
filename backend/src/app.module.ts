@@ -36,6 +36,7 @@ import { TaxRatesModule } from './core/tax-rates/tax-rates.module';
 import { PurchaseInvoicesModule } from './modules/purchase-invoices/purchase-invoices.module';
 import { TaxRatesHttpModule } from './modules/tax-rates/tax-rates.module';
 import { PurchaseReturnsModule } from './modules/purchase-returns/purchase-returns.module';
+import { OperationalExpensesModule } from './modules/operational-expenses/operational-expenses.module';
 
 @Module({
   imports: [
@@ -84,6 +85,7 @@ import { PurchaseReturnsModule } from './modules/purchase-returns/purchase-retur
     PurchaseInvoicesModule,
     TaxRatesHttpModule,
     PurchaseReturnsModule,
+    OperationalExpensesModule,
   ],
   controllers: [AppController],
   providers: [
