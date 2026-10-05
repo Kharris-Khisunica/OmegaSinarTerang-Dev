@@ -41,6 +41,7 @@ import { SalesOrdersModule } from './modules/sales-orders/sales-orders.module';
 import { SalesInvoicesModule } from './modules/sales-invoices/sales-invoices.module';
 import { SalesReturnsModule } from './modules/sales-returns/sales-returns.module';
 import { VehiclesModule } from './modules/vehicles/vehicles.module';
+import { DeliveryOrdersModule } from './modules/delivery-orders/delivery-orders.module';
 
 @Module({
   imports: [
@@ -94,6 +95,7 @@ import { VehiclesModule } from './modules/vehicles/vehicles.module';
     SalesInvoicesModule,
     SalesReturnsModule,
     VehiclesModule,
+    DeliveryOrdersModule,
   ],
   controllers: [AppController],
   providers: [
