@@ -43,4 +43,30 @@ export class ArAccountResolverService {
     }
     return defaultAccountId;
   }
+
+  /**
+   * Pasangan `resolve()`: baca balik saldo piutang seorang pelanggan dari
+   * baris jurnal yang di-tag `customer_id` (invarian Hari 18, lihat
+   * `journal_entry_lines.customer_id` + `PostJournalLineDto.customerId`).
+   * Sengaja TIDAK difilter per `account_id` — pemindahan `ar_account_id`
+   * pelanggan di tengah jalan tidak boleh membelah histori jadi dua "akun"
+   * berbeda, yang justru bikin saldo pelanggan itu sendiri tidak pernah bisa
+   * dijumlah utuh lagi.
+   *
+   * WAJIB dipakai CustomersService sebelum mengizinkan perubahan
+   * `ar_account_id` (CLAUDE.md §3: "Dikunci selama saldo pelanggan belum nol").
+   */
+  async getCustomerBalance(
+    customerId: string,
+    manager?: EntityManager,
+  ): Promise<number> {
+    const runner = manager ?? this.dataSource.manager;
+    const rows: { balance: string | null }[] = await runner.query(
+      `SELECT SUM(debit_amount - credit_amount) AS balance
+       FROM journal_entry_lines
+       WHERE customer_id = $1`,
+      [customerId],
+    );
+    return Number(rows[0]?.balance ?? 0);
+  }
 }
