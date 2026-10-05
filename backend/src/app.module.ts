@@ -23,6 +23,7 @@ import { UnitsModule } from './modules/units/units.module';
 import { SalesmenModule } from './modules/salesmen/salesmen.module';
 import { ReceivablesModule } from './core/receivables/receivables.module';
 import { StepUpModule } from './core/step-up/step-up.module';
+import { StockRecorderModule } from './core/stock-recorder/stock-recorder.module';
 
 @Module({
   imports: [
@@ -58,6 +59,7 @@ import { StepUpModule } from './core/step-up/step-up.module';
     SalesmenModule,
     ReceivablesModule,
     StepUpModule,
+    StockRecorderModule,
   ],
   controllers: [AppController],
   providers: [
