@@ -9,18 +9,49 @@ const props = defineProps<{
   backTo: string
   transformIn?: (data: Record<string, unknown>) => Record<string, unknown>
   transformOut?: (form: Record<string, unknown>) => unknown
+  /**
+   * Dipakai untuk form aksi sekali-jalan (bukan CRUD entity biasa, mis. Saldo
+   * Awal) — kalau diisi, submit sukses TIDAK auto-navigate ke `backTo`.
+   * Form otomatis di-reset (pola sama dengan "Simpan & Tambah Lagi") supaya
+   * layar siap menerima input batch berikutnya.
+   */
+  onSuccess?: (response: unknown) => void | Promise<void>
+  /** Sembunyikan tombol "Simpan & Tambah Lagi" — dipakai bareng `onSuccess` yang sudah reset form sendiri. */
+  hideSaveAndNew?: boolean
+  /**
+   * Mode modal (PANDUAN_UI.md §6, §16.1) — dirender di dalam <DocumentModal>
+   * lewat `open` (v-model), bukan sebagai halaman ber-rute. `onSuccess`/
+   * `hideSaveAndNew` tidak dipakai bareng mode ini (dokumen modal tidak punya
+   * "Simpan & Tambah Lagi").
+   *
+   * PENTING: makna `title` berubah tergantung mode. Mode non-modal (default),
+   * `title` string final sepenuhnya ("Tambah Merek") seperti sekarang. Mode
+   * modal, `title` adalah KATA BENDA POLOS ("Merek") — <DocumentModal> sendiri
+   * yang menambahkan prefiks "Entri "/"Ubah " dari status edit.
+   */
+  modal?: boolean
+  /** v-model — dipakai hanya saat `modal` true. */
+  open?: boolean
+}>()
+
+const emit = defineEmits<{
+  'update:open': [value: boolean]
+  'saved': [response: unknown]
 }>()
 
 const api = useApi()
 const router = useRouter()
 const toast = useToast()
+const { user } = useAuth()
 
 const isEdit = computed(() => props.id !== undefined && props.id !== null && props.id !== '')
+const operatorName = computed(() => user.value?.fullName ?? '')
+const draftKey = computed(() => `md-draft:${props.endpoint}:${isEdit.value ? `edit:${props.id}` : 'create'}`)
 
 function repeaterDefaultRow(field: FieldDef): Record<string, unknown> {
   const row: Record<string, unknown> = {}
   for (const col of field.repeaterColumns ?? []) {
-    row[col.key] = col.type === 'number' ? null : ''
+    row[col.key] = col.type === 'text' ? '' : null
   }
   return row
 }
@@ -44,6 +75,10 @@ const loading = ref(isEdit.value)
 let initialSnapshot = JSON.stringify(form)
 
 const resolvedOptions = reactive<Record<string, SelectOption[]>>({})
+const resolvedRepeaterOptions = reactive<Record<string, SelectOption[]>>({})
+function repeaterOptionsKey(fieldKey: string, colKey: string): string {
+  return `${fieldKey}.${colKey}`
+}
 async function loadOptions() {
   for (const field of props.schema) {
     if ((field.type === 'select' || field.type === 'autocomplete') && field.options) {
@@ -52,6 +87,17 @@ async function loadOptions() {
       } catch {
         // Endpoint sumber opsi belum ada/gagal — biarkan kosong, jangan gagalkan seluruh form.
         resolvedOptions[field.key] = []
+      }
+    }
+    if (field.type === 'repeater') {
+      for (const col of field.repeaterColumns ?? []) {
+        if (col.type !== 'select' || !col.options) continue
+        const optKey = repeaterOptionsKey(field.key, col.key)
+        try {
+          resolvedRepeaterOptions[optKey] = typeof col.options === 'function' ? await col.options() : col.options
+        } catch {
+          resolvedRepeaterOptions[optKey] = []
+        }
       }
     }
   }
@@ -148,6 +194,49 @@ function runFieldAction(field: FieldDef) {
   field.action?.onClick(form, setField)
 }
 
+// Auto-capitalize (asumsi A2) — dipasang lewat field.uppercase, bukan
+// dipaksa untuk semua field 'text' (email/kode/NPWP/telepon/keterangan
+// bebas TIDAK boleh ikut, CLAUDE.md §6 melarang aturan menyebar per modul).
+// Kelas `uppercase` (Tailwind = text-transform:uppercase) dipasang SAAT
+// MENGETIK supaya operator langsung melihat hasilnya; nilai form-nya sendiri
+// baru benar-benar dikapitalkan saat blur.
+function onTextBlur(field: FieldDef) {
+  if (!field.uppercase) return
+  const v = form[field.key]
+  if (typeof v === 'string' && v) setField(field.key, v.toUpperCase())
+}
+
+// UInput/UTextarea punya `defineOptions({ inheritAttrs: false })` — `class`
+// biasa cuma menembel elemen WRAPPER-nya, bukan <input>/<textarea> asli, dan
+// form control TIDAK mewarisi text-transform dari ancestor (dibuktikan lewat
+// uji manual: computed text-transform di elemen <input> tetap "none" padahal
+// wrapper-nya "uppercase"). `:ui="{ base: ... }"` menembus ke slot yang
+// benar-benar dipakai elemen <input>/<textarea> itu sendiri.
+function uppercaseUi(field: FieldDef): { base: string } | undefined {
+  return field.uppercase ? { base: 'uppercase' } : undefined
+}
+
+// Field Kode otomatis (docs/RENCANA_REVISI_TESTING_KLIEN.md §3 R1 item M2) —
+// default read-only "(otomatis saat disimpan)", sakelar "Isi kode manual"
+// membukanya. `form[field.key]` SENGAJA tetap kosong selama sakelar mati
+// (baik create maupun edit) supaya transformOut yang sudah ada
+// (`if (form.code) payload.code = ...`) otomatis tidak mengirim key `code`
+// sama sekali — logikanya TIDAK disentuh, cukup form-nya yang dijaga kosong.
+// Nilai kode YANG SUDAH ADA (mode edit) ditaruh terpisah di sini, bukan di
+// `form`, supaya read-only display tetap bisa menampilkannya.
+const autoCodeManual = reactive<Record<string, boolean>>({})
+const autoCodeExisting = reactive<Record<string, string>>({})
+function isAutoCodeManual(field: FieldDef): boolean {
+  return autoCodeManual[field.key] === true
+}
+function isAutoCodeLocked(field: FieldDef): boolean {
+  return field.autoCode?.locked ? field.autoCode.locked(form) : false
+}
+function toggleAutoCodeManual(field: FieldDef, manual: boolean) {
+  autoCodeManual[field.key] = manual
+  setField(field.key, manual ? (autoCodeExisting[field.key] ?? '') : '')
+}
+
 function asString(key: string): string | undefined {
   const v = form[key]
   return v === null || v === undefined ? undefined : String(v)
@@ -214,7 +303,14 @@ async function fetchExisting() {
     const data = await api.get<Record<string, unknown>>(`${props.endpoint}/${props.id}`)
     const mapped = props.transformIn ? props.transformIn(data) : data
     for (const field of props.schema) {
-      if (field.key in mapped) form[field.key] = mapped[field.key]
+      if (!(field.key in mapped)) continue
+      if (field.autoCode) {
+        autoCodeExisting[field.key] = String(mapped[field.key] ?? '')
+        autoCodeManual[field.key] = false
+        form[field.key] = ''
+      } else {
+        form[field.key] = mapped[field.key]
+      }
     }
     initialSnapshot = JSON.stringify(form)
   } catch (err) {
@@ -228,6 +324,8 @@ function isDirty() {
   return JSON.stringify(form) !== initialSnapshot
 }
 
+const documentModalRef = ref<{ clearDraft: () => void, forceClose: () => void } | null>(null)
+
 async function submit(again: boolean) {
   if (submitting.value) return
   bannerError.value = ''
@@ -236,18 +334,26 @@ async function submit(again: boolean) {
   submitting.value = true
   try {
     const payload = props.transformOut ? props.transformOut(form) : { ...form }
-    if (isEdit.value) {
-      await api.patch(`${props.endpoint}/${props.id}`, payload)
-    } else {
-      await api.post(props.endpoint, payload)
-    }
+    const response = isEdit.value
+      ? await api.patch(`${props.endpoint}/${props.id}`, payload)
+      : await api.post(props.endpoint, payload)
     toast.add({ title: 'Tersimpan', color: 'success' })
 
-    if (again && !isEdit.value) {
+    if (props.onSuccess) {
+      await props.onSuccess(response)
       Object.assign(form, blankForm())
       fieldErrors.value = {}
       initialSnapshot = JSON.stringify(form)
       focusFirstField()
+    } else if (again && !isEdit.value) {
+      Object.assign(form, blankForm())
+      fieldErrors.value = {}
+      initialSnapshot = JSON.stringify(form)
+      focusFirstField()
+    } else if (props.modal) {
+      emit('saved', response)
+      documentModalRef.value?.clearDraft()
+      documentModalRef.value?.forceClose()
     } else {
       router.push(props.backTo)
     }
@@ -267,7 +373,8 @@ async function submit(again: boolean) {
 
 function goBack() {
   if (isDirty() && !window.confirm('Ada perubahan belum disimpan. Keluar tanpa menyimpan?')) return
-  router.push(props.backTo)
+  if (props.modal) emit('update:open', false)
+  else router.push(props.backTo)
 }
 
 function onKeydown(e: KeyboardEvent) {
@@ -281,29 +388,54 @@ function onKeydown(e: KeyboardEvent) {
 }
 
 onMounted(async () => {
+  // Mode modal: DocumentModal (lewat useDocumentHotkeys) yang memegang Ctrl+S/Esc
+  // dan siklus buka/tutup — kalau listener ini juga aktif, keduanya bereaksi ke
+  // keypress yang sama (double-submit/double-confirm).
+  if (props.modal) return
   window.addEventListener('keydown', onKeydown)
   await loadOptions()
   await fetchExisting()
   focusFirstField()
 })
-onUnmounted(() => window.removeEventListener('keydown', onKeydown))
+onUnmounted(() => {
+  if (!props.modal) window.removeEventListener('keydown', onKeydown)
+})
+
+// Mode modal: instance dibuat sekali lalu dibuka/tutup berulang (bukan di-mount
+// ulang tiap navigasi) — tiap kali dibuka, reset+refetch dengan props.id terkini.
+watch(() => props.open, async (isOpen) => {
+  if (!props.modal || !isOpen) return
+  Object.assign(form, blankForm())
+  for (const field of props.schema) {
+    if (!field.autoCode) continue
+    autoCodeManual[field.key] = false
+    autoCodeExisting[field.key] = ''
+  }
+  fieldErrors.value = {}
+  bannerError.value = ''
+  loading.value = isEdit.value
+  await loadOptions()
+  await fetchExisting()
+  initialSnapshot = JSON.stringify(form)
+  focusFirstField()
+})
 </script>
 
 <template>
-  <div class="p-4 flex flex-col gap-4 max-w-4xl">
-    <div class="flex items-center justify-between">
-      <h1 class="text-lg font-semibold">
-        {{ title }}
-      </h1>
+  <div
+    v-if="!modal"
+    class="p-4 flex flex-col gap-4 max-w-4xl"
+  >
+    <PageHeader :title="title">
       <UButton
         color="neutral"
         variant="ghost"
         icon="i-lucide-x"
         @click="goBack"
       >
-        Kembali
+        Keluar
       </UButton>
-    </div>
+    </PageHeader>
 
     <UAlert
       v-if="bannerError"
@@ -346,7 +478,37 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
           :hint="resolvedHint(field)"
         >
           <div
-            v-if="field.type === 'text'"
+            v-if="field.type === 'text' && field.autoCode"
+            class="flex gap-2 items-center"
+          >
+            <UInput
+              v-if="isAutoCodeManual(field)"
+              :model-value="asString(field.key)"
+              :placeholder="field.placeholder ?? 'Ketik kode manual'"
+              :disabled="isDisabled(field)"
+              class="w-full"
+              @update:model-value="(v) => setField(field.key, v)"
+            />
+            <UInput
+              v-else
+              :model-value="autoCodeExisting[field.key] ?? ''"
+              placeholder="(otomatis saat disimpan)"
+              disabled
+              class="w-full"
+            />
+            <div
+              v-if="!isAutoCodeLocked(field)"
+              class="flex items-center gap-1.5 shrink-0"
+            >
+              <USwitch
+                :model-value="isAutoCodeManual(field)"
+                @update:model-value="(v) => toggleAutoCodeManual(field, v)"
+              />
+              <span class="text-xs text-muted whitespace-nowrap">Isi kode manual</span>
+            </div>
+          </div>
+          <div
+            v-else-if="field.type === 'text'"
             class="flex gap-2 items-start"
           >
             <UInput
@@ -354,7 +516,9 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
               :placeholder="field.placeholder"
               :disabled="isDisabled(field)"
               class="w-full"
+              :ui="uppercaseUi(field)"
               @update:model-value="(v) => setField(field.key, v)"
+              @blur="onTextBlur(field)"
             />
             <UButton
               v-if="field.action && !isActionHidden(field)"
@@ -379,21 +543,21 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
             :placeholder="field.placeholder"
             :disabled="isDisabled(field)"
             class="w-full"
+            :ui="uppercaseUi(field)"
             @update:model-value="(v) => setField(field.key, v)"
+            @blur="onTextBlur(field)"
           />
-          <UInputNumber
+          <QtyInput
             v-else-if="field.type === 'number'"
             :model-value="asNumber(field.key)"
             :disabled="isDisabled(field)"
             class="w-full"
             @update:model-value="(v) => setField(field.key, v)"
           />
-          <UInputNumber
+          <MoneyInput
             v-else-if="field.type === 'currency'"
             :model-value="asNumber(field.key)"
             :disabled="isDisabled(field)"
-            locale="id-ID"
-            :format-options="{ style: 'currency', currency: 'IDR', currencyDisplay: 'symbol', maximumFractionDigits: 0 }"
             class="w-full"
             @update:model-value="(v) => setField(field.key, v)"
           />
@@ -463,7 +627,23 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
                   @update:model-value="(v) => setRepeaterCellValue(field.key, rowIndex, col.key, v)"
                   @keydown.enter="(e: KeyboardEvent) => onRepeaterEnter(e, field, rowIndex, colIndex)"
                 />
-                <UInputNumber
+                <USelect
+                  v-else-if="col.type === 'select'"
+                  :model-value="(repeaterCellValue(field.key, rowIndex, col.key) as string) ?? undefined"
+                  :items="resolvedRepeaterOptions[repeaterOptionsKey(field.key, col.key)] ?? []"
+                  :placeholder="repeaterPlaceholder(field, col, rowIndex)"
+                  class="w-full"
+                  @update:model-value="(v) => setRepeaterCellValue(field.key, rowIndex, col.key, v)"
+                />
+                <MoneyInput
+                  v-else-if="col.type === 'currency'"
+                  :model-value="(repeaterCellValue(field.key, rowIndex, col.key) as number) ?? undefined"
+                  :placeholder="repeaterPlaceholder(field, col, rowIndex)"
+                  class="w-full"
+                  @update:model-value="(v) => setRepeaterCellValue(field.key, rowIndex, col.key, v)"
+                  @keydown.enter="(e: KeyboardEvent) => onRepeaterEnter(e, field, rowIndex, colIndex)"
+                />
+                <QtyInput
                   v-else
                   :model-value="(repeaterCellValue(field.key, rowIndex, col.key) as number) ?? undefined"
                   :placeholder="repeaterPlaceholder(field, col, rowIndex)"
@@ -506,7 +686,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
         Simpan
       </UButton>
       <UButton
-        v-if="!isEdit"
+        v-if="!isEdit && !hideSaveAndNew"
         :loading="submitting"
         :disabled="submitting"
         color="neutral"
@@ -516,7 +696,264 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
       >
         Simpan & Tambah Lagi
       </UButton>
-      <span class="text-xs text-muted ml-auto">Ctrl+S simpan · Esc kembali</span>
+      <span class="text-xs text-muted ml-auto">Ctrl+S simpan · Esc keluar</span>
     </div>
   </div>
+
+  <DocumentModal
+    v-else
+    ref="documentModalRef"
+    :open="open ?? false"
+    :title="title"
+    :mode="isEdit ? 'ubah' : 'entri'"
+    :operator="operatorName"
+    :dirty="isDirty()"
+    :saving="submitting"
+    :draft-key="draftKey"
+    :draft-data="form"
+    @update:open="(v: boolean) => emit('update:open', v)"
+    @restore-draft="(d) => Object.assign(form, d as Record<string, unknown>)"
+    @save="submit(false)"
+  >
+    <template #header>
+      <UAlert
+        v-if="bannerError"
+        color="error"
+        variant="subtle"
+        icon="i-lucide-alert-triangle"
+        :title="bannerError"
+        :close-button="{ icon: 'i-lucide-x', color: 'neutral', variant: 'link' }"
+        @update:open="bannerError = ''"
+      />
+
+      <div
+        v-if="loading"
+        class="grid grid-cols-12 gap-4"
+      >
+        <USkeleton
+          v-for="i in 4"
+          :key="i"
+          class="h-9 col-span-12"
+        />
+      </div>
+
+      <form
+        v-else
+        ref="formEl"
+        class="grid grid-cols-12 gap-4"
+        @submit.prevent="submit(false)"
+      >
+        <div
+          v-for="(field, index) in schema"
+          v-show="isVisible(field)"
+          :key="field.key"
+          :ref="index === 0 ? (el: Element | null) => (firstFieldContainer = el as HTMLElement | null) : undefined"
+          :class="colSpan(field)"
+        >
+          <UFormField
+            :label="field.label"
+            :required="field.required"
+            :error="fieldErrors[field.key]"
+            :hint="resolvedHint(field)"
+          >
+            <div
+              v-if="field.type === 'text' && field.autoCode"
+              class="flex gap-2 items-center"
+            >
+              <UInput
+                v-if="isAutoCodeManual(field)"
+                :model-value="asString(field.key)"
+                :placeholder="field.placeholder ?? 'Ketik kode manual'"
+                :disabled="isDisabled(field)"
+                class="w-full"
+                @update:model-value="(v) => setField(field.key, v)"
+              />
+              <UInput
+                v-else
+                :model-value="autoCodeExisting[field.key] ?? ''"
+                placeholder="(otomatis saat disimpan)"
+                disabled
+                class="w-full"
+              />
+              <div
+                v-if="!isAutoCodeLocked(field)"
+                class="flex items-center gap-1.5 shrink-0"
+              >
+                <USwitch
+                  :model-value="isAutoCodeManual(field)"
+                  @update:model-value="(v) => toggleAutoCodeManual(field, v)"
+                />
+                <span class="text-xs text-muted whitespace-nowrap">Isi kode manual</span>
+              </div>
+            </div>
+            <div
+              v-else-if="field.type === 'text'"
+              class="flex gap-2 items-start"
+            >
+              <UInput
+                :model-value="asString(field.key)"
+                :placeholder="field.placeholder"
+                :disabled="isDisabled(field)"
+                class="w-full"
+                :ui="uppercaseUi(field)"
+                @update:model-value="(v) => setField(field.key, v)"
+                @blur="onTextBlur(field)"
+              />
+              <UButton
+                v-if="field.action && !isActionHidden(field)"
+                type="button"
+                color="neutral"
+                variant="subtle"
+                :icon="field.action.icon"
+                @click="runFieldAction(field)"
+              >
+                {{ field.action.label }}
+              </UButton>
+            </div>
+            <div
+              v-else-if="field.type === 'display'"
+              class="text-xl font-semibold px-4 py-2.5 min-h-9 flex items-center rounded-md border border-default bg-elevated/50"
+            >
+              {{ computedValue(field) }}
+            </div>
+            <UTextarea
+              v-else-if="field.type === 'textarea'"
+              :model-value="asString(field.key)"
+              :placeholder="field.placeholder"
+              :disabled="isDisabled(field)"
+              class="w-full"
+              :ui="uppercaseUi(field)"
+              @update:model-value="(v) => setField(field.key, v)"
+              @blur="onTextBlur(field)"
+            />
+            <QtyInput
+              v-else-if="field.type === 'number'"
+              :model-value="asNumber(field.key)"
+              :disabled="isDisabled(field)"
+              class="w-full"
+              @update:model-value="(v) => setField(field.key, v)"
+            />
+            <MoneyInput
+              v-else-if="field.type === 'currency'"
+              :model-value="asNumber(field.key)"
+              :disabled="isDisabled(field)"
+              class="w-full"
+              @update:model-value="(v) => setField(field.key, v)"
+            />
+            <USelect
+              v-else-if="field.type === 'select'"
+              :model-value="asSelectValue(field.key)"
+              :items="resolvedOptions[field.key] ?? []"
+              :placeholder="field.placeholder"
+              :disabled="isDisabled(field)"
+              class="w-full"
+              @update:model-value="(v) => setField(field.key, v)"
+            />
+            <UInputMenu
+              v-else-if="field.type === 'autocomplete'"
+              :model-value="asSelectValue(field.key)"
+              value-key="value"
+              :items="resolvedOptions[field.key] ?? []"
+              :placeholder="field.placeholder"
+              :disabled="isDisabled(field)"
+              class="w-full"
+              @update:model-value="(v) => setField(field.key, v)"
+            />
+            <UInput
+              v-else-if="field.type === 'date'"
+              :model-value="asString(field.key)"
+              type="date"
+              :disabled="isDisabled(field)"
+              class="w-full"
+              @update:model-value="(v) => setField(field.key, v)"
+            />
+            <USwitch
+              v-else-if="field.type === 'switch'"
+              :model-value="asBoolean(field.key)"
+              :disabled="isDisabled(field)"
+              @update:model-value="(v) => setField(field.key, v)"
+            />
+            <div
+              v-else-if="field.type === 'repeater'"
+              class="border border-default rounded-md overflow-hidden"
+            >
+              <div
+                class="grid gap-2 px-2 py-1.5 bg-elevated/50 text-xs font-medium text-muted"
+                :style="{ gridTemplateColumns: `repeat(${field.repeaterColumns?.length ?? 1}, minmax(0, 1fr)) 2.5rem` }"
+              >
+                <span
+                  v-for="col in field.repeaterColumns"
+                  :key="col.key"
+                >{{ col.label }}</span>
+                <span />
+              </div>
+              <div
+                v-for="(row, rowIndex) in repeaterRows(field.key)"
+                :key="rowIndex"
+                class="grid gap-2 px-2 py-1.5 border-t border-default items-center"
+                :style="{ gridTemplateColumns: `repeat(${field.repeaterColumns?.length ?? 1}, minmax(0, 1fr)) 2.5rem` }"
+              >
+                <div
+                  v-for="(col, colIndex) in field.repeaterColumns"
+                  :key="col.key"
+                  :data-repeater-cell="`${field.key}:${rowIndex}:${colIndex}`"
+                >
+                  <UInput
+                    v-if="col.type === 'text'"
+                    :model-value="(repeaterCellValue(field.key, rowIndex, col.key) as string) ?? ''"
+                    :placeholder="repeaterPlaceholder(field, col, rowIndex)"
+                    class="w-full"
+                    @update:model-value="(v) => setRepeaterCellValue(field.key, rowIndex, col.key, v)"
+                    @keydown.enter="(e: KeyboardEvent) => onRepeaterEnter(e, field, rowIndex, colIndex)"
+                  />
+                  <USelect
+                    v-else-if="col.type === 'select'"
+                    :model-value="(repeaterCellValue(field.key, rowIndex, col.key) as string) ?? undefined"
+                    :items="resolvedRepeaterOptions[repeaterOptionsKey(field.key, col.key)] ?? []"
+                    :placeholder="repeaterPlaceholder(field, col, rowIndex)"
+                    class="w-full"
+                    @update:model-value="(v) => setRepeaterCellValue(field.key, rowIndex, col.key, v)"
+                  />
+                  <MoneyInput
+                    v-else-if="col.type === 'currency'"
+                    :model-value="(repeaterCellValue(field.key, rowIndex, col.key) as number) ?? undefined"
+                    :placeholder="repeaterPlaceholder(field, col, rowIndex)"
+                    class="w-full"
+                    @update:model-value="(v) => setRepeaterCellValue(field.key, rowIndex, col.key, v)"
+                    @keydown.enter="(e: KeyboardEvent) => onRepeaterEnter(e, field, rowIndex, colIndex)"
+                  />
+                  <QtyInput
+                    v-else
+                    :model-value="(repeaterCellValue(field.key, rowIndex, col.key) as number) ?? undefined"
+                    :placeholder="repeaterPlaceholder(field, col, rowIndex)"
+                    class="w-full"
+                    @update:model-value="(v) => setRepeaterCellValue(field.key, rowIndex, col.key, v)"
+                    @keydown.enter="(e: KeyboardEvent) => onRepeaterEnter(e, field, rowIndex, colIndex)"
+                  />
+                </div>
+                <UButton
+                  icon="i-lucide-trash-2"
+                  color="error"
+                  variant="ghost"
+                  size="xs"
+                  aria-label="Hapus baris"
+                  @click="removeRepeaterRow(field.key, rowIndex)"
+                />
+              </div>
+              <div class="px-2 py-1.5 border-t border-default">
+                <UButton
+                  size="xs"
+                  variant="subtle"
+                  icon="i-lucide-plus"
+                  @click="addRepeaterRow(field)"
+                >
+                  Tambah baris
+                </UButton>
+              </div>
+            </div>
+          </UFormField>
+        </div>
+      </form>
+    </template>
+  </DocumentModal>
 </template>

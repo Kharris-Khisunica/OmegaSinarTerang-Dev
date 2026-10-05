@@ -5,6 +5,8 @@ export interface Column<T = Record<string, unknown>> {
   width?: string
   format?: (value: unknown, row: T) => string
   slot?: string
+  /** Kode/nomor dokumen — font-mono (PANDUAN_UI.md §9). */
+  mono?: boolean
 }
 
 export interface FilterOption {
@@ -15,9 +17,11 @@ export interface FilterOption {
 export interface FilterDef {
   key: string
   label: string
-  type: 'select' | 'date-range'
+  type: 'select' | 'date-range' | 'date'
   options?: FilterOption[]
   placeholder?: string
+  /** Nilai awal dipakai kalau query URL belum menentukan filter ini (mis. "hari ini"). */
+  default?: string | number | boolean
 }
 
 export interface RowAction<T = Record<string, unknown>> {

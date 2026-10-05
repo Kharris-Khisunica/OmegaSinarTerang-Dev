@@ -2,17 +2,27 @@
 definePageMeta({ title: 'Ubah Produk' })
 
 const route = useRoute()
+const columns = useProductColumns()
 const schema = useProductSchema()
 </script>
 
 <template>
-  <CrudFormPage
-    :id="route.params.id as string"
-    title="Ubah Produk"
-    endpoint="/products"
-    :schema="schema"
-    back-to="/master-data/products"
-    :transform-in="productTransformIn"
-    :transform-out="productTransformOut"
-  />
+  <div class="p-4 flex flex-col gap-4">
+    <PageHeader title="Produk" />
+
+    <MasterDataCrudPage
+      title="Produk"
+      endpoint="/products"
+      list-to="/master-data/products"
+      :columns="columns"
+      :schema="schema"
+      :transform-in="productTransformIn"
+      :transform-out="productTransformOut"
+      search-placeholder="Cari kode atau nama produk..."
+      :default-sort="{ key: 'code', dir: 'asc' }"
+      entity-label-singular="produk ini"
+      initial-open="ubah"
+      :initial-edit-id="route.params.id as string"
+    />
+  </div>
 </template>

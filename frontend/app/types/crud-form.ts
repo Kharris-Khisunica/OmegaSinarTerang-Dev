@@ -25,8 +25,10 @@ export interface RepeaterCellContext {
 export interface RepeaterColumnDef {
   key: string
   label: string
-  type: 'text' | 'number'
+  type: 'text' | 'number' | 'currency' | 'select'
   placeholder?: string | ((ctx: RepeaterCellContext) => string)
+  /** Wajib diisi kalau type === 'select'. Sama konvensi dengan FieldDef.options. */
+  options?: SelectOption[] | (() => Promise<SelectOption[]>)
 }
 
 export interface FieldAction {
@@ -59,4 +61,20 @@ export interface FieldDef {
   compute?: (form: Record<string, unknown>) => string
   /** Tombol di samping input (type 'text' saja), mis. "Bangkitkan" kode otomatis. */
   action?: FieldAction
+  /**
+   * Auto-capitalize (type 'text'/'textarea') — asumsi A2 docs/RENCANA_REVISI_TESTING_KLIEN.md
+   * §2B: HURUF BESAR SEMUA saat blur, `text-transform: uppercase` saat mengetik supaya
+   * operator langsung melihat hasilnya. Hanya untuk field nama & alamat — JANGAN
+   * dipasang di email/kode/NPWP/telepon/keterangan bebas.
+   */
+  uppercase?: boolean
+  /**
+   * Field kode otomatis (type 'text' saja) — default read-only dengan placeholder
+   * "(otomatis saat disimpan)" + sakelar "Isi kode manual" di sampingnya. Dikunci
+   * total (sakelar disembunyikan) kalau `autoCode.locked?.(form)` true, mis. kode
+   * produk yang sudah dipakai transaksi pertama (CLAUDE.md §3).
+   */
+  autoCode?: {
+    locked?: (form: Record<string, unknown>) => boolean
+  }
 }

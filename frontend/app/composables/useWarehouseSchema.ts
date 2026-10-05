@@ -34,7 +34,7 @@ export function useWarehouseSchema(): FieldDef[] {
   const api = useApi()
 
   return [
-    { key: 'name', label: 'Nama Gudang', type: 'text', required: true, cols: 8 },
+    { key: 'name', label: 'Nama Gudang', type: 'text', required: true, cols: 8, uppercase: true },
     {
       key: 'warehouseType',
       label: 'Tipe Gudang',

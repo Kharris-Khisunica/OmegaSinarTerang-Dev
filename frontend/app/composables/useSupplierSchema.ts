@@ -12,7 +12,7 @@ import type { FieldDef } from '~/types/crud-form'
  */
 export function useSupplierSchema(): FieldDef[] {
   return [
-    { key: 'name', label: 'Nama Supplier', type: 'text', required: true, cols: 8 },
+    { key: 'name', label: 'Nama Supplier', type: 'text', required: true, cols: 8, uppercase: true },
     {
       key: 'displayCode',
       label: 'Kode',
@@ -29,7 +29,8 @@ export function useSupplierSchema(): FieldDef[] {
       cols: 6,
       placeholder: '081234567890'
     },
-    { key: 'contactAddress', label: 'Alamat', type: 'textarea', cols: 12 },
+    { key: 'isPkp', label: 'PKP (Pengusaha Kena Pajak)', type: 'switch', cols: 6, hint: 'Aktifkan kalau supplier ini kena PPN.' },
+    { key: 'contactAddress', label: 'Alamat', type: 'textarea', cols: 12, uppercase: true },
     { key: 'isActive', label: 'Aktif', type: 'switch', cols: 6, defaultValue: true }
   ]
 }
@@ -46,6 +47,7 @@ export function supplierTransformOut(form: Record<string, unknown>): Record<stri
     name: form.name,
     contactPhone: form.contactPhone,
     contactAddress: form.contactAddress,
+    isPkp: form.isPkp,
     isActive: form.isActive
   }
 }

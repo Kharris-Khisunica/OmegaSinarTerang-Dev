@@ -35,6 +35,7 @@ import { AccountResolverModule } from './core/account-resolver/account-resolver.
 import { TaxRatesModule } from './core/tax-rates/tax-rates.module';
 import { PurchaseInvoicesModule } from './modules/purchase-invoices/purchase-invoices.module';
 import { TaxRatesHttpModule } from './modules/tax-rates/tax-rates.module';
+import { PurchaseReturnsModule } from './modules/purchase-returns/purchase-returns.module';
 
 @Module({
   imports: [
@@ -82,6 +83,7 @@ import { TaxRatesHttpModule } from './modules/tax-rates/tax-rates.module';
     TaxRatesModule,
     PurchaseInvoicesModule,
     TaxRatesHttpModule,
+    PurchaseReturnsModule,
   ],
   controllers: [AppController],
   providers: [
