@@ -53,8 +53,29 @@ describe('matchesApprovedPayload', () => {
   });
 
   it('actionType belum terdaftar -> throw (fail closed, bukan diam-diam meloloskan)', () => {
-    expect(() =>
-      matchesApprovedPayload(ActionType.VOID_DOCUMENT, {}, {}),
-    ).toThrow(/Belum ada aturan pencocokan payload/);
+    // Bukan salah satu ActionType terdaftar — probe generik yang tidak
+    // bergantung pada anggota enum mana pun tetap belum punya matcher (Hari
+    // 22 mendaftarkan VOID_DOCUMENT, jangan pakai itu sebagai contoh lagi).
+    expect(() => matchesApprovedPayload('UNKNOWN_ACTION_TYPE', {}, {})).toThrow(
+      /Belum ada aturan pencocokan payload/,
+    );
+  });
+
+  it('VOID_DOCUMENT: sourceType+sourceId identik -> cocok', () => {
+    const approved = { sourceType: 'SALES_INVOICE', sourceId: 'inv-1' };
+    const current = { sourceType: 'SALES_INVOICE', sourceId: 'inv-1' };
+
+    expect(
+      matchesApprovedPayload(ActionType.VOID_DOCUMENT, approved, current),
+    ).toBe(true);
+  });
+
+  it('VOID_DOCUMENT: token faktur A tidak cocok dipakai untuk faktur B', () => {
+    const approved = { sourceType: 'SALES_INVOICE', sourceId: 'inv-1' };
+    const current = { sourceType: 'SALES_INVOICE', sourceId: 'inv-2' };
+
+    expect(
+      matchesApprovedPayload(ActionType.VOID_DOCUMENT, approved, current),
+    ).toBe(false);
   });
 });

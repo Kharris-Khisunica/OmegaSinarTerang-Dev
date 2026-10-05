@@ -79,6 +79,16 @@ export class AuthorizationRequestsService {
     );
   }
 
+  // Dipakai halaman "Antrian Persetujuan" (FE Hari 10) untuk tab semua
+  // status — lazy-expiry tetap diterapkan tiap baris (bukan cuma PENDING)
+  // supaya baris APPROVED yang TTL eksekusinya sudah habis juga ikut
+  // ter-flip ke EXPIRED sebelum dikirim ke FE, bukan tersangkut sampai
+  // ada yang membaca baris itu lewat findOneOrFail().
+  async findAll(): Promise<AuthorizationRequest[]> {
+    const rows = await this.repo.find({ order: { createdAt: 'DESC' } });
+    return Promise.all(rows.map((row) => this.applyLazyExpiry(row)));
+  }
+
   async findOneOrFail(
     id: string,
     manager?: EntityManager,

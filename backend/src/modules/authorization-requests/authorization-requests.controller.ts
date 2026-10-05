@@ -36,10 +36,14 @@ export class AuthorizationRequestsController {
     return this.authorizationRequestsService.create(req.user, dto);
   }
 
+  // Mengembalikan SEMUA status (bukan cuma PENDING) — halaman Antrian
+  // Persetujuan (FE Hari 10) menyaring per tab di client, volume rendah
+  // (§KONTEKS_REVISI 2.11) jadi satu query "semua" lebih sederhana daripada
+  // query berparameter status per tab.
   @Roles(Role.MASTER, Role.SUPERVISOR)
   @Get()
-  findPending() {
-    return this.authorizationRequestsService.findPending();
+  findAll() {
+    return this.authorizationRequestsService.findAll();
   }
 
   // Tidak di-@Roles — dibatasi kepemilikan di bawah, bukan role. Ini yang

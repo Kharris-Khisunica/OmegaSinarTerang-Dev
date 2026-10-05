@@ -8,7 +8,10 @@ export function useAuthorizationRequests() {
   const api = useApi()
 
   return {
-    listPending: () => api.get<AuthorizationRequest[]>('/authorization-requests'),
+    // Backend sekarang mengembalikan SEMUA status (Hari 10) — halaman
+    // Antrian Persetujuan menyaring per tab di client (volume rendah,
+    // KONTEKS_REVISI §2.11).
+    listAll: () => api.get<AuthorizationRequest[]>('/authorization-requests'),
     getOne: (id: string) => api.get<AuthorizationRequest>(`/authorization-requests/${id}`),
     approve: (id: string) => api.post<AuthorizationRequest>(`/authorization-requests/${id}/approve`),
     reject: (id: string, reason: string) =>

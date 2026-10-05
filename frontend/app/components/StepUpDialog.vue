@@ -9,6 +9,16 @@
  * Tidak pernah menampilkan angka batas (ambang kas besar, harga pokok, dst) —
  * hanya context_summary (kalimat yang sudah dihumankan pemanggil) dan pesan
  * status generik (CLAUDE.md §2.17/§5).
+ *
+ * `:ui="{ overlay: 'z-[100]', content: 'z-[100]' }"` (bug ditemukan Hari 21
+ * sore, dibuktikan document.elementFromPoint()): UModal Nuxt UI tidak
+ * memberi z-index default (z-index: auto) — dua modal Teleport ke <body>
+ * lalu murni bertumpuk mengikuti urutan DOM. Dialog ini dipasang di
+ * layouts/default.vue (mount SEBELUM halaman mana pun), jadi modal halaman
+ * apa pun yang masih terbuka (DocumentModal dkk, mount belakangan) SELALU
+ * menutupinya secara visual DAN menghadang klik. Perbaikan satu tempat di
+ * sini (bukan ditempel per halaman pemanggil) berlaku untuk SEMUA pemakai
+ * withStepUp() sekarang dan nanti.
  */
 const { state, cancel, dismiss } = useStepUp()
 const { now } = useClockTick()
@@ -43,6 +53,7 @@ function onUpdateOpen(value: boolean) {
     :title="isTerminal ? 'Persetujuan Selesai' : 'Menunggu Persetujuan'"
     :description="state.contextSummary"
     :dismissible="false"
+    :ui="{ overlay: 'z-[100]', content: 'z-[100]' }"
     @update:open="onUpdateOpen"
   >
     <template #body>
