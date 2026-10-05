@@ -26,7 +26,7 @@ export class CustomersController {
 
   @Get(':id')
   findOne(@Param('id') id: string) {
-    return this.customersService.findOne(id);
+    return this.customersService.findOneWithBalance(id);
   }
 
   @Roles(Role.MASTER, Role.OPERATOR)

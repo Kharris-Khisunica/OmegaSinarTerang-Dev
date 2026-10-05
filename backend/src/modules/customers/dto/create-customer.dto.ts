@@ -12,9 +12,11 @@ const PHONE_MESSAGE =
   'phone tidak valid — format Indonesia, contoh 081234567890 atau +6281234567890.';
 
 export class CreateCustomerDto {
+  // Opsional — kosongkan untuk dibangkitkan otomatis (CustomersService.create()).
+  @IsOptional()
   @IsString()
   @IsNotEmpty()
-  code: string;
+  code?: string;
 
   @IsString()
   @IsNotEmpty()

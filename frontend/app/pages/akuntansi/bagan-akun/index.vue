@@ -1,10 +1,17 @@
 <script setup lang="ts">
-import type { AccountRow } from '~/composables/useChartOfAccountsTree'
+import type { AccountNode, AccountRow } from '~/composables/useChartOfAccountsTree'
 import { buildAccountTree } from '~/composables/useChartOfAccountsTree'
+import { chartOfAccountTransformOut, useChartOfAccountsSchema } from '~/composables/useChartOfAccountsSchema'
 
 definePageMeta({ title: 'Bagan Akun', roles: ['MASTER', 'SUPERVISOR'] })
 
 const api = useApi()
+const { activeRole } = useAuthUser()
+// MASTER only (CLAUDE.md §5) — SUPERVISOR baca lewat tree ini tapi tidak
+// pernah menulis. Digerbangi di script (bukan cuma v-if template) supaya
+// tombol Entri/Ubah + modalnya tidak pernah dirender untuk SUPERVISOR.
+const canWrite = computed(() => activeRole.value === 'MASTER')
+
 const accounts = ref<AccountRow[]>([])
 const status = ref<'pending' | 'success' | 'error'>('pending')
 const errorMessage = ref('')
@@ -20,6 +27,31 @@ async function load() {
   }
 }
 onMounted(load)
+
+const schema = useChartOfAccountsSchema()
+const selectedId = ref<string | null>(null)
+function selectNode(node: AccountNode) {
+  selectedId.value = selectedId.value === node.id ? null : node.id
+}
+
+const entriOpen = ref(false)
+const ubahOpen = ref(false)
+const editId = ref<string | undefined>()
+
+function openEntri() {
+  entriOpen.value = true
+}
+function openUbahSelected() {
+  if (!selectedId.value) return
+  editId.value = selectedId.value
+  ubahOpen.value = true
+}
+function closeAndReload(which: 'entri' | 'ubah') {
+  if (which === 'entri') entriOpen.value = false
+  else ubahOpen.value = false
+  selectedId.value = null
+  load()
+}
 
 const tree = computed(() => buildAccountTree(accounts.value))
 
@@ -81,10 +113,25 @@ function toggle(id: string) {
 <template>
   <div class="p-4 flex flex-col gap-4">
     <div class="flex items-center justify-between flex-wrap gap-2">
-      <h1 class="text-lg font-semibold">
-        Bagan Akun
-      </h1>
+      <PageHeader />
       <div class="flex items-center gap-2">
+        <template v-if="canWrite">
+          <UButton
+            icon="i-lucide-plus"
+            @click="openEntri"
+          >
+            Entri
+          </UButton>
+          <UButton
+            icon="i-lucide-pencil"
+            color="neutral"
+            variant="subtle"
+            :disabled="!selectedId"
+            @click="openUbahSelected"
+          >
+            Ubah
+          </UButton>
+        </template>
         <UInput
           v-model="search"
           placeholder="Cari kode/nama akun..."
@@ -156,6 +203,12 @@ function toggle(id: string) {
             <th class="px-3 py-2 text-left font-medium">
               Tipe
             </th>
+            <th class="px-3 py-2 text-left font-medium">
+              Kelompok Laporan
+            </th>
+            <th class="px-3 py-2 text-left font-medium">
+              Saldo Normal
+            </th>
             <th class="px-3 py-2 text-right font-medium">
               Saldo
             </th>
@@ -170,9 +223,37 @@ function toggle(id: string) {
             :is-expanded="isExpanded"
             :is-visible="isVisible"
             :toggle="toggle"
+            :selected-id="canWrite ? selectedId : null"
+            :on-select="canWrite ? selectNode : undefined"
           />
         </tbody>
       </table>
     </div>
+
+    <template v-if="canWrite">
+      <CrudFormPage
+        modal
+        :open="entriOpen"
+        title="Akun"
+        endpoint="/chart-of-accounts"
+        :schema="schema"
+        back-to=""
+        :transform-out="chartOfAccountTransformOut"
+        @update:open="(v: boolean) => !v && closeAndReload('entri')"
+        @saved="() => {}"
+      />
+      <CrudFormPage
+        :id="editId"
+        modal
+        :open="ubahOpen"
+        title="Akun"
+        endpoint="/chart-of-accounts"
+        :schema="schema"
+        back-to=""
+        :transform-out="chartOfAccountTransformOut"
+        @update:open="(v: boolean) => !v && closeAndReload('ubah')"
+        @saved="() => {}"
+      />
+    </template>
   </div>
 </template>

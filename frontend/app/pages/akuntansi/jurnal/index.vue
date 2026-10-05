@@ -112,9 +112,7 @@ const totalCredit = computed(() =>
 
 <template>
   <div class="p-4 flex flex-col gap-4">
-    <h1 class="text-lg font-semibold">
-      Jurnal
-    </h1>
+    <PageHeader />
 
     <DataTable
       endpoint="/journal-entries"

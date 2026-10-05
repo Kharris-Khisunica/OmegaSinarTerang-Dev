@@ -1,12 +1,16 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ReceivablesModule } from '../../core/receivables/receivables.module';
 import { ChartOfAccount } from '../chart-of-accounts/entities/chart-of-account.entity';
 import { CustomersController } from './customers.controller';
 import { CustomersService } from './customers.service';
 import { Customer } from './entities/customer.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Customer, ChartOfAccount])],
+  imports: [
+    TypeOrmModule.forFeature([Customer, ChartOfAccount]),
+    ReceivablesModule,
+  ],
   controllers: [CustomersController],
   providers: [CustomersService],
 })
