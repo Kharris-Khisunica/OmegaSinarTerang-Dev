@@ -37,6 +37,7 @@ import { PurchaseInvoicesModule } from './modules/purchase-invoices/purchase-inv
 import { TaxRatesHttpModule } from './modules/tax-rates/tax-rates.module';
 import { PurchaseReturnsModule } from './modules/purchase-returns/purchase-returns.module';
 import { OperationalExpensesModule } from './modules/operational-expenses/operational-expenses.module';
+import { SalesOrdersModule } from './modules/sales-orders/sales-orders.module';
 
 @Module({
   imports: [
@@ -86,6 +87,7 @@ import { OperationalExpensesModule } from './modules/operational-expenses/operat
     TaxRatesHttpModule,
     PurchaseReturnsModule,
     OperationalExpensesModule,
+    SalesOrdersModule,
   ],
   controllers: [AppController],
   providers: [
