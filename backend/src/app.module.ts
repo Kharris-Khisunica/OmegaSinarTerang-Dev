@@ -40,6 +40,7 @@ import { OperationalExpensesModule } from './modules/operational-expenses/operat
 import { SalesOrdersModule } from './modules/sales-orders/sales-orders.module';
 import { SalesInvoicesModule } from './modules/sales-invoices/sales-invoices.module';
 import { SalesReturnsModule } from './modules/sales-returns/sales-returns.module';
+import { VehiclesModule } from './modules/vehicles/vehicles.module';
 
 @Module({
   imports: [
@@ -92,6 +93,7 @@ import { SalesReturnsModule } from './modules/sales-returns/sales-returns.module
     SalesOrdersModule,
     SalesInvoicesModule,
     SalesReturnsModule,
+    VehiclesModule,
   ],
   controllers: [AppController],
   providers: [
