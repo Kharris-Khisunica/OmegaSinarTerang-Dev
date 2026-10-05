@@ -10,9 +10,7 @@ definePageMeta({ title: 'QA — Export Demo', roles: ['MASTER'] })
 
 <template>
   <div class="p-4 flex flex-col gap-4 max-w-md">
-    <h1 class="text-lg font-semibold">
-      QA — Export Demo
-    </h1>
+    <PageHeader />
     <p class="text-sm text-muted">
       Uji manual <code>&lt;ExportButton&gt;</code> terhadap endpoint dummy
       <code>/api/export-demo</code>. Klik tombol di bawah, pastikan file terunduh dengan

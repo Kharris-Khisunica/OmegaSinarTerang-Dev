@@ -42,6 +42,16 @@ export class JournalEntry {
   @Column({ name: 'reversed_entry_id', type: 'uuid', nullable: true })
   reversedEntryId: string | null;
 
+  // Hanya terisi saat is_reversal=true (VoidEngineService, Hari 11).
+  // voided_by/voided_at TIDAK punya kolom sendiri — pakai created_by/
+  // created_at baris reversal ini, karena baris ini SENDIRI adalah
+  // peristiwa VOID-nya.
+  @Column({ name: 'void_reason_code', type: 'varchar', nullable: true })
+  voidReasonCode: string | null;
+
+  @Column({ name: 'void_reason_note', type: 'text', nullable: true })
+  voidReasonNote: string | null;
+
   @Column({ name: 'created_by', type: 'uuid' })
   createdBy: string;
 

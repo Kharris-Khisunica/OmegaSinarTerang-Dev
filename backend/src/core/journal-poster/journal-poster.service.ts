@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { EntityManager } from 'typeorm';
 import { DocumentCounterService } from '../document-counter/document-counter.service';
+import { PeriodLockValidatorService } from '../period-lock/period-lock-validator.service';
 import { PostJournalDto, PostJournalLineDto } from './dto/post-journal.dto';
 import { JournalEntryLine } from '../../modules/journal-entries/entities/journal-entry-line.entity';
 import { JournalEntry } from '../../modules/journal-entries/entities/journal-entry.entity';
@@ -21,6 +22,7 @@ import { JournalEntry } from '../../modules/journal-entries/entities/journal-ent
 export class JournalPosterService {
   constructor(
     private readonly documentCounterService: DocumentCounterService,
+    private readonly periodLockValidatorService: PeriodLockValidatorService,
   ) {}
 
   async post(
@@ -30,8 +32,21 @@ export class JournalPosterService {
     this.validateMinLines(dto.lines);
     this.validateLineSides(dto.lines);
     this.validateBalance(dto.lines);
-    await this.validateBackdate(dto.entryDate, manager);
+    if (dto.sourceType === 'OPENING_BALANCE') {
+      // Pengecualian bernama satu-satunya (CLAUDE.md §3 "Saldo Awal") —
+      // tanggalnya sudah divalidasi OpeningBalanceService lewat
+      // PeriodLockValidatorService.assertOpeningBalanceDate() SEBELUM
+      // memanggil post() ini. Tidak melonggarkan validate() untuk
+      // sourceType lain mana pun.
+    } else {
+      await this.periodLockValidatorService.validate(
+        dto.entryDate,
+        manager,
+        dto.periodLockMaxDaysOverride,
+      );
+    }
     await this.validateAccountsActive(dto.lines, manager);
+    await this.validateAccountsPostable(dto.lines, manager);
 
     const entryNumber = await this.documentCounterService.getNextNumber(
       'JOURNAL_ENTRY',
@@ -45,8 +60,10 @@ export class JournalPosterService {
       description: dto.description ?? null,
       sourceType: dto.sourceType,
       sourceId: dto.sourceId ?? null,
-      isReversal: false,
-      reversedEntryId: null,
+      isReversal: dto.isReversal ?? false,
+      reversedEntryId: dto.reversedEntryId ?? null,
+      voidReasonCode: dto.voidReasonCode ?? null,
+      voidReasonNote: dto.voidReasonNote ?? null,
       createdBy: dto.createdBy,
     });
     const savedEntry = await manager.save(JournalEntry, entry);
@@ -59,6 +76,7 @@ export class JournalPosterService {
         creditAmount: line.credit.toFixed(2),
         description: line.description ?? null,
         lineOrder: index + 1,
+        customerId: line.customerId ?? null,
       }),
     );
     await manager.save(JournalEntryLine, lines);
@@ -72,6 +90,42 @@ export class JournalPosterService {
       throw new BadRequestException('Gagal membuat jurnal.');
     }
     return result;
+  }
+
+  /**
+   * Entry AKTIF (belum pernah dibalik) untuk satu sourceType+sourceId —
+   * dipakai VoidEngineService DAN DocumentReviseService (paket R6) untuk
+   * menemukan jurnal mana yang harus dibalik sekarang. TIDAK CUKUP mencari
+   * `isReversal=false` + `sourceType/sourceId` saja (sebelum revisi ada,
+   * itu selalu unik) — begitu sebuah dokumen sudah direvisi sekali, ada DUA
+   * baris begitu (entry asli + entry posting-ulang), keduanya isReversal=
+   * false dan sourceType/sourceId sama. Yang benar adalah entry yang BELUM
+   * punya baris lain menunjuknya lewat reversed_entry_id — itulah definisi
+   * "masih berlaku sekarang", tidak peduli sudah berapa kali direvisi.
+   */
+  async findActiveEntry(
+    sourceType: string,
+    sourceId: string,
+    manager: EntityManager,
+  ): Promise<JournalEntry | null> {
+    const rows: { id: string }[] = await manager.query(
+      `SELECT je.id FROM journal_entries je
+       WHERE je.source_type = $1 AND je.source_id = $2 AND je.is_reversal = false
+         AND NOT EXISTS (
+           SELECT 1 FROM journal_entries r WHERE r.reversed_entry_id = je.id
+         )
+       ORDER BY je.created_at DESC
+       LIMIT 1`,
+      [sourceType, sourceId],
+    );
+    if (rows.length === 0) {
+      return null;
+    }
+    return manager.findOne(JournalEntry, {
+      where: { id: rows[0].id },
+      relations: { lines: true },
+      order: { lines: { lineOrder: 'ASC' } },
+    });
   }
 
   private validateMinLines(lines: PostJournalLineDto[]): void {
@@ -114,33 +168,6 @@ export class JournalPosterService {
     }
   }
 
-  private async validateBackdate(
-    entryDate: Date,
-    manager: EntityManager,
-  ): Promise<void> {
-    const rows: { value: string }[] = await manager.query(
-      `SELECT value FROM settings WHERE key = 'backdate_max_days'`,
-    );
-    const maxDays = rows[0] ? Number(rows[0].value) : 2;
-
-    const today = startOfUtcDay(new Date());
-    const target = startOfUtcDay(entryDate);
-    const diffDays = Math.round(
-      (today.getTime() - target.getTime()) / 86_400_000,
-    );
-
-    if (diffDays < 0) {
-      throw new BadRequestException(
-        'Tanggal jurnal tidak boleh di masa depan.',
-      );
-    }
-    if (diffDays > maxDays) {
-      throw new BadRequestException(
-        `Tanggal jurnal maksimal mundur ${maxDays} hari dari hari ini.`,
-      );
-    }
-  }
-
   private async validateAccountsActive(
     lines: PostJournalLineDto[],
     manager: EntityManager,
@@ -166,12 +193,31 @@ export class JournalPosterService {
       );
     }
   }
-}
 
-function startOfUtcDay(date: Date): Date {
-  return new Date(
-    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
-  );
+  // Validasi KEENAM (Hari 17A, COA_USULAN §7.3) — menambah lima yang
+  // terkunci di CLAUDE.md §2.6, memperketat bukan melonggarkan. Header
+  // (Grup/Kategori, is_postable=false) tidak boleh dijurnal: kalau operator
+  // bisa menjurnal ke akun header, saldo menumpuk di induk dan rincian di
+  // anaknya tidak lagi menjelaskan apa-apa (COA_USULAN §2).
+  private async validateAccountsPostable(
+    lines: PostJournalLineDto[],
+    manager: EntityManager,
+  ): Promise<void> {
+    const uniqueIds = Array.from(new Set(lines.map((line) => line.accountId)));
+    const rows: { id: string; code: string; is_postable: boolean }[] =
+      await manager.query(
+        `SELECT id, code, is_postable FROM chart_of_accounts WHERE id = ANY($1)`,
+        [uniqueIds],
+      );
+
+    const headerAccounts = rows.filter((row) => !row.is_postable);
+    if (headerAccounts.length > 0) {
+      const codes = headerAccounts.map((row) => row.code).join(', ');
+      throw new BadRequestException(
+        `Akun header tidak bisa dijurnal (${codes}) — pilih akun Jenis (anak) yang sesuai.`,
+      );
+    }
+  }
 }
 
 function toDateOnlyString(date: Date): string {

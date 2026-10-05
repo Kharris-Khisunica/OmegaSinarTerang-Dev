@@ -2,13 +2,16 @@ import * as bcrypt from 'bcrypt';
 import { DataSource } from 'typeorm';
 import { Role } from '../../common/enums/role.enum';
 import {
+  AccountSubtype,
   AccountType,
   ChartOfAccount,
+  NormalBalance,
 } from '../../modules/chart-of-accounts/entities/chart-of-account.entity';
 import { JournalEntryLine } from '../../modules/journal-entries/entities/journal-entry-line.entity';
 import { JournalEntry } from '../../modules/journal-entries/entities/journal-entry.entity';
 import { User } from '../../modules/users/entities/user.entity';
 import { DocumentCounterService } from '../document-counter/document-counter.service';
+import { PeriodLockValidatorService } from '../period-lock/period-lock-validator.service';
 import { PostJournalDto } from './dto/post-journal.dto';
 import { JournalPosterService } from './journal-poster.service';
 
@@ -23,9 +26,10 @@ describe('JournalPosterService', () => {
   let service: JournalPosterService;
 
   let userId: string;
-  let persediaanAccountId: string; // kode 1101, ASSET, aktif (seed migration)
-  let pendapatanAccountId: string; // kode 4101, INCOME, aktif (seed migration)
+  let persediaanAccountId: string; // kode 01.130.00001, ASSET, aktif (seed migration)
+  let pendapatanAccountId: string; // kode 04.110.00001, INCOME, aktif (seed migration)
   let inactiveAccountId: string;
+  let headerAccountId: string; // kode 01.000.00000, is_postable=false (seed migration)
 
   const createdEntryIds: string[] = [];
 
@@ -40,7 +44,10 @@ describe('JournalPosterService', () => {
       entities: [User, ChartOfAccount, JournalEntry, JournalEntryLine],
     });
     await dataSource.initialize();
-    service = new JournalPosterService(new DocumentCounterService());
+    service = new JournalPosterService(
+      new DocumentCounterService(),
+      new PeriodLockValidatorService(),
+    );
 
     const usersRepo = dataSource.getRepository(User);
     const passwordHash = await bcrypt.hash('test-password', 4);
@@ -57,13 +64,17 @@ describe('JournalPosterService', () => {
 
     const accountsRepo = dataSource.getRepository(ChartOfAccount);
     const persediaan = await accountsRepo.findOneOrFail({
-      where: { code: '1101' },
+      where: { code: '01.130.00001' },
     });
     const pendapatan = await accountsRepo.findOneOrFail({
-      where: { code: '4101' },
+      where: { code: '04.110.00001' },
+    });
+    const header = await accountsRepo.findOneOrFail({
+      where: { code: '01.000.00000' },
     });
     persediaanAccountId = persediaan.id;
     pendapatanAccountId = pendapatan.id;
+    headerAccountId = header.id;
 
     const inactive = await accountsRepo.save(
       accountsRepo.create({
@@ -71,6 +82,8 @@ describe('JournalPosterService', () => {
         code: `T-INA-${Date.now().toString().slice(-8)}`,
         name: 'Akun Nonaktif Uji (JournalPosterService spec)',
         accountType: AccountType.EXPENSE,
+        normalBalance: NormalBalance.DEBIT,
+        accountSubtype: AccountSubtype.OTHER_EXPENSE,
         isActive: false,
       }),
     );
@@ -194,6 +207,19 @@ describe('JournalPosterService', () => {
     ).rejects.toThrow(/tidak aktif/i);
   });
 
+  it('akun header (is_postable=false) -> error berbahasa Indonesia (Hari 17A validasi keenam)', async () => {
+    const dto = balancedDto({
+      lines: [
+        { accountId: headerAccountId, debit: 100_000, credit: 0 },
+        { accountId: pendapatanAccountId, debit: 0, credit: 100_000 },
+      ],
+    });
+
+    await expect(
+      dataSource.transaction((manager) => service.post(dto, manager)),
+    ).rejects.toThrow(/akun header tidak bisa dijurnal/i);
+  });
+
   it('entryDate 3 hari lalu (backdate_max_days=2) -> error', async () => {
     const threeDaysAgo = new Date();
     threeDaysAgo.setUTCDate(threeDaysAgo.getUTCDate() - 3);
@@ -202,6 +228,32 @@ describe('JournalPosterService', () => {
     await expect(
       dataSource.transaction((manager) => service.post(dto, manager)),
     ).rejects.toThrow(/maksimal mundur/i);
+  });
+
+  it('sourceType OPENING_BALANCE dengan entryDate masa depan -> TIDAK ditolak (pengecualian bernama satu-satunya, CLAUDE.md §3)', async () => {
+    const oneYearAhead = new Date();
+    oneYearAhead.setUTCFullYear(oneYearAhead.getUTCFullYear() + 1);
+    const dto = balancedDto({
+      sourceType: 'OPENING_BALANCE',
+      entryDate: oneYearAhead,
+    });
+
+    const result = await dataSource.transaction((manager) =>
+      service.post(dto, manager),
+    );
+    createdEntryIds.push(result.id);
+
+    expect(result.sourceType).toBe('OPENING_BALANCE');
+  });
+
+  it('sourceType MANUAL dengan entryDate masa depan tetap ditolak (jalur default tidak ikut melonggar)', async () => {
+    const oneYearAhead = new Date();
+    oneYearAhead.setUTCFullYear(oneYearAhead.getUTCFullYear() + 1);
+    const dto = balancedDto({ entryDate: oneYearAhead });
+
+    await expect(
+      dataSource.transaction((manager) => service.post(dto, manager)),
+    ).rejects.toThrow(/tidak boleh di masa depan/i);
   });
 
   it('posting valid -> entry_number berformat JE/RM01-YYMMXXXX', async () => {

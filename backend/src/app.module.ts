@@ -24,6 +24,12 @@ import { SalesmenModule } from './modules/salesmen/salesmen.module';
 import { ReceivablesModule } from './core/receivables/receivables.module';
 import { StepUpModule } from './core/step-up/step-up.module';
 import { StockRecorderModule } from './core/stock-recorder/stock-recorder.module';
+import { JournalPosterModule } from './core/journal-poster/journal-poster.module';
+import { VoidModule } from './core/void/void.module';
+import { PeriodLockModule } from './core/period-lock/period-lock.module';
+import { AccountResolverModule } from './core/account-resolver/account-resolver.module';
+import { TaxRatesModule } from './core/tax-rates/tax-rates.module';
+import { TaxRatesHttpModule } from './modules/tax-rates/tax-rates.module';
 
 @Module({
   imports: [
@@ -60,6 +66,12 @@ import { StockRecorderModule } from './core/stock-recorder/stock-recorder.module
     ReceivablesModule,
     StepUpModule,
     StockRecorderModule,
+    JournalPosterModule,
+    VoidModule,
+    PeriodLockModule,
+    AccountResolverModule,
+    TaxRatesModule,
+    TaxRatesHttpModule,
   ],
   controllers: [AppController],
   providers: [

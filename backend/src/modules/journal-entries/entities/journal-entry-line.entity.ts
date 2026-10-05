@@ -44,6 +44,13 @@ export class JournalEntryLine {
   @Column({ name: 'line_order', type: 'int' })
   lineOrder: number;
 
+  // Hari 18 — invarian baru berdampingan resolveArAccount() (ArAccountResolverService,
+  // Hari 8): baris yang menyentuh akun piutang seorang pelanggan WAJIB mengisi ini.
+  // Bare FK column (tanpa relation object) — journal-entries tidak perlu tahu bentuk
+  // Customer, hanya menyimpan id-nya untuk dibaca balik lewat getCustomerBalance().
+  @Column({ name: 'customer_id', type: 'uuid', nullable: true })
+  customerId: string | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 }
