@@ -43,6 +43,7 @@ import { SalesReturnsModule } from './modules/sales-returns/sales-returns.module
 import { VehiclesModule } from './modules/vehicles/vehicles.module';
 import { DeliveryOrdersModule } from './modules/delivery-orders/delivery-orders.module';
 import { PaymentsModule } from './modules/payments/payments.module';
+import { ReportsModule } from './modules/reports/reports.module';
 
 @Module({
   imports: [
@@ -98,6 +99,7 @@ import { PaymentsModule } from './modules/payments/payments.module';
     VehiclesModule,
     DeliveryOrdersModule,
     PaymentsModule,
+    ReportsModule,
   ],
   controllers: [AppController],
   providers: [
