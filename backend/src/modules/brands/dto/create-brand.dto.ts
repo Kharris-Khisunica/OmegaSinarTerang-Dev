@@ -1,9 +1,11 @@
 import { IsBoolean, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CreateBrandDto {
+  // Opsional — kosongkan untuk dibangkitkan otomatis (BrandsService.create()).
+  @IsOptional()
   @IsString()
   @IsNotEmpty()
-  code: string;
+  code?: string;
 
   @IsString()
   @IsNotEmpty()

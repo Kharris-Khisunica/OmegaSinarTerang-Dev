@@ -1,6 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { DataSource, Repository } from 'typeorm';
+import { generateSequenceCode } from '../../common/generate-sequence-code';
+import { toUpperTrim } from '../../common/normalize-text';
 import {
   buildPaginatedResult,
   PaginatedResult,
@@ -19,6 +21,8 @@ export class UnitsService {
   constructor(
     @InjectRepository(Unit)
     private readonly unitsRepository: Repository<Unit>,
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
   ) {}
 
   async findAll(query: UnitQueryDto): Promise<PaginatedResult<Unit>> {
@@ -56,9 +60,12 @@ export class UnitsService {
   }
 
   async create(dto: CreateUnitDto): Promise<Unit> {
+    const code =
+      dto.code ??
+      (await generateSequenceCode(this.dataSource, 'unit_code_seq', 'SAT'));
     const unit = this.unitsRepository.create({
-      code: dto.code,
-      name: dto.name,
+      code,
+      name: toUpperTrim(dto.name),
       isActive: dto.isActive ?? true,
     });
     return this.unitsRepository.save(unit);
@@ -68,7 +75,7 @@ export class UnitsService {
     await this.findOne(id);
     await this.unitsRepository.update(id, {
       ...(dto.code !== undefined && { code: dto.code }),
-      ...(dto.name !== undefined && { name: dto.name }),
+      ...(dto.name !== undefined && { name: toUpperTrim(dto.name) }),
       ...(dto.isActive !== undefined && { isActive: dto.isActive }),
     });
     return this.findOne(id);

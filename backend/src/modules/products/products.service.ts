@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
+import { toUpperTrim } from '../../common/normalize-text';
 import {
   buildPaginatedResult,
   PaginatedResult,
@@ -90,14 +91,16 @@ export class ProductsService {
       const product = manager.create(Product, {
         code,
         brandId: dto.brandId,
-        keterangan: dto.keterangan,
+        keterangan: dto.keterangan ?? null,
         kemasan: dto.kemasan ?? null,
         ukuranUom: dto.ukuranUom ?? null,
-        displayName: buildDisplayName(
-          brand.name,
-          dto.keterangan,
-          dto.kemasan ?? null,
-          dto.ukuranUom ?? null,
+        displayName: toUpperTrim(
+          buildDisplayName(
+            brand.name,
+            dto.kemasan ?? null,
+            dto.keterangan ?? null,
+            dto.ukuranUom ?? null,
+          ),
         ),
         isBkp: dto.isBkp ?? false,
         eanBarcode: dto.eanBarcode ?? null,
@@ -164,11 +167,8 @@ export class ProductsService {
       let displayName: string | undefined;
       if (nameFieldsChanged) {
         const brand = await this.assertActiveBrand(brandId, manager);
-        displayName = buildDisplayName(
-          brand.name,
-          keterangan,
-          kemasan,
-          ukuranUom,
+        displayName = toUpperTrim(
+          buildDisplayName(brand.name, kemasan, keterangan, ukuranUom),
         );
       }
 
@@ -228,6 +228,49 @@ export class ProductsService {
     );
   }
 
+  /**
+   * Qty produk yang terikat Sales Order OPEN — MURNI informatif (CLAUDE.md
+   * §2.16/§3: "SO tidak menahan stok, qty terikat hanya ditampilkan").
+   * Raw SQL langsung ke sales_order_lines/sales_orders, BUKAN import
+   * SalesOrdersModule ke ProductsModule (dikonfirmasi lewat riset Hari 19:
+   * SalesOrdersService juga tidak import ProductsModule, cukup
+   * manager.findOne(Product, ...) langsung — tidak ada risiko circular
+   * dependency untuk dihindari, raw SQL dipilih murni karena lebih
+   * sederhana untuk agregat sekali-baca). TIDAK PERNAH menyentuh
+   * product_stock_balance — dihitung live tiap panggilan, tidak di-cache.
+   */
+  async getCommittedQty(productId: string): Promise<number> {
+    await this.findOne(productId);
+    const rows: { committed_qty: string }[] = await this.dataSource.query(
+      `SELECT COALESCE(SUM(sol.qty_base_unit), 0) AS committed_qty
+       FROM sales_order_lines sol
+       JOIN sales_orders so ON so.id = sol.sales_order_id
+       WHERE sol.product_id = $1 AND so.status = 'OPEN'`,
+      [productId],
+    );
+    return Number(rows[0].committed_qty);
+  }
+
+  /**
+   * Sisa stok gudang STORE — cermin baca `product_stock_balance` (CLAUDE.md
+   * §2.5: dilarang UPDATE langsung dari modul lain, tapi baca murni aman).
+   * Dibangun untuk panel "SISA STOK" Faktur Penjualan (Hari 20) — pola sama
+   * getCommittedQty() di atas. Hanya gudang STORE (CLAUDE.md §3: "Lokasi
+   * tidak dipilih per baris — selalu STORE"); BAD_STOCK/TITIPAN_PELANGGAN
+   * sengaja tidak ikut, itu bukan stok yang bisa dijual.
+   */
+  async getStockBalance(productId: string): Promise<number> {
+    await this.findOne(productId);
+    const rows: { qty_base_unit: string }[] = await this.dataSource.query(
+      `SELECT COALESCE(SUM(psb.qty_base_unit), 0) AS qty_base_unit
+       FROM product_stock_balance psb
+       JOIN warehouses w ON w.id = psb.warehouse_id
+       WHERE psb.product_id = $1 AND w.warehouse_type = 'STORE'`,
+      [productId],
+    );
+    return Number(rows[0].qty_base_unit);
+  }
+
   private async assertActiveBrand(
     brandId: string,
     manager: EntityManager,
@@ -254,11 +297,11 @@ export class ProductsService {
 
 function buildDisplayName(
   brandName: string,
-  keterangan: string,
   kemasan: string | null,
+  keterangan: string | null,
   ukuranUom: string | null,
 ): string {
-  return [brandName, keterangan, kemasan, ukuranUom]
+  return [brandName, kemasan, keterangan, ukuranUom]
     .filter((part): part is string => !!part && part.trim().length > 0)
     .map((part) => part.trim())
     .join(' ');

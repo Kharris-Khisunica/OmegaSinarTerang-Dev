@@ -37,7 +37,9 @@ async function onSubmit() {
     <UCard class="w-full max-w-sm">
       <template #header>
         <div class="flex flex-col items-center gap-2 py-2">
-          <AppLogo class="w-auto h-8" />
+          <h1 class="text-sm">
+            Omega Sinar Terang
+          </h1>
           <p class="text-sm text-muted">
             Masuk ke akun Anda
           </p>

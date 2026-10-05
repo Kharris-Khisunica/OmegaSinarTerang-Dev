@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Not, Repository } from 'typeorm';
+import { toUpperTrim } from '../../common/normalize-text';
 import {
   buildPaginatedResult,
   PaginatedResult,
@@ -74,7 +75,7 @@ export class WarehousesService {
 
     return this.dataSource.transaction(async (manager) => {
       const warehouse = manager.create(Warehouse, {
-        name: dto.name,
+        name: toUpperTrim(dto.name),
         warehouseType: dto.warehouseType,
         customerId: dto.customerId ?? null,
         isDefault: dto.isDefault ?? false,
@@ -104,7 +105,7 @@ export class WarehousesService {
 
     return this.dataSource.transaction(async (manager) => {
       await manager.update(Warehouse, id, {
-        ...(dto.name !== undefined && { name: dto.name }),
+        ...(dto.name !== undefined && { name: toUpperTrim(dto.name) }),
         ...(dto.warehouseType !== undefined && {
           warehouseType: dto.warehouseType,
         }),

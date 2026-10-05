@@ -132,16 +132,16 @@ describe('Suppliers masking (OPERATOR vs MASTER)', () => {
     const row = asPaginatedSuppliers(list.body).data.find(
       (s) => s.id === supplierId,
     );
-    expect(row?.name).toBe('PT Abadi Jaya');
+    expect(row?.name).toBe('PT ABADI JAYA');
     expect(row?.contactPhone).toBe('081234567789');
-    expect(row?.contactAddress).toBe('Jalan Merdeka No 10');
+    expect(row?.contactAddress).toBe('JALAN MERDEKA NO 10');
     expect(row?.displayCode).toBe(supplierDisplayCode);
 
     const detail = await request(app.getHttpServer())
       .get(`/suppliers/${supplierId}`)
       .set('Authorization', `Bearer ${masterToken}`)
       .expect(200);
-    expect(asSupplier(detail.body).name).toBe('PT Abadi Jaya');
+    expect(asSupplier(detail.body).name).toBe('PT ABADI JAYA');
     expect(asSupplier(detail.body).contactPhone).toBe('081234567789');
   });
 
@@ -155,7 +155,7 @@ describe('Suppliers masking (OPERATOR vs MASTER)', () => {
     );
     expect(row?.name).toBe('PT A***');
     expect(row?.contactPhone).toBe('0812****789');
-    expect(row?.contactAddress).toBe('Jalan M***');
+    expect(row?.contactAddress).toBe('JALAN M***');
     expect(row?.displayCode).toBe(supplierDisplayCode);
 
     const detail = await request(app.getHttpServer())

@@ -33,24 +33,26 @@ const PACKAGING_UOM_OPTIONS: SelectOption[] = [
 
 function buildDisplayName(
   brandName: string | undefined,
-  keterangan: unknown,
   kemasan: unknown,
+  keterangan: unknown,
   ukuran: unknown,
   uom: unknown
 ): string {
   const ukuranUom = [ukuran, uom]
     .filter((part): part is string => typeof part === 'string' && part.trim() !== '')
     .join(' ')
-  return [brandName, keterangan, kemasan, ukuranUom]
+  return [brandName, kemasan, keterangan, ukuranUom]
     .filter((part): part is string => typeof part === 'string' && part.trim() !== '')
     .map(part => part.trim())
     .join(' ')
 }
 
 /**
- * Skema form Produk (rework Hari 8) — mengganti skema Hari 4 (`name` tunggal).
- * Nama sekarang tersusun 4 bagian (Merek + Keterangan + Kemasan + Ukuran+UoM,
- * CLAUDE.md §3) dengan pratinjau `display_name` besar yang ter-update live —
+ * Skema form Produk (rework Hari 8, urutan diperbarui paket R2). Mengganti
+ * skema Hari 4 (`name` tunggal). Nama sekarang tersusun 4 bagian
+ * (Merek + Kemasan + Keterangan + Ukuran+UoM, docs/RENCANA_REVISI_TESTING_KLIEN.md
+ * §1 P1 dan §3 — CLAUDE.md §3 masih menyebut urutan lama, menunggu update R12)
+ * dengan pratinjau `display_name` besar yang ter-update live —
  * operator wajib melihat nama akhir sebelum menyimpan (DoD hari ini), karena
  * kode produk dikunci permanen setelah transaksi pertama dan nama yang salah
  * ketik tidak semudah itu diperbaiki di lapangan.
@@ -78,8 +80,8 @@ export function useProductSchema(): FieldDef[] {
         return active.map(b => ({ label: b.name, value: b.id }))
       }
     },
-    { key: 'keterangan', label: 'Keterangan', type: 'text', required: true, cols: 6, placeholder: 'Putih, Cokelat, Original, dsb.' },
     { key: 'kemasan', label: 'Kemasan', type: 'text', cols: 6, placeholder: 'Sachet, Botol, Kaleng, dsb.' },
+    { key: 'keterangan', label: 'Keterangan', type: 'text', cols: 6, placeholder: 'Putih, Cokelat, Original, dsb. (opsional)' },
     { key: 'ukuran', label: 'Ukuran', type: 'text', cols: 3, placeholder: '37' },
     {
       key: 'ukuranUomPart',
@@ -96,27 +98,26 @@ export function useProductSchema(): FieldDef[] {
       cols: 12,
       compute: form => buildDisplayName(
         brandNameCache[form.brandId as string],
-        form.keterangan,
         form.kemasan,
+        form.keterangan,
         form.ukuran,
         form.ukuranUomPart
-      ) || 'Nama akan muncul di sini setelah Merek dan Keterangan diisi.'
+      ) || 'Nama akan muncul di sini setelah Merek dan Kemasan diisi.'
     },
     {
       key: 'code',
       label: 'Kode Produk',
       type: 'text',
       cols: 6,
-      placeholder: 'Kosongkan lalu klik Bangkitkan, atau ketik manual',
       hint: form => (form.isCodeLocked
         ? 'Terkunci — produk ini sudah pernah dipakai transaksi, kode tidak bisa diubah lagi.'
-        : 'Format 10 digit YYMMDDXXXX. Kosongkan untuk dibangkitkan otomatis oleh sistem saat disimpan.'),
+        : 'Format 10 digit YYMMDDXXXX. Dibangkitkan otomatis oleh sistem saat disimpan, kecuali sakelar "Isi kode manual" dinyalakan.'),
       disabled: form => form.isCodeLocked === true,
-      action: {
-        icon: 'i-lucide-sparkles',
-        label: 'Bangkitkan',
-        hidden: form => form.isCodeLocked === true,
-        onClick: (_form, setField) => setField('code', '')
+      // Field kode otomatis (docs/RENCANA_REVISI_TESTING_KLIEN.md §3 R1 item
+      // M2) — terkunci total (sakelar disembunyikan) kalau produk sudah
+      // dipakai transaksi pertama (CLAUDE.md §3, isCodeLocked dari server).
+      autoCode: {
+        locked: form => form.isCodeLocked === true
       }
     },
     {
@@ -215,7 +216,7 @@ export function productTransformOut(form: Record<string, unknown>): Record<strin
 
   const payload: Record<string, unknown> = {
     brandId: form.brandId,
-    keterangan: form.keterangan,
+    keterangan: form.keterangan || undefined,
     kemasan: form.kemasan || undefined,
     ukuranUom: ukuranUom || undefined,
     isBkp: form.isBkp,

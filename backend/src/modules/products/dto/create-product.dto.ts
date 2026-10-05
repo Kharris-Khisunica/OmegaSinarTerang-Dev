@@ -24,9 +24,9 @@ export class CreateProductDto {
   @IsUUID()
   brandId: string;
 
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  keterangan: string;
+  keterangan?: string;
 
   @IsOptional()
   @IsString()

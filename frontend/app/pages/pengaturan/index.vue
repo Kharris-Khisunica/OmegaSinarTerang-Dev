@@ -3,7 +3,7 @@
 // Bukan <CrudFormPage>: bentuk datanya key-value list (GET /settings ->
 // TypedSetting[]), disimpan lewat PATCH /settings/:key satu-satu, bukan satu
 // entity ber-id seperti form CRUD lain. Tetap MASTER-only lewat role guard.
-definePageMeta({ roles: ['MASTER'] })
+definePageMeta({ title: 'Pengaturan', roles: ['MASTER'] })
 
 type SettingInputType = 'boolean' | 'number' | 'text' | 'select'
 
@@ -68,9 +68,14 @@ const SETTING_META: Record<string, SettingMeta> = {
     label: 'Maksimum Mundur Tanggal Transaksi',
     description: 'Berapa hari ke belakang tanggal transaksi masih boleh diinput mundur (backdate). Lebih dari ini akan ditolak sistem.',
     type: 'number'
+  },
+  aging_bucket_days: {
+    label: 'Lebar Bucket Umur Piutang/Hutang',
+    description: 'Jumlah hari per kelompok umur di Laporan Piutang dan Laporan Hutang (mis. 30 -> kolom "1-30", "31-60", "61-90", ">90"). Berlaku langsung ke laporan berikutnya, tanpa restart.',
+    type: 'number'
   }
 }
-const SETTING_ORDER = ['company_is_pkp', 'tax_calculation_mode', 'backdate_max_days']
+const SETTING_ORDER = ['company_is_pkp', 'tax_calculation_mode', 'backdate_max_days', 'aging_bucket_days']
 
 const api = useApi()
 const toast = useToast()
@@ -132,9 +137,7 @@ onMounted(load)
 
 <template>
   <div class="p-4 flex flex-col gap-4 max-w-2xl">
-    <h1 class="text-lg font-semibold">
-      Pengaturan
-    </h1>
+    <PageHeader />
 
     <UAlert
       v-if="bannerError"
@@ -211,7 +214,7 @@ onMounted(load)
               :model-value="form[key] === true"
               @update:model-value="(v) => (form[key] = v)"
             />
-            <UInputNumber
+            <QtyInput
               v-else-if="SETTING_META[key]!.type === 'number'"
               :model-value="Number(form[key])"
               class="w-40"

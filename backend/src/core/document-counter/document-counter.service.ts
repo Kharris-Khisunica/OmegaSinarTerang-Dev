@@ -10,13 +10,15 @@ export type DocumentType =
   | 'SALES_RETURN'
   | 'PURCHASE_RETURN'
   | 'PAYMENT'
-  | 'JOURNAL_ENTRY';
+  | 'JOURNAL_ENTRY'
+  | 'OPERATIONAL_EXPENSE'
+  | 'CASH_TRANSFER';
 
 // Kode persis dari sistem lama klien (CLAUDE.md §2.3) — JL/B1/GD sudah
 // tercetak di nota yang beredar. Jangan diganti jadi singkatan lama
 // (mis. kode invoice/purchase/warehouse yang terasa lebih rapi) meski itu
 // godaan wajar.
-const DOCUMENT_PREFIXES: Record<DocumentType, string> = {
+export const DOCUMENT_PREFIXES: Record<DocumentType, string> = {
   SALES_INVOICE: 'JL',
   SALES_ORDER: 'SO',
   PURCHASE_INVOICE: 'B1',
@@ -26,6 +28,13 @@ const DOCUMENT_PREFIXES: Record<DocumentType, string> = {
   PURCHASE_RETURN: 'RB',
   PAYMENT: 'PAY',
   JOURNAL_ENTRY: 'JE',
+  // KK = Kas Keluar (Hari 17, docs/PERTANYAAN_KLIEN_BIAYA_OPERASIONAL.md §8)
+  // — usul dokumen klien, tidak ikut kunci cetak & Laporan Kontinuitas.
+  OPERATIONAL_EXPENSE: 'KK',
+  // PB = Pindah Buku Kas (paket R9, menyerap Hari 32A tugas 7) — pemindahan
+  // antar kas milik sendiri, bukan kunci cetak §2.16 & tidak masuk Laporan
+  // Kontinuitas Nomor Dokumen (pola sama OPERATIONAL_EXPENSE di atas).
+  CASH_TRANSFER: 'PB',
 };
 
 @Injectable()

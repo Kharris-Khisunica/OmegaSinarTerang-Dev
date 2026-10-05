@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
+import { toUpperTrim } from '../../common/normalize-text';
 import {
   buildPaginatedResult,
   PaginatedResult,
@@ -67,9 +68,9 @@ export class SuppliersService {
     const displayCode = await this.nextDisplayCode();
     const supplier = this.suppliersRepository.create({
       displayCode,
-      name: dto.name,
+      name: toUpperTrim(dto.name),
       contactPhone: dto.contactPhone ?? null,
-      contactAddress: dto.contactAddress ?? null,
+      contactAddress: toUpperTrim(dto.contactAddress) ?? null,
       isPkp: dto.isPkp ?? false,
       isActive: dto.isActive ?? true,
     });
@@ -79,10 +80,10 @@ export class SuppliersService {
   async update(id: string, dto: UpdateSupplierDto): Promise<Supplier> {
     await this.findOne(id);
     await this.suppliersRepository.update(id, {
-      ...(dto.name !== undefined && { name: dto.name }),
+      ...(dto.name !== undefined && { name: toUpperTrim(dto.name) }),
       ...(dto.contactPhone !== undefined && { contactPhone: dto.contactPhone }),
       ...(dto.contactAddress !== undefined && {
-        contactAddress: dto.contactAddress,
+        contactAddress: toUpperTrim(dto.contactAddress),
       }),
       ...(dto.isPkp !== undefined && { isPkp: dto.isPkp }),
       ...(dto.isActive !== undefined && { isActive: dto.isActive }),

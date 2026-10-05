@@ -25,8 +25,8 @@ export class Product {
   @Column({ name: 'brand_id', type: 'uuid' })
   brandId: string;
 
-  @Column()
-  keterangan: string;
+  @Column({ nullable: true, type: 'varchar' })
+  keterangan: string | null;
 
   @Column({ nullable: true, type: 'varchar' })
   kemasan: string | null;
@@ -37,9 +37,11 @@ export class Product {
   @Column({ name: 'ukuran_uom', nullable: true, type: 'varchar' })
   ukuranUom: string | null;
 
-  // Merek + keterangan + kemasan + ukuran_uom digabung, dihitung ulang di
-  // ProductsService setiap create/update (butuh join ke brands.name) —
-  // disimpan (bukan generated column DB) supaya bisa diindeks & dicari cepat.
+  // Merek + kemasan + keterangan + ukuran_uom digabung (urutan revisi klien
+  // paket R2, docs/RENCANA_REVISI_TESTING_KLIEN.md §1 P1 dan §3), dihitung
+  // ulang di ProductsService setiap create/update (butuh join ke
+  // brands.name) — disimpan (bukan generated column DB) supaya bisa
+  // diindeks & dicari cepat.
   @Column({ name: 'display_name' })
   displayName: string;
 

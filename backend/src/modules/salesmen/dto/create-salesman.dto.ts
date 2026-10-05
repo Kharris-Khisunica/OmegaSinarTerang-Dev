@@ -1,9 +1,11 @@
 import { IsBoolean, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CreateSalesmanDto {
+  // Opsional — kosongkan untuk dibangkitkan otomatis (SalesmenService.create()).
+  @IsOptional()
   @IsString()
   @IsNotEmpty()
-  code: string;
+  code?: string;
 
   @IsString()
   @IsNotEmpty()

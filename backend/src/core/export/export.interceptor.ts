@@ -3,6 +3,7 @@ import {
   ExecutionContext,
   Injectable,
   NestInterceptor,
+  StreamableFile,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { Observable } from 'rxjs';
@@ -74,7 +75,16 @@ export class ExportInterceptor implements NestInterceptor {
           'Content-Disposition': `attachment; filename="${buildFilename(title, format)}"`,
         });
 
-        return buffer;
+        // WAJIB StreamableFile, bukan Buffer telanjang — ExpressAdapter.reply()
+        // hanya mengenali StreamableFile/string untuk dikirim mentah (lihat
+        // node_modules/@nestjs/platform-express/.../express-adapter.js). Buffer
+        // dianggap object biasa dan lewat res.json(), yang men-serialize Buffer
+        // jadi `{"type":"Buffer","data":[...]}` (Buffer.prototype.toJSON())
+        // alih-alih mengirim isinya sebagai file — baru ketahuan Hari 28 saat
+        // endpoint laporan PERTAMA benar-benar memanggil ?format=xlsx lewat
+        // HTTP asli (sebelumnya export.service.spec.ts hanya menguji Buffer-nya
+        // sendiri, tidak lewat interceptor+HTTP).
+        return new StreamableFile(buffer);
       }),
     );
   }

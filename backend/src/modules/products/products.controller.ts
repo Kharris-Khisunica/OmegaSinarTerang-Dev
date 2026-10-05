@@ -29,6 +29,22 @@ export class ProductsController {
     return this.productsService.findOne(id);
   }
 
+  // Murni informatif (CLAUDE.md §2.16/§3) — qty terikat Sales Order OPEN,
+  // tidak pernah mengurangi stok tersedia di layar mana pun.
+  @Get(':id/committed-qty')
+  async getCommittedQty(@Param('id') id: string) {
+    const committedQtyBaseUnit = await this.productsService.getCommittedQty(id);
+    return { productId: id, committedQtyBaseUnit };
+  }
+
+  // Cermin baca gudang STORE (CLAUDE.md §2.5) — dipakai panel "SISA STOK"
+  // Faktur Penjualan (Hari 20).
+  @Get(':id/stock-balance')
+  async getStockBalance(@Param('id') id: string) {
+    const qtyBaseUnit = await this.productsService.getStockBalance(id);
+    return { productId: id, qtyBaseUnit };
+  }
+
   @Roles(Role.MASTER, Role.OPERATOR)
   @Audit('CREATE', 'products')
   @Post()
