@@ -39,6 +39,7 @@ import { PurchaseReturnsModule } from './modules/purchase-returns/purchase-retur
 import { OperationalExpensesModule } from './modules/operational-expenses/operational-expenses.module';
 import { SalesOrdersModule } from './modules/sales-orders/sales-orders.module';
 import { SalesInvoicesModule } from './modules/sales-invoices/sales-invoices.module';
+import { SalesReturnsModule } from './modules/sales-returns/sales-returns.module';
 
 @Module({
   imports: [
@@ -90,6 +91,7 @@ import { SalesInvoicesModule } from './modules/sales-invoices/sales-invoices.mod
     OperationalExpensesModule,
     SalesOrdersModule,
     SalesInvoicesModule,
+    SalesReturnsModule,
   ],
   controllers: [AppController],
   providers: [
