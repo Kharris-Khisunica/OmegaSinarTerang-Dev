@@ -27,6 +27,8 @@ import { StockRecorderModule } from './core/stock-recorder/stock-recorder.module
 import { JournalPosterModule } from './core/journal-poster/journal-poster.module';
 import { VoidModule } from './core/void/void.module';
 import { PeriodLockModule } from './core/period-lock/period-lock.module';
+import { JournalManualModule } from './modules/journal-manual/journal-manual.module';
+import { OpeningBalanceModule } from './modules/opening-balance/opening-balance.module';
 import { AccountResolverModule } from './core/account-resolver/account-resolver.module';
 import { TaxRatesModule } from './core/tax-rates/tax-rates.module';
 import { TaxRatesHttpModule } from './modules/tax-rates/tax-rates.module';
@@ -69,6 +71,8 @@ import { TaxRatesHttpModule } from './modules/tax-rates/tax-rates.module';
     JournalPosterModule,
     VoidModule,
     PeriodLockModule,
+    JournalManualModule,
+    OpeningBalanceModule,
     AccountResolverModule,
     TaxRatesModule,
     TaxRatesHttpModule,
