@@ -44,6 +44,8 @@ import { VehiclesModule } from './modules/vehicles/vehicles.module';
 import { DeliveryOrdersModule } from './modules/delivery-orders/delivery-orders.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { ReportsModule } from './modules/reports/reports.module';
+import { CashTransfersModule } from './modules/cash-transfers/cash-transfers.module';
+import { WorkersModule } from './modules/workers/workers.module';
 
 @Module({
   imports: [
@@ -100,6 +102,8 @@ import { ReportsModule } from './modules/reports/reports.module';
     DeliveryOrdersModule,
     PaymentsModule,
     ReportsModule,
+    CashTransfersModule,
+    WorkersModule,
   ],
   controllers: [AppController],
   providers: [
