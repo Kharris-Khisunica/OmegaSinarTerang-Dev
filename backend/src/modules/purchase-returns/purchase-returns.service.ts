@@ -6,6 +6,14 @@ import { DocumentCounterService } from '../../core/document-counter/document-cou
 import { PostJournalLineDto } from '../../core/journal-poster/dto/post-journal.dto';
 import { JournalPosterService } from '../../core/journal-poster/journal-poster.service';
 import { PrintLockService } from '../../core/print-lock/print-lock.service';
+import {
+  ApplyChangesResult,
+  DocumentReviseService,
+} from '../../core/document-revise/document-revise.service';
+import { StepUpService } from '../../core/step-up/step-up.service';
+import { VoidEngineService } from '../../core/void/void.service';
+import { Role } from '../../common/enums/role.enum';
+import { ActionType } from '../authorization-requests/action-type.enum';
 import { StockRecorderService } from '../../core/stock-recorder/stock-recorder.service';
 import {
   buildPaginatedResult,
@@ -25,6 +33,8 @@ import {
 import { CreatePurchaseReturnDto } from './dto/create-purchase-return.dto';
 import { CreatePurchaseReturnLineDto } from './dto/create-purchase-return-line.dto';
 import { PurchaseReturnQueryDto } from './dto/purchase-return-query.dto';
+import { RevisePurchaseReturnDto } from './dto/revise-purchase-return.dto';
+import { VoidPurchaseReturnDto } from './dto/void-purchase-return.dto';
 import { PurchaseReturnLine } from './entities/purchase-return-line.entity';
 import {
   PurchaseReturn,
@@ -94,6 +104,9 @@ export class PurchaseReturnsService {
     private readonly journalPosterService: JournalPosterService,
     private readonly accountResolverService: AccountResolverService,
     private readonly printLockService: PrintLockService,
+    private readonly voidEngineService: VoidEngineService,
+    private readonly stepUpService: StepUpService,
+    private readonly documentReviseService: DocumentReviseService,
   ) {}
 
   async create(
@@ -154,112 +167,16 @@ export class PurchaseReturnsService {
         }),
       );
 
-      const savedLines: PurchaseReturnLine[] = [];
-      let totalAgreedCents = 0;
-      let totalCostBasisCents = 0;
-
-      for (let i = 0; i < lineContexts.length; i++) {
-        const ctx = lineContexts[i];
-
-        // Stok minus TIDAK diizinkan untuk retur pembelian (beda dari §2.8
-        // yang berlaku untuk penjualan) — barang yang diretur wajib benar-
-        // benar ada di BAD_STOCK milik supplier ini.
-        const recordOutResult = await this.stockRecorderService.recordOut(
-          {
-            productId: ctx.product.id,
-            warehouseId: badStockWarehouse.id,
-            qtyBaseUnit: ctx.qtyBaseUnit,
-            movementDate: returnDate,
-            movementType: StockMovementType.RETURN_OUT,
-            sourceType: 'PURCHASE_RETURN',
-            sourceId: purchaseReturn.id,
-            createdBy: user.sub,
-            supplierId: dto.supplierId,
-            disallowNegativeStock: true,
-          },
-          manager,
-        );
-
-        const agreedAmountCents = toCents(
-          ctx.dto.qtyInput * ctx.dto.agreedUnitPrice,
-        );
-        const costBasisCents = toCents(recordOutResult.totalCost);
-        totalAgreedCents += agreedAmountCents;
-        totalCostBasisCents += costBasisCents;
-
-        const line = await manager.save(
-          PurchaseReturnLine,
-          manager.create(PurchaseReturnLine, {
-            purchaseReturnId: purchaseReturn.id,
-            lineOrder: i + 1,
-            productId: ctx.product.id,
-            qtyInput: ctx.dto.qtyInput.toFixed(4),
-            qtyBaseUnit: ctx.qtyBaseUnit.toFixed(4),
-            agreedUnitPrice: ctx.dto.agreedUnitPrice.toFixed(2),
-            agreedAmount: fromCents(agreedAmountCents).toFixed(2),
-            costBasisUnitCost: (
-              recordOutResult.totalCost / ctx.qtyBaseUnit
-            ).toFixed(4),
-            costBasisAmount: fromCents(costBasisCents).toFixed(2),
-            stockMovementId: recordOutResult.movement.id,
-          }),
-        );
-        savedLines.push(line);
-      }
-
-      const diffCents = totalAgreedCents - totalCostBasisCents;
-
-      await manager.update(PurchaseReturn, purchaseReturn.id, {
-        subtotalAgreedAmount: fromCents(totalAgreedCents).toFixed(2),
-        totalCostBasis: fromCents(totalCostBasisCents).toFixed(2),
-        differenceAmount: fromCents(diffCents).toFixed(2),
+      const { savedLines, journalLines } = await this.postLinesAndBuildJournal({
+        purchaseReturnId: purchaseReturn.id,
+        returnNumber,
+        returnDate,
+        dto,
+        lineContexts,
+        badStockWarehouseId: badStockWarehouse.id,
+        userId: user.sub,
+        manager,
       });
-
-      // --- Jurnal: Hutang/Kas (D) / Persediaan (K) / [Selisih Retur (K/D)] -
-      const inventoryAccountId =
-        await this.accountResolverService.resolveSingleActive(
-          'is_inventory_account = true',
-          'Persediaan',
-          manager,
-        );
-      const debitAccountId =
-        dto.settlementType === PurchaseReturnSettlementType.CASH
-          ? dto.cashAccountId!
-          : await this.accountResolverService.resolveSingleActive(
-              'is_payable_account = true',
-              'Hutang Usaha',
-              manager,
-            );
-
-      const journalLines: PostJournalLineDto[] = [
-        {
-          accountId: debitAccountId,
-          debit: fromCents(totalAgreedCents),
-          credit: 0,
-          description: `Retur Pembelian ${returnNumber}`,
-        },
-        {
-          accountId: inventoryAccountId,
-          debit: 0,
-          credit: fromCents(totalCostBasisCents),
-          description: `Persediaan dari retur pembelian ${returnNumber}`,
-        },
-      ];
-
-      if (diffCents !== 0) {
-        const diffAccountId =
-          await this.accountResolverService.resolveSingleActive(
-            'is_purchase_return_diff_account = true',
-            'Selisih Retur Pembelian',
-            manager,
-          );
-        journalLines.push({
-          accountId: diffAccountId,
-          debit: diffCents < 0 ? fromCents(-diffCents) : 0,
-          credit: diffCents > 0 ? fromCents(diffCents) : 0,
-          description: `Selisih retur pembelian ${returnNumber}`,
-        });
-      }
 
       const journalEntry = await this.journalPosterService.post(
         {
@@ -283,6 +200,145 @@ export class PurchaseReturnsService {
         journalEntry,
       };
     });
+  }
+
+  /**
+   * Inti posting retur pembelian — dipakai create() DAN reviseReturn()
+   * (need_fixing.md #19). recordOut FIFO dari BAD_STOCK (scoped supplier,
+   * stok minus ditolak), baris, total header, dan MENGEMBALIKAN baris jurnal
+   * (tidak memposting) supaya revisi bisa lewat DocumentReviseService.
+   */
+  private async postLinesAndBuildJournal(params: {
+    purchaseReturnId: string;
+    returnNumber: string;
+    returnDate: Date;
+    dto: CreatePurchaseReturnDto;
+    lineContexts: LineContext[];
+    badStockWarehouseId: string;
+    userId: string;
+    manager: EntityManager;
+  }): Promise<{
+    savedLines: PurchaseReturnLine[];
+    journalLines: PostJournalLineDto[];
+  }> {
+    const {
+      purchaseReturnId,
+      returnNumber,
+      returnDate,
+      dto,
+      lineContexts,
+      badStockWarehouseId,
+      userId,
+      manager,
+    } = params;
+    const savedLines: PurchaseReturnLine[] = [];
+    let totalAgreedCents = 0;
+    let totalCostBasisCents = 0;
+
+    for (let i = 0; i < lineContexts.length; i++) {
+      const ctx = lineContexts[i];
+
+      // Stok minus TIDAK diizinkan untuk retur pembelian (beda dari §2.8
+      // yang berlaku untuk penjualan) — barang yang diretur wajib benar-
+      // benar ada di BAD_STOCK milik supplier ini.
+      const recordOutResult = await this.stockRecorderService.recordOut(
+        {
+          productId: ctx.product.id,
+          warehouseId: badStockWarehouseId,
+          qtyBaseUnit: ctx.qtyBaseUnit,
+          movementDate: returnDate,
+          movementType: StockMovementType.RETURN_OUT,
+          sourceType: 'PURCHASE_RETURN',
+          sourceId: purchaseReturnId,
+          createdBy: userId,
+          supplierId: dto.supplierId,
+          disallowNegativeStock: true,
+        },
+        manager,
+      );
+
+      const agreedAmountCents = toCents(
+        ctx.dto.qtyInput * ctx.dto.agreedUnitPrice,
+      );
+      const costBasisCents = toCents(recordOutResult.totalCost);
+      totalAgreedCents += agreedAmountCents;
+      totalCostBasisCents += costBasisCents;
+
+      const line = await manager.save(
+        PurchaseReturnLine,
+        manager.create(PurchaseReturnLine, {
+          purchaseReturnId: purchaseReturnId,
+          lineOrder: i + 1,
+          productId: ctx.product.id,
+          qtyInput: ctx.dto.qtyInput.toFixed(4),
+          qtyBaseUnit: ctx.qtyBaseUnit.toFixed(4),
+          agreedUnitPrice: ctx.dto.agreedUnitPrice.toFixed(2),
+          agreedAmount: fromCents(agreedAmountCents).toFixed(2),
+          costBasisUnitCost: (
+            recordOutResult.totalCost / ctx.qtyBaseUnit
+          ).toFixed(4),
+          costBasisAmount: fromCents(costBasisCents).toFixed(2),
+          stockMovementId: recordOutResult.movement.id,
+        }),
+      );
+      savedLines.push(line);
+    }
+
+    const diffCents = totalAgreedCents - totalCostBasisCents;
+
+    await manager.update(PurchaseReturn, purchaseReturnId, {
+      subtotalAgreedAmount: fromCents(totalAgreedCents).toFixed(2),
+      totalCostBasis: fromCents(totalCostBasisCents).toFixed(2),
+      differenceAmount: fromCents(diffCents).toFixed(2),
+    });
+
+    // --- Jurnal: Hutang/Kas (D) / Persediaan (K) / [Selisih Retur (K/D)] -
+    const inventoryAccountId =
+      await this.accountResolverService.resolveSingleActive(
+        'is_inventory_account = true',
+        'Persediaan',
+        manager,
+      );
+    const debitAccountId =
+      dto.settlementType === PurchaseReturnSettlementType.CASH
+        ? dto.cashAccountId!
+        : await this.accountResolverService.resolveSingleActive(
+            'is_payable_account = true',
+            'Hutang Usaha',
+            manager,
+          );
+
+    const journalLines: PostJournalLineDto[] = [
+      {
+        accountId: debitAccountId,
+        debit: fromCents(totalAgreedCents),
+        credit: 0,
+        description: `Retur Pembelian ${returnNumber}`,
+      },
+      {
+        accountId: inventoryAccountId,
+        debit: 0,
+        credit: fromCents(totalCostBasisCents),
+        description: `Persediaan dari retur pembelian ${returnNumber}`,
+      },
+    ];
+
+    if (diffCents !== 0) {
+      const diffAccountId =
+        await this.accountResolverService.resolveSingleActive(
+          'is_purchase_return_diff_account = true',
+          'Selisih Retur Pembelian',
+          manager,
+        );
+      journalLines.push({
+        accountId: diffAccountId,
+        debit: diffCents < 0 ? fromCents(-diffCents) : 0,
+        credit: diffCents > 0 ? fromCents(diffCents) : 0,
+        description: `Selisih retur pembelian ${returnNumber}`,
+      });
+    }
+
+    return { savedLines, journalLines };
   }
 
   async findAll(
@@ -326,6 +382,189 @@ export class PurchaseReturnsService {
       throw new BadRequestException('Retur pembelian tidak ditemukan.');
     }
     return purchaseReturn;
+  }
+
+  /**
+   * VOID Retur Pembelian (need_fixing.md #19) — dua gerbang independen
+   * persis Faktur Penjualan (UNLOCK_PRINT kalau PRINTED + VOID_DOCUMENT
+   * OPERATOR). Jurnal dibalik bertanggal hari ini; barang dikembalikan ke
+   * lot BAD_STOCK asal (reverseOut).
+   */
+  async voidReturn(
+    id: string,
+    dto: VoidPurchaseReturnDto,
+    user: AuthenticatedUser,
+    authorizationRequestId: string | undefined,
+    voidAuthorizationRequestId?: string,
+  ): Promise<PurchaseReturn> {
+    const existing = await this.findOne(id);
+    const unlockReason = dto.unlockReason ?? dto.reasonNote;
+
+    await this.printLockService.preflight({
+      table: 'purchase_returns',
+      sourceType: 'PURCHASE_RETURN',
+      documentId: id,
+      documentLabel: existing.returnNumber,
+      intent: 'VOID',
+      reason: unlockReason,
+      user,
+      authorizationRequestId,
+    });
+
+    const needsVoidApproval = user.role === Role.OPERATOR;
+    const voidPayload = { sourceType: 'PURCHASE_RETURN', sourceId: id };
+    const voidContextSummary = `VOID retur pembelian ${existing.returnNumber}: ${dto.reasonNote}`;
+    if (needsVoidApproval && !voidAuthorizationRequestId) {
+      await this.stepUpService.requireApproval({
+        user,
+        actionType: ActionType.VOID_DOCUMENT,
+        payload: voidPayload,
+        contextSummary: voidContextSummary,
+      });
+    }
+
+    await this.dataSource.transaction(async (manager) => {
+      await this.printLockService.consume({
+        table: 'purchase_returns',
+        sourceType: 'PURCHASE_RETURN',
+        documentId: id,
+        documentLabel: existing.returnNumber,
+        intent: 'VOID',
+        reason: unlockReason,
+        user,
+        authorizationRequestId,
+        manager,
+      });
+      if (needsVoidApproval) {
+        await this.stepUpService.requireApproval({
+          user,
+          actionType: ActionType.VOID_DOCUMENT,
+          payload: voidPayload,
+          contextSummary: voidContextSummary,
+          authorizationRequestId: voidAuthorizationRequestId,
+          manager,
+        });
+      }
+      await this.voidEngineService.voidDocument({
+        sourceType: 'PURCHASE_RETURN',
+        sourceId: id,
+        reasonCode: dto.reasonCode,
+        reasonNote: dto.reasonNote,
+        userId: user.sub,
+        manager,
+      });
+    });
+
+    return this.findOne(id);
+  }
+
+  /**
+   * Revisi-di-tempat Retur Pembelian (need_fixing.md #19, pola §2.16a).
+   * Supplier TIDAK bisa diganti (FIFO BAD_STOCK di-scope per supplier —
+   * retur ke supplier lain = dokumen lain: VOID + retur baru). Baris, qty,
+   * satuan, nilai, tanggal, penyelesaian boleh dikoreksi.
+   */
+  async reviseReturn(
+    id: string,
+    dto: RevisePurchaseReturnDto,
+    user: AuthenticatedUser,
+    authorizationRequestId: string | undefined,
+  ): Promise<PurchaseReturn> {
+    const existing = await this.findOne(id);
+    if (existing.postingStatus === PurchaseReturnPostingStatus.VOIDED) {
+      throw new BadRequestException(
+        'Retur ini sudah VOID, tidak bisa direvisi.',
+      );
+    }
+    if (dto.supplierId !== existing.supplierId) {
+      throw new BadRequestException(
+        'Supplier retur tidak bisa diganti — VOID retur ini lalu buat retur baru ke supplier yang benar.',
+      );
+    }
+    this.validateSettlement(dto);
+
+    await this.printLockService.preflight({
+      table: 'purchase_returns',
+      sourceType: 'PURCHASE_RETURN',
+      documentId: id,
+      documentLabel: existing.returnNumber,
+      intent: 'EDIT',
+      reason: dto.reason,
+      user,
+      authorizationRequestId,
+    });
+
+    await this.dataSource.transaction(async (manager) => {
+      await this.printLockService.consume({
+        table: 'purchase_returns',
+        sourceType: 'PURCHASE_RETURN',
+        documentId: id,
+        documentLabel: existing.returnNumber,
+        intent: 'EDIT',
+        reason: dto.reason,
+        user,
+        authorizationRequestId,
+        manager,
+      });
+      const wasPrinted =
+        existing.printStatus === PurchaseReturnPrintStatus.PRINTED;
+
+      const badStockWarehouse = await this.resolveBadStockWarehouse(manager);
+      const lineContexts = await this.resolveLineContexts(
+        dto.lines,
+        dto.unitMode,
+        manager,
+      );
+      if (dto.settlementType === PurchaseReturnSettlementType.CASH) {
+        await this.accountResolverService.assertAccountHasFlag(
+          dto.cashAccountId!,
+          'is_cash_account',
+          'Kas/Bank',
+          manager,
+        );
+      }
+      const newReturnDate = parseDateOnly(dto.returnDate);
+
+      await this.documentReviseService.revise({
+        sourceType: 'PURCHASE_RETURN',
+        sourceId: id,
+        originalDate: parseDateOnly(existing.returnDate),
+        userId: user.sub,
+        manager,
+        reversalDescription: `Pembalik revisi retur pembelian ${existing.returnNumber}`,
+        applyChanges: async (m): Promise<ApplyChangesResult> => {
+          await m.update(PurchaseReturn, id, {
+            returnDate: toDateOnlyString(newReturnDate),
+            unitMode: dto.unitMode,
+            settlementType: dto.settlementType,
+            cashAccountId: dto.cashAccountId ?? null,
+            notes: dto.notes ?? null,
+          });
+          await m.delete(PurchaseReturnLine, { purchaseReturnId: id });
+          const { journalLines } = await this.postLinesAndBuildJournal({
+            purchaseReturnId: id,
+            returnNumber: existing.returnNumber,
+            returnDate: newReturnDate,
+            dto,
+            lineContexts,
+            badStockWarehouseId: badStockWarehouse.id,
+            userId: user.sub,
+            manager: m,
+          });
+          return {
+            repostDate: newReturnDate,
+            journalDescription: `Retur Pembelian ${existing.returnNumber} (revisi)`,
+            journalLines,
+          };
+        },
+      });
+
+      if (!wasPrinted) {
+        await manager.increment(PurchaseReturn, { id }, 'revisionNumber', 1);
+      }
+    });
+
+    return this.findOne(id);
   }
 
   /**

@@ -53,7 +53,7 @@ const CHANNEL_LABEL: Record<SalesChannel, string> = {
 const route = useRoute()
 const api = useApi()
 const toast = useToast()
-const { withStepUp } = useStepUp()
+const { performDualGateVoid } = useDualGateVoid()
 const { format: rupiah } = useRupiah()
 const { format: qtyFmt } = useQty()
 const { loadCustomerMap, loadProductMap, loadUnitMap, loadSalesmanMap, loadVehicleMap } = useSalesInvoiceLookups()
@@ -176,68 +176,10 @@ function voidPayload() {
 function callVoid(headers?: Record<string, string>) {
   return api.post(`/sales-invoices/${invoiceId}/void`, voidPayload(), headers)
 }
-
-/**
- * VOID Sales Invoice bisa memicu DUA gerbang step-up INDEPENDEN sekaligus
- * (SalesInvoicesController.voidInvoice(), lihat komentar panjang di sana):
- *   - UNLOCK_PRINT (header x-authorization-request-id) -- semua role, HANYA
- *     kalau faktur sudah PRINTED. preflight() di backend selalu dicek LEBIH
- *     DULU daripada gerbang VOID_DOCUMENT.
- *   - VOID_DOCUMENT (header x-void-authorization-request-id) -- HANYA role
- *     OPERATOR, tidak peduli status cetak.
- *
- * useStepUp().withStepUp() generik cuma dirancang untuk SATU gerbang aktif
- * per panggilan (satu authorizationRequestId, satu header hardcoded
- * `x-authorization-request-id`, lihat useStepUp.ts). Operator+faktur PRINTED
- * butuh KEDUANYA. Kalau dipakai polos berantai, retry OTOMATIS withStepUp()
- * setelah gerbang pertama disetujui akan memanggil endpoint sungguhan yang
- * (untuk OPERATOR) langsung memicu 412 KEDUA -- dan pollOnce() di
- * useStepUp.ts salah menafsirkan 412 di tengah "retrying" sebagai "isi
- * permintaan berubah sejak disetujui" (kontrak CLAUDE.md §19), padahal itu
- * gerbang lain yang sah. Makanya alur di sini SENGAJA tidak membiarkan
- * retry-otomatis withStepUp() memanggil endpoint sungguhan selama masih
- * mungkin ada gerbang kedua menyusul -- lihat komentar di titik SKIP.
- *
- * Print status faktur sudah diketahui dari state `invoice` (dimuat sebelum
- * modal VOID bisa dibuka) -- dipakai untuk menentukan gerbang mana yang
- * SUNGGUH dipicu ronde pertama, jadi tidak perlu menebak dari isi 412.
- */
-async function performVoid(): Promise<unknown> {
-  const isPrinted = invoice.value?.printStatus === 'PRINTED'
-  const firstHeaderKey = isPrinted ? 'x-authorization-request-id' : 'x-void-authorization-request-id'
-  let firstHeaders: Record<string, string> = {}
-  const SKIP = Symbol('void-round-one-skip')
-
-  const roundOne = await withStepUp(async (headers) => {
-    if (headers) {
-      // Gerbang ronde pertama sudah disetujui -- SIMPAN headernya di slot
-      // yang benar, tapi JANGAN panggil endpoint sungguhan di sini kalau
-      // faktur PRINTED (gerbang VOID_DOCUMENT untuk OPERATOR masih mungkin
-      // menyusul, lihat komentar fungsi di atas). Ronde kedua di bawah yang
-      // memanggilnya.
-      firstHeaders = { [firstHeaderKey]: headers['x-authorization-request-id'] as string }
-      return SKIP
-    }
-    return callVoid()
-  })
-  if (roundOne !== SKIP) return roundOne // MASTER + faktur belum dicetak: tidak ada gerbang sama sekali, sudah selesai.
-
-  if (!isPrinted) {
-    // Ronde pertama SUDAH menyelesaikan satu-satunya gerbang (VOID_DOCUMENT
-    // untuk OPERATOR) -- faktur yang belum pernah dicetak tidak punya
-    // gerbang UNLOCK_PRINT sama sekali.
-    return callVoid(firstHeaders)
-  }
-
-  // Sampai sini: faktur PRINTED dan ronde pertama baru menyelesaikan
-  // UNLOCK_PRINT. Kalau role bukan OPERATOR, panggilan pertama di dalam
-  // withStepUp() ini akan langsung sukses (tidak ada gerbang VOID_DOCUMENT
-  // untuk MASTER) -- withStepUp() menangani itu transparan (action() sukses
-  // tanpa throw, dialog tidak pernah tampil untuk ronde ini).
-  return withStepUp(headers => callVoid({
-    ...firstHeaders,
-    ...(headers ? { 'x-void-authorization-request-id': headers['x-authorization-request-id'] as string } : {})
-  }))
+// Dua gerbang VOID (UNLOCK_PRINT + VOID_DOCUMENT) — penjelasan lengkap di
+// composables/useDualGateVoid.ts.
+function performVoid(): Promise<unknown> {
+  return performDualGateVoid(invoice.value?.printStatus === 'PRINTED', callVoid)
 }
 
 async function submitVoid() {

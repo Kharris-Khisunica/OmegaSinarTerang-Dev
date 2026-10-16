@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DocumentCounterModule } from '../../core/document-counter/document-counter.module';
 import { PrintLockModule } from '../../core/print-lock/print-lock.module';
+import { StepUpModule } from '../../core/step-up/step-up.module';
 import { SalesInvoice } from '../sales-invoices/entities/sales-invoice.entity';
 import { Salesman } from '../salesmen/entities/salesman.entity';
 import { Vehicle } from '../vehicles/entities/vehicle.entity';
@@ -12,8 +13,9 @@ import { DeliveryOrdersService } from './delivery-orders.service';
 
 // TIDAK import StockRecorderModule/JournalPosterModule — surat jalan tidak
 // menyentuh stok maupun jurnal sama sekali (CLAUDE.md §3, stok sudah
-// berkurang saat faktur diposting). TIDAK import VoidModule/StepUpModule —
-// VOID untuk SJ sengaja belum dibangun hari ini (pola sama RJ/RB).
+// berkurang saat faktur diposting). TIDAK import VoidModule — VOID SJ
+// (need_fixing.md #18) tidak membalik jurnal/stok, cukup status dokumen;
+// StepUpModule untuk gerbang VOID_DOCUMENT OPERATOR.
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -25,6 +27,7 @@ import { DeliveryOrdersService } from './delivery-orders.service';
     ]),
     DocumentCounterModule,
     PrintLockModule,
+    StepUpModule,
   ],
   controllers: [DeliveryOrdersController],
   providers: [DeliveryOrdersService],

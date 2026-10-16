@@ -5,7 +5,7 @@
 // entity ber-id seperti form CRUD lain. Tetap MASTER-only lewat role guard.
 definePageMeta({ title: 'Pengaturan', roles: ['MASTER'] })
 
-type SettingInputType = 'boolean' | 'number' | 'text' | 'select'
+type SettingInputType = 'boolean' | 'number' | 'currency' | 'text' | 'select'
 
 interface SettingMeta {
   label: string
@@ -52,7 +52,7 @@ const STORE_IDENTITY_ORDER = ['store_code', 'store_name', 'store_city', 'store_p
 const SETTING_META: Record<string, SettingMeta> = {
   company_is_pkp: {
     label: 'Perusahaan Berstatus PKP',
-    description: 'Kalau diaktifkan, PPN dihitung otomatis di nota penjualan untuk customer yang juga PKP. Kalau dimatikan, PPN selalu Rp0 di semua nota — berapa pun tarif pajaknya.',
+    description: 'Kalau diaktifkan, PPN keluaran dihitung otomatis di semua nota penjualan, tidak peduli pelanggannya PKP atau bukan. Kalau dimatikan, PPN keluaran selalu Rp0 — berapa pun tarif pajaknya. PPN masukan dari supplier PKP tetap dibayar; saat dimatikan, PPN masukan ikut menjadi harga pokok.',
     type: 'boolean'
   },
   tax_calculation_mode: {
@@ -73,9 +73,15 @@ const SETTING_META: Record<string, SettingMeta> = {
     label: 'Lebar Bucket Umur Piutang/Hutang',
     description: 'Jumlah hari per kelompok umur di Laporan Piutang dan Laporan Hutang (mis. 30 -> kolom "1-30", "31-60", "61-90", ">90"). Berlaku langsung ke laporan berikutnya, tanpa restart.',
     type: 'number'
+  },
+  // need_fixing.md #22 — dulu dimuat (extraKeys) tapi tidak pernah dirender.
+  cash_outflow_approval_threshold: {
+    label: 'Ambang Persetujuan Pengeluaran Kas',
+    description: 'Pengeluaran dari akun kas yang ditandai "butuh persetujuan" (mis. Kas Besar, bank) DI ATAS nominal ini wajib disetujui Supervisor/Master. Rp0 berarti setiap pengeluaran dari akun tersebut butuh persetujuan.',
+    type: 'currency'
   }
 }
-const SETTING_ORDER = ['company_is_pkp', 'tax_calculation_mode', 'backdate_max_days', 'aging_bucket_days']
+const SETTING_ORDER = ['company_is_pkp', 'tax_calculation_mode', 'backdate_max_days', 'aging_bucket_days', 'cash_outflow_approval_threshold']
 
 const api = useApi()
 const toast = useToast()
@@ -145,7 +151,7 @@ onMounted(load)
       variant="subtle"
       icon="i-lucide-alert-triangle"
       :title="bannerError"
-      :close-button="{ icon: 'i-lucide-x', color: 'neutral', variant: 'link' }"
+      :close="{ icon: 'i-lucide-x', color: 'neutral', variant: 'link' }"
       @update:open="bannerError = ''"
     />
 
@@ -218,6 +224,12 @@ onMounted(load)
               v-else-if="SETTING_META[key]!.type === 'number'"
               :model-value="Number(form[key])"
               class="w-40"
+              @update:model-value="(v) => (form[key] = v ?? 0)"
+            />
+            <MoneyInput
+              v-else-if="SETTING_META[key]!.type === 'currency'"
+              :model-value="Number(form[key])"
+              class="w-48"
               @update:model-value="(v) => (form[key] = v ?? 0)"
             />
             <USelect

@@ -28,12 +28,14 @@ ditunda. Apa pun yang hanya **membaca** data yang sudah tersimpan, boleh.
 | Ditunda ke pasca-MVP | Bekas hari | Tenggat sebenarnya |
 |---|---|---|
 | Tutup bulan + closing + buka kembali (§2.15) | 23A | sebelum 1 Okt (tutup bulan September) |
-| Laporan penjualan, piutang, hutang | 30 | bulan pertama operasi |
-| Laporan biaya operasional | 31 | bulan pertama operasi |
+| ~~Laporan penjualan, piutang, hutang~~ **un-postponed 03 Sep 2026, dikerjakan Hari 30** — belum dikonfirmasi ke klien, `PROGRESS.md` §1 | 30 | bulan pertama operasi |
+| ~~Laporan biaya operasional~~ **un-postponed 05 Sep 2026, dikerjakan Hari 32A** — belum dikonfirmasi ke klien, `PROGRESS.md` §1/§3 | 32A (bekas 31) | bulan pertama operasi (sudah berjalan, cut-over lewat 1 Sep) |
 | Layar Jurnal Manual (mesinnya tetap dibangun) | 12 | tidak mendesak |
 
 **Yang tetap dibangun dan tidak boleh ikut ditunda:** seluruh posting jurnal · 5 invarian ·
-validator **backdate 2 hari** · laporan stok & barang titipan · rekap kas harian ·
+validator **backdate 2 hari** (kecuali Biaya Operasional & Pindah Buku Kas: **7 hari**,
+lihat §3 "Biaya Operasional", keputusan klien 05 Sep — modul lain tetap 2 hari karena
+menyentuh FIFO/stok) · laporan stok & barang titipan · rekap kas harian ·
 Laporan Kontinuitas Nomor Dokumen · saldo awal.
 
 Bentuk `PeriodLockValidator` (§2.9) tetap dibuat sebagai **satu titik masuk**, hanya saja
@@ -68,7 +70,7 @@ transaksi. Cabang kedua = proyek terpisah berskala minggu, bukan setelan.
 |---|---|
 | Backend | NestJS (modular), TypeORM, PostgreSQL + `pgcrypto` |
 | Frontend | Nuxt 3, Nuxt UI, Pinia/composables |
-| Export | ExcelJS (**export PDF dipotong** 28 Juli) |
+| Export | ExcelJS + PDFKit (A4) — **PDF di-un-cut 05 Sep 2026**, lihat §8 |
 | Auth | JWT access + refresh (1 hari), bcrypt |
 | Deploy | PC operator (Windows) merangkap server, **tanpa Docker** — Postgres native + NestJS sebagai Windows service + nginx untuk frontend statis |
 
@@ -90,6 +92,17 @@ transaksi. Cabang kedua = proyek terpisah berskala minggu, bukan setelan.
 2. **Jurnal pembalik bertanggal hari ini**, bukan tanggal dokumen asli.
    Konsekuensi yang disengaja: mem-VOID dokumen lama **tidak pernah mengubah angka
    bulan yang sudah ditutup**. Ini yang membuat §2.15 aman.
+
+   ⚠️ **Satu pengecualian tertulis, khusus jalur Revisi-di-Tempat (§2.16a, paket R6,
+   keputusan K2).** `DocumentReviseService.revise()` membalik jurnal + stok LAMA **dan**
+   memposting ulang yang BARU bertanggal **dokumen asli**, bukan hari ini — supaya
+   koreksi salah harga/pelanggan faktur kemarin tetap tercatat di hari kemarin (rekap
+   kas harian & laporan penjualan tetap cocok dengan nota fisik). **VOID sendiri
+   (`VoidEngineService`) TIDAK berubah** dan tetap bertanggal hari ini seperti di atas —
+   dua jalur, dua aturan tanggal, JANGAN diseragamkan. Jendela revisi mengikuti batas
+   backdate 2 hari (§2.9) — faktur yang sudah keluar dari jendela itu tidak bisa
+   direvisi lagi, jalan keluarnya VOID + faktur baru (yang jurnal pembaliknya tetap
+   bertanggal hari ini, jadi tidak pernah menyentuh bulan yang sudah ditutup).
 3. **Semua transaksi yang menyentuh stok + jurnal wajib dalam satu DB transaction.**
    Gagal di tengah = rollback penuh. Tidak ada state setengah jadi.
 4. **Nomor dokumen** hanya boleh dari `DocumentCounterService.getNextNumber()`
@@ -118,9 +131,10 @@ transaksi. Cabang kedua = proyek terpisah berskala minggu, bukan setelan.
    nomor dari 0001 sampai terakhir terbit, statusnya, dan justifikasi VOID-nya.
 5. **Setiap perubahan stok wajib lewat `StockRecorderService`.** Dilarang UPDATE langsung
    ke `product_stock_balance` dari modul lain.
-6. **Setiap jurnal wajib lewat `JournalPosterService`** dengan 5 validasi:
+6. **Setiap jurnal wajib lewat `JournalPosterService`** dengan 6 validasi:
    minimal 2 baris · satu sisi > 0 (`CHECK ((debit_amount > 0) <> (credit_amount > 0))`) ·
-   `SUM(debit) = SUM(credit)` · akun aktif · nomor entry terisi.
+   `SUM(debit) = SUM(credit)` · akun aktif · nomor entry terisi · **akun `is_postable = true`**
+   (header Grup/Kategori tidak bisa dijurnal — Hari 17A, `docs/COA_USULAN.md` §7.3).
 7. **FIFO** pakai `SELECT ... FOR UPDATE` pada `stock_cost_lots` urut `lot_date` tertua.
    `lot_date` = **tanggal terima barang** (`receipt_date`), bukan tanggal invoice.
 8. **Stok minus diizinkan**, bukan ditolak. Response mengandung `stockWarning`.
@@ -210,6 +224,45 @@ transaksi. Cabang kedua = proyek terpisah berskala minggu, bukan setelan.
       Token yang disetujui untuk `VOID` **hanya** bisa dipakai untuk VOID.
     - Nota hasil revisi wajib mencantumkan **nomor revisi**.
     - Dokumen ber-status `VOIDED` **boleh dicetak ulang dengan tanda VOID** untuk arsip.
+    - **Pengecualian: status kirim Surat Jalan** (`delivery_status`) **bebas kunci cetak**
+      *(keputusan 6 Okt 2026, `need_fixing.md` #18 — belum dikonfirmasi ulang ke klien,
+      pola sama Payment §2.12)*. SJ selalu dicetak sebelum sopir berangkat, jadi tanpa
+      pengecualian ini setiap update status butuh approval. Status kirim adalah status
+      sub-ledger, bukan isi lembar (pola sama `paid_amount` faktur, §2.15): `print_status`
+      dan `revision_number` tidak berubah, jejaknya di `audit_logs`. **VOID SJ tetap
+      ikut kunci cetak** + `VOID_DOCUMENT` untuk Operator (§2.13), dan karena SJ tanpa
+      jurnal/stok, VOID-nya tidak lewat `VoidEngineService`.
+
+16a. **Revisi-di-tempat Faktur Penjualan & Pembelian** (paket R6, `docs/RENCANA_REVISI_TESTING_KLIEN.md`
+    §2A K1-K4 — **belum dikonfirmasi ulang ke klien**, pola sama Payment §2.12).
+    Alternatif VOID+faktur-baru untuk 80–90% kesalahan lapangan (salah harga/pelanggan),
+    lewat `DocumentReviseService` (`src/core/document-revise/`) + endpoint
+    `PATCH /sales-invoices/:id/revise` dan `PATCH /purchase-invoices/:id/revise`:
+    - **Nomor dokumen tetap**, `revision_number++`. Jurnal+stok LAMA dibalik lalu
+      diposting ulang di SATU transaction, **bertanggal dokumen asli** (poin 2 di atas,
+      pengecualian K2) — bukan VOID (yang tetap bertanggal hari ini).
+    - **Jendela = batas backdate 2 hari** (§2.9). Lewat dari itu → 400, pesannya
+      menyebut jalan keluar (VOID + faktur baru), bukan cuma menolak.
+    - **Gerbang otorisasi PAKAI YANG SUDAH ADA** (K4) — tidak ada `ActionType` baru:
+      `NOT_PRINTED` → bebas; `PRINTED` → `UNLOCK_PRINT` + `intent: EDIT` (poin 16 di
+      atas); harga hasil revisi di bawah harga pokok → `SELL_BELOW_COST` (poin 17,
+      **dievaluasi ulang**, bukan hanya saat create — kalau tidak, revisi jadi pintu
+      belakang melewati kontrol itu).
+    - Faktur pembelian yang barangnya **sudah terjual sebagian** tidak bisa direvisi
+      (`StockRecorderService.assertLotsUnconsumed`, batas yang sama dengan VOID) — jalan
+      keluarnya Retur Pembelian. Faktur penjualan yang **sudah punya Surat Jalan atau
+      Retur Penjualan** juga tidak bisa direvisi (baris lama dirujuk FK sungguhan dari
+      `delivery_order_lines`/`sales_return_lines`) — jalan keluarnya VOID + faktur baru.
+    - **Retur Penjualan & Retur Pembelian** memakai mesin yang sama sejak 6 Okt 2026
+      (`need_fixing.md` #19): `PATCH /sales-returns/:id/revise` & `/purchase-returns/:id/
+      revise`. Faktur asal (RJ) / supplier (RB) **tidak bisa diganti** — jalan keluarnya
+      VOID + retur baru. RJ yang barang Bad Stock-nya sudah keluar (diretur ke supplier/
+      dipindah) tidak bisa direvisi maupun di-VOID. VOID retur: pola dua gerbang Faktur.
+    - `stock_cost_lots.movement_id` (migration `AddMovementIdToStockCostLots`) mengunci
+      satu lot ke movement `recordIn()` PERSIS yang membentuknya — **wajib**, supaya lot
+      dari posting LAMA (sudah dibalik revisi sebelumnya) tidak pernah salah terbaca
+      sebagai "barang sudah terjual" oleh `reverseIn()`/`assertLotsUnconsumed()` begitu
+      dokumen yang sama posting ulang produk yang sama lebih dari sekali.
 17. **Jual di bawah harga pokok wajib otorisasi.**
     Batas = `unit_cost` **lot terbaru yang `unit_cost > 0`** (urut `lot_date` terbaru)
     × angka konversi ke satuan baris. **Lot bonus berharga nol wajib dilewati** — kalau tidak,
@@ -279,18 +332,40 @@ transaksi. Cabang kedua = proyek terpisah berskala minggu, bukan setelan.
   - **Operator tidak pernah melihat field ini.** Modal tambah pelanggan dari form penjualan
     menyimpan NULL. §5 tetap utuh: operator tidak butuh akses COA.
   - **MASTER** memilihnya dari dropdown **tersaring hanya akun bertipe piutang yang aktif**.
-  - **Lima tempat** menyentuh akun piutang: faktur penjualan, alokasi pembayaran,
-    retur penjualan, pembalikan VOID, saldo awal piutang. Kelimanya **wajib** membaca
-    `customer.ar_account_id ?? default` lewat **satu fungsi bersama**. Satu saja yang
-    menuliskan akun default secara langsung → saldo pelanggan bocor tanpa error apa pun.
+  - **Enam tempat** menyentuh akun piutang: faktur penjualan, alokasi pembayaran,
+    retur penjualan, pembalikan VOID, saldo awal piutang, **revisi faktur penjualan**
+    (paket R6, §2.16a — akun piutang ikut berpindah kalau `customerId` diganti saat
+    revisi). Keenamnya **wajib** membaca `customer.ar_account_id ?? default` lewat
+    **satu fungsi bersama**. Satu saja yang menuliskan akun default secara langsung →
+    saldo pelanggan bocor tanpa error apa pun.
   - **Dikunci selama saldo pelanggan belum nol.**
 - Data Pajak (nama, alamat, kota, NPWP, alias) disimpan, belum dipakai selama non-PKP.
-- Akun kas & bank **tidak di-seed** — diinput Master lewat CRUD COA (`is_cash_account`).
+- Akun kas & bank **DI-SEED sejak Hari 17A** (Kas Kecil, Kas Toko, Kas Besar, Bank BCA/BSI/
+  Mandiri/BSI a.n. Asmiati) — menyimpang dari keputusan awal "tidak di-seed" karena struktur
+  kas klien sudah diketahui lengkap dan `requires_outflow_approval` pada Kas Besar + seluruh
+  bank adalah inti kontrol Hari 17 (`docs/COA_USULAN.md` §7.3). MASTER tetap bisa menambah
+  akun kas/bank lain lewat CRUD COA (`is_cash_account`).
 
 **Salesman**
 - Master kecil: kode, nama, status aktif. Dipilih **per faktur penjualan**, bukan per pelanggan.
   Tercetak di nota. Tidak ada komisi. Gaji masuk biaya operasional tanpa dikaitkan ke salesman.
   Perlu laporan penjualan per salesman.
+- **Koreksi 02 Okt 2026** *(keputusan kerja langsung, belum dikonfirmasi ulang ke klien, pola
+  sama Payment §2.12)*: **Sales Order sekarang juga menyimpan salesman** — PJ (penanggung
+  jawab) atas SO itu, wajib diisi operator saat input SO. Dasarnya praktik segregasi tugas
+  klien: orang yang menjadi PJ/menulis SO harus berbeda dari orang yang melakukan pengecekan
+  barang saat diangkut — sistem ini **belum membangun** peran "checker" itu (tidak ada
+  validasi apa pun yang membandingkan PJ SO dengan siapa pun); yang ditambahkan murni
+  pondasi pencatatannya.
+  - Saat faktur **PENGIRIMAN** dibuat dari SO (selalu wajib SO, §1), salesman faktur
+    **terkunci ikut salesman SO** — `dto.salesmanId` yang dikirim operator **diabaikan**,
+    tidak dipakai sebagai fallback. Field Salesman di layar Faktur Penjualan terkunci
+    (read-only) begitu saluran PENGIRIMAN, menampilkan PJ dari SO yang dipilih.
+  - Saluran **TOKO** tidak berubah — tidak ada SO sama sekali, salesman tetap diketik
+    manual seperti sebelumnya.
+  - Edit faktur (`PATCH /sales-invoices/:id`) **menolak** mengubah `salesmanId` kalau
+    faktur itu punya `salesOrderId` — jalan keluarnya VOID + faktur baru atau revisi penuh
+    (`reviseInvoice()`, yang mengevaluasi ulang salesman dari SO apa adanya).
 
 **Gudang**
 - `warehouse_type`: `STORE` · `TITIPAN_PELANGGAN` · `BAD_STOCK`.
@@ -320,8 +395,15 @@ transaksi. Cabang kedua = proyek terpisah berskala minggu, bukan setelan.
 
   Sistem lama memisahkan ketiganya dan nilainya memang bisa berbeda. Kalau digabung jadi
   satu kolom, urutan FIFO akan mengikuti tanggal yang salah **tanpa satu pun error muncul**.
-- **`supplier_invoice_no`** disimpan — nomor faktur dari supplier. Tanpa ini rekonsiliasi
-  dengan tagihan supplier tidak punya pegangan.
+- **`supplier_invoice_no` OPSIONAL** *(diputuskan 08 Sep 2026, paket R7, asumsi A3 —
+  belum dikonfirmasi ulang ke klien, `docs/KONFIRMASI_KLIEN_REVISI.md`)*. Supplier tidak
+  selalu menerbitkan nota bernomor. Kolom **dipertahankan** (bukan dihapus) — kalau diisi,
+  tetap satu-satunya pegangan rekonsiliasi dengan tagihan supplier.
+  *(v3 mewajibkannya — dicabut karena tidak sesuai kenyataan lapangan klien.)*
+- Diskon baris pembelian **DI-DROP** *(paket R7, keputusan K5)* — kolom `discount_percent`/
+  `discount_amount` di `purchase_invoice_lines` dipertahankan (faktur lama tetap terbaca),
+  tapi faktur baru wajib mengirim 0 atau tidak mengirim sama sekali. Diskon faktur **rupiah
+  saja** (mode persen di tingkat faktur juga di-drop) — lihat §4 untuk rumus barunya.
 - **Ongkos kirim tidak dikapitalisasi** ke harga pokok. Masuk biaya operasional.
 - Field `Adjust` di sistem lama **tidak dipakai**. Tidak ada Order Pembelian.
 
@@ -329,8 +411,11 @@ transaksi. Cabang kedua = proyek terpisah berskala minggu, bukan setelan.
 - Barang bonus dicatat sebagai **baris tersendiri dengan `unit_price = 0`** dan flag `is_bonus`.
   Lot terbentuk dengan **`unit_cost = 0`**.
 - **Bonus selalu produk yang sama** dengan yang dibeli. Tidak ada kasus bonus produk berbeda.
-- Karena nilainya nol, baris bonus mendapat **alokasi diskon faktur nol** (pro-rata nilai) dan
-  **PPN masukan nol**. Total faktur tidak berubah.
+- Karena nilainya nol, baris bonus mendapat **PPN masukan nol**. Total faktur tidak berubah.
+  *(v3: juga menyebut "alokasi diskon faktur nol, pro-rata nilai" — konsep alokasi per baris
+  itu sendiri sudah dihapus sejak paket R7/K5, lihat §4; baris bonus sekarang otomatis tidak
+  pernah dapat bagian apa pun dari diskon faktur karena diskon faktur tidak lagi dialokasikan
+  ke baris mana pun.)*
 - **Aturan lintas modul:** setiap kali sistem mencari "lot terbaru" sebagai **dasar biaya**,
   lot berharga nol **dilewati**. Berlaku di §2.8 (fallback stok minus) dan §2.17 (batas jual-rugi).
   Tanpa aturan ini, satu pembelian berbonus mematikan batas jual-rugi sampai lot bonusnya habis.
@@ -360,6 +445,59 @@ transaksi. Cabang kedua = proyek terpisah berskala minggu, bukan setelan.
 - **Tukar barang dengan supplier = dua dokumen**, bukan satu: Retur Pembelian (`RB`)
   lalu Faktur Pembelian (`B1`) baru. Hutang saling menutup.
 
+**Biaya Operasional** *(keputusan kerja 05 Sep 2026, lewat sesi tertulis — bukan tatap muka
+klien. Pola sama Payment §2.12: berlaku sekarang, wajib dikonfirmasi ulang ke klien.
+Detail penuh & jejak tanya-jawab di `docs/PERTANYAAN_KLIEN_BIAYA_OPERASIONAL*.md` dan
+`PROGRESS.md` §3 tanggal 05 Sep.)*
+- **Satu bukti per hari per akun kas** (header `operational_expense_documents` + baris
+  `operational_expense_lines`), kas sumber **selalu Kas Kecil**. Baris ditambahkan ke bukti
+  hari itu lewat request terpisah-pisah sepanjang hari, bukan dikirim sekali di akhir hari.
+- **Edit langsung diizinkan** selama `operational_expense_documents.review_status` belum
+  `DISETUJUI` supervisor. Sesudah disetujui, koreksi wajib VOID + jurnal pembalik bertanggal
+  hari ini (§2.1) seperti dokumen lain — **ini pengecualian eksplisit** terhadap kebiasaan
+  "koreksi selalu VOID sejak baris pertama" yang berlaku di modul lain, disetujui klien
+  karena sifat dokumennya baru "mengeras" setelah dicek, bukan setelah disimpan.
+- **Backdate 7 hari**, khusus modul ini (dan Pindah Buku Kas) — bukan 2 hari seperti modul
+  lain (§2.9). Alasan: pola nyata klien, bukti akhir pekan sering baru diketik Senin/Selasa.
+  Modul yang menyentuh FIFO/stok TIDAK ikut dilonggarkan.
+- **Tidak ikut kunci cetak §2.16** (kode dokumen `KK`, sama seperti keputusan Hari 17) dan
+  **tidak ikut Laporan Kontinuitas Nomor Dokumen** — cetak ulang bebas untuk arsip, urutan
+  nomor terjamin lewat `DocumentCounterService` seperti biasa tanpa perlu laporan terpisah.
+- **Akun biaya real sudah ada sejak Hari 17A** (`06.110.xxx` Beban Penjualan & Distribusi,
+  `06.120.xxx` Beban Umum & Administrasi, dari `docs/COA_USULAN.md` — direkonsiliasi ke
+  laporan Juli klien). **Jangan menganggap ini masih placeholder** — 11 akun generik `52xx`
+  dari Hari 17 pagi sudah dihapus migration yang sama hari itu juga.
+  `06.110.00001 B. Gaji Salesman` **hanya boleh dipilih MASTER**; `06.110.00002 B. Upah
+  Tukang Angkut` boleh dipilih OPERATOR. Dua akun baru perlu ditambah (belum ada di 108 akun
+  Hari 17A): **Ongkos Kirim Pembelian** dan **Ongkos Bongkar Barang Masuk** (dari supplier,
+  tanpa rujukan supplier/faktur pembelian — klien tidak pernah pisah per pengiriman).
+- **`06.110.00006 B. BBM Kendaraan`** (dan akun servis/suku cadang/perizinan kendaraan
+  sejenis) pakai **satu akun + kolom kendaraan** di baris (FK ke `vehicles`, master yang
+  sama dipakai Surat Jalan Hari 24), bukan satu akun per plat. Kendaraan aktif sekarang:
+  **D-8327 TD** dan **F 8746 SR**.
+- **Master Pekerja/Tukang Angkut** (tabel baru, pola sama `salesmen`/`vehicles`: kode, nama,
+  aktif) — orangnya karyawan tetap, bukan berganti-ganti, jadi layak jadi data bukan teks
+  bebas. Dipakai di baris Gaji Tukang Angkut dan di Kasbon.
+- **Kasbon karyawan** pakai akun `01.120.00002 Piutang Karyawan` (sudah ada sejak Hari 17A)
+  di baris Biaya Operasional — pengecualian eksplisit terhadap aturan "hanya akun EXPENSE"
+  di baris ini. Selalu dari Kas Kecil, dilunasi **setor tunai** (bukan potong gaji).
+  Baris Kasbon **wajib memilih pekerja**. Pelunasan lewat dokumen **Pelunasan Kasbon**
+  (kode `PK`, menu Kas & Bank — keputusan 6 Okt 2026, `need_fixing.md` #26, belum
+  dikonfirmasi ulang ke klien): selalu ke **Kas Kecil**, jurnal Kas Kecil (D) / Piutang
+  Karyawan (K), tidak boleh melebihi sisa kasbon pekerja, VOID oleh Operator wajib
+  `VOID_DOCUMENT`. Backdate default 2 hari (bukan pengecualian 7 hari). Baris Kasbon yang
+  sudah dilunasi tidak bisa di-VOID sebelum pelunasannya di-VOID.
+- **Pindah Buku Kas** — dokumen baru, kode `PB` (`DocumentCounterService`), menu generik
+  (dari kas → ke kas → nominal → keterangan). Isi ulang Kas Kecil **selalu Rp 1.000.000**;
+  setoran Kas Toko → Kas Besar akhir hari **dipindahkan seluruhnya** (tidak disisakan modal
+  kembalian). Approval supervisor **setelah-fakta** (transaksi jalan dulu, ditandai lewat
+  `review_status` sama seperti Pengecekan Invoice Harian) — **bukan** StepUp 412 seperti
+  `CASH_OUTFLOW`, karena ini pemindahan antar kas milik sendiri, bukan pengeluaran ke pihak
+  luar. Tidak ikut kunci cetak §2.16 (sama seperti Biaya Operasional).
+- **Laporan Biaya Operasional**: rekap per akun (`Nama Biaya | Jumlah` + Grand Total), bulan
+  berjalan, export Excel saja (PDF tetap dipotong, §7 backlog). Kasbon/Piutang Karyawan
+  **tidak ikut** rekap ini — itu bukan biaya, dilihat dari buku besar akunnya sendiri.
+
 **Saldo Awal**
 - **Bertanggal 1 September 2026.** Diinput di **Hari 36** (29 Agustus), memakai buffer.
 - Karena tanggalnya di depan tanggal input, alur saldo awal adalah **satu-satunya
@@ -378,7 +516,10 @@ transaksi. Cabang kedua = proyek terpisah berskala minggu, bukan setelan.
 - Akun **Retur Pembelian tidak ada** (sistem perpetual).
 - Akun **Retur Penjualan tetap ada** (kontra pendapatan).
 - Wajib ada: `Diskon Penjualan` (kontra pendapatan, metode bruto) · `Selisih Pembayaran`
-  (satu akun, dua arah) · `Selisih Retur Pembelian` (dua arah).
+  (satu akun, dua arah) · `Selisih Retur Pembelian` (dua arah) · `Diskon Pembelian`
+  (`07.110.00005`, Pendapatan Lain-lain — paket R7, keputusan K6; **beda arah** dari
+  `Diskon Penjualan`: diskon pembelian menambah pendapatan lain, bukan mengurangi
+  pendapatan penjualan, karena ia dilihat dari sisi pembeli).
 
 **Lain-lain**
 - **Retur penjualan wajib menunjuk faktur asal.** Harga pokoknya wajib dari
@@ -388,6 +529,8 @@ transaksi. Cabang kedua = proyek terpisah berskala minggu, bukan setelan.
 - **Sales Order tidak menahan stok.** Qty terikat SO terbuka hanya **ditampilkan** sebagai
   informasi. Stok berkurang saat faktur, bukan saat SO.
   SO **tidak ikut kunci cetak** dan **tidak masuk Laporan Kontinuitas Nomor** (§2.16).
+  SO yang tidak jadi **dibatalkan** (status `CANCELLED` + alasan wajib, hanya dari `OPEN`,
+  tanpa persetujuan — bukan VOID karena tidak ada jurnal; `need_fixing.md` #20).
 
 ---
 
@@ -427,40 +570,60 @@ Akun piutang = `customer.ar_account_id ?? settings.default_ar_account_id`.
 
 ### Faktur Pembelian
 
-Urutan hitung wajib, per baris:
+**Direvisi 08 Sep 2026 (paket R7, keputusan K5+K6) — belum dikonfirmasi ulang ke klien,
+`docs/KONFIRMASI_KLIEN_REVISI.md`.** Rumus v3 (di bawah, digantikan) mengalokasikan diskon
+faktur pro-rata ke tiap baris lalu melarutkannya ke `lot.unit_cost` — itu sumber harga pokok
+tidak bulat yang ditemukan saat testing. Rumus baru menghapus alokasi itu sama sekali,
+bukan menambalnya.
+
+Urutan hitung wajib, per baris — **TIDAK ADA lagi diskon baris**:
 
 ```
-1. baris_kotor    = qty × harga
-2. diskon_baris   = persen ATAU rupiah
-3. baris_bersih   = baris_kotor − diskon_baris
-4. subtotal       = Σ baris_bersih
-5. alokasi[i]     = diskon_faktur × (baris_bersih[i] / subtotal)     ← pro-rata NILAI baris
-6. baris_final[i] = baris_bersih[i] − alokasi[i]
-7. ppn_masukan[i] = (supplier.is_pkp && product.is_bkp) ? baris_final[i] × tax_rate : 0
-8. harga_pokok[i] = baris_final[i] + (company_is_pkp ? 0 : ppn_masukan[i])
-9. lot.unit_cost  = harga_pokok[i] ÷ qty dalam satuan dasar
+1. baris[i]       = qty × harga                                    ← tidak ada diskon baris
+2. subtotal       = Σ baris[i]
+3. ppn_masukan[i] = (supplier.is_pkp && product.is_bkp) ? baris[i] × tax_rate : 0
+4. harga_pokok[i] = baris[i] + (company_is_pkp ? 0 : ppn_masukan[i])
+5. lot.unit_cost  = harga_pokok[i] ÷ qty dalam satuan dasar         ← EKSAK, tanpa residu
+6. diskon_faktur  = angka RUPIAH di akhir faktur (mode persen di-drop)
+7. total_bayar    = subtotal + Σ ppn_masukan[i] − diskon_faktur
 ```
 
-Sisa pembulatan langkah 5 dibebankan ke **baris terakhir**, supaya Σ alokasi persis sama
-dengan `diskon_faktur`. Tanpa aturan ini nilai persediaan tidak akan pernah cocok.
+**Diskon faktur (rupiah saja) TIDAK PERNAH dialokasikan ke baris dan TIDAK PERNAH menyentuh
+harga pokok/`lot.unit_cost`.** Karena tidak ada lagi alokasi, tidak ada lagi "sisa pembulatan
+dibebankan ke baris terakhir" — langkah 5 selalu eksak.
 
-**Baris bonus** (`is_bonus = true`) melewati seluruh urutan di atas: `baris_kotor = 0`,
-alokasi diskon 0, PPN 0, `lot.unit_cost = 0`. Qty-nya tetap masuk stok penuh.
+**Baris bonus** (`is_bonus = true`) melewati langkah 1-5: `baris[i] = 0`, PPN 0,
+`lot.unit_cost = 0`. Qty-nya tetap masuk stok penuh (§3 "Bonus dari supplier").
 
 ```
 company_is_pkp = false (sekarang):
-  Persediaan   (D) Σ harga_pokok        ← sudah termasuk PPN masukan
-      Hutang Usaha  (K) Σ harga_pokok
+  Persediaan          (D) Σ harga_pokok        ← sudah termasuk PPN masukan
+      Hutang Usaha        (K) total_bayar
+      Diskon Pembelian    (K) diskon_faktur     ← HANYA kalau diskon_faktur > 0
 
 company_is_pkp = true (nanti):
-  Persediaan   (D) Σ baris_final
-  PPN Masukan  (D) Σ ppn_masukan
-      Hutang Usaha  (K) Σ (baris_final + ppn_masukan)
+  Persediaan          (D) Σ baris[i]
+  PPN Masukan         (D) Σ ppn_masukan[i]
+      Hutang Usaha        (K) total_bayar
+      Diskon Pembelian    (K) diskon_faktur     ← HANYA kalau diskon_faktur > 0
 ```
 
-**Diskon pembelian tidak pernah masuk jurnal** — ia larut ke harga pokok. Akun
-"Diskon Pembelian" **tidak dibuat**. Nilainya tetap tersimpan di `purchase_invoice_lines`
-dan tercetak di faktur.
+Di kedua cabang, `total_bayar` (kredit Hutang Usaha) sama-sama `subtotal + Σ ppn_masukan −
+diskon_faktur` — jurnal tetap balance baik diskon_faktur nol maupun tidak.
+
+**Diskon pembelian SEKARANG masuk jurnal** — akun `07.110.00005 Diskon Pembelian`
+(§3 "Akun (COA)", Pendapatan Lain-lain). Baris jurnal ini **hanya dibuat kalau
+`diskon_faktur > 0`**, pola sama "Selisih Retur Pembelian" di Retur Pembelian.
+*(v3 menulis kebalikannya — "akun Diskon Pembelian tidak dibuat, diskon larut ke harga
+pokok" — itu sudah digantikan rumus di atas.)*
+
+**Konsekuensi akuntansi yang disengaja, bukan bug:** persediaan sekarang tercatat **sebelum**
+diskon faktur — nilainya **lebih tinggi** dari uang yang benar-benar dibayar ke supplier
+(`total_bayar`), dan diskon faktur diakui sebagai pendapatan lain saat pembelian, bukan
+pengurang harga pokok. Margin penjualan berikutnya karena itu tampak lebih tipis. Ini pilihan
+klien (dan yang membuat harga pokok bulat) — jangan "diperbaiki" tanpa perintah, pola sama
+catatan lot bonus di §3. **Rumus ini berlaku maju** — lot yang sudah terbentuk dengan rumus
+lama (v3, sebelum 08 Sep 2026 paket R7) **tidak dihitung ulang**.
 
 ### Retur Pembelian (dari gudang BAD_STOCK)
 
@@ -529,9 +692,23 @@ Bentuk teknisnya (jurnal sungguhan vs konstruksi tampilan) masih **PR terbuka** 
 | Approve `authorization_requests` | ✅ | ✅ | ❌ |
 | **Halaman Pengecekan Invoice Harian** | ✅ | ✅ | ❌ |
 | Retur, Payment, Surat Jalan, Mutasi Gudang, Biaya Operasional | ✅ | ❌ write | ✅ |
-| Laporan | ✅ | ✅ | ✅ (kecuali COA) |
+| Laporan | ✅ | ✅ | ✅ (kecuali COA **dan Stok Opname**†) |
 
 \* Jurnal Manual **ditolak** untuk akun Persediaan, Piutang, Hutang — meski Master.
+
+† **Stok Opname** (paket R11/L1, keputusan kerja 20 Sep 2026 — belum dikonfirmasi ulang ke
+klien, pola sama Payment §2.12) dibatasi **MASTER+SUPERVISOR**: operator tidak boleh melihat
+angka sistem sebelum stok fisik dicek. Satu-satunya pengecualian di baris Laporan — laporan
+lain tetap terbuka semua role. Sejak 6 Okt 2026 (`need_fixing.md` #25) hitungan **disimpan**
+sebagai dokumen `OP` (DRAFT, MASTER/SUPERVISOR); **Posting = persetujuan koreksi, MASTER
+saja** — selisih jadi movement stok (`adjustment`) + jurnal Persediaan ↔ `05.110.00002
+Selisih Persediaan (Stok Opname)`, bertanggal hari posting. VOID (MASTER) membalik keduanya.
+
+‡ **Jurnal** (`GET /journal-entries`, layar Akuntansi > Jurnal) MASTER+SUPERVISOR,
+OPERATOR 403 (`need_fixing.md` #17, 6 Okt 2026).
+
+**Manajemen user & reset password** (layar Pengaturan > Pengguna, `/users`) MASTER saja
+(`need_fixing.md` #24).
 
 **Supervisor tidak punya dashboard.** Navigasinya hanya 3 item:
 Pengecekan Invoice · Antrian Persetujuan · Laporan.
@@ -562,6 +739,11 @@ dengan kontrak yang sama seperti guard — frontend cukup punya satu jalur penan
 - Error bisnis → `BadRequestException` dengan `message` berbahasa Indonesia yang bisa dibaca operator.
 
 **Frontend**
+- **Baca `docs/PANDUAN_UI.md` sebelum menyentuh apa pun di `frontend/`.** Bentuk layar
+  (tata letak, urutan tombol, nama kolom, istilah, kepadatan grid, template cetak)
+  diturunkan dari screenshot sistem lama di `docs/referensi/`, bukan dikarang. File ini
+  tetap menang untuk aturan bisnis; `PANDUAN_UI.md` menang untuk bentuk UI. Kalau
+  keduanya bertabrakan dan tidak bisa didamaikan, **berhenti dan tanya** (§9.2).
 - Semua tabel list memakai `<DataTable>`; semua form create/edit memakai `<CrudFormPage>`.
   **Dilarang copy-paste layout tabel/form.** Kalau butuh varian, tambah prop, jangan fork komponen.
 - Format angka pakai satu composable `useRupiah()` / `useQty()`. Tidak ada `toLocaleString` tersebar.
@@ -619,8 +801,18 @@ alur Saldo Awal · validator **backdate** (pemeriksaan periode menyusul pasca-MV
 navigasi keyboard penuh tanpa mouse · Enter menambah baris · fokus otomatis ke field pertama.
 Tetap dibangun, tidak dipoles sampai bebas-mouse total.
 
-**Sudah dipotong** (disepakati 28 Juli, urut): Export PDF laporan (Excel dulu) ·
-Laporan retur & stok minus · Cash opname · Rekap setoran agen.
+**Sudah dipotong** (disepakati 28 Juli, urut): ~~Export PDF laporan~~ · Laporan retur &
+stok minus · Cash opname · Rekap setoran agen.
+
+> **Un-cut 05 Sep 2026**: Export PDF laporan **dikembalikan ke scope**, diputuskan
+> langsung oleh user (bukan dikonfirmasi klien) karena kalender riil sudah lewat cut-over
+> dan mesin (`ExportService.exportToPdf`, PDFKit) sudah generik sejak Hari 28 — cuma
+> belum di-expose di FE (`<ExportButton :formats>` semua halaman `laporan/*` dibatasi
+> `['xlsx']`). Format **A4** (landscape otomatis kalau kolom > 6), **bukan A5** — A5 tetap
+> khusus dokumen transaksi (nota/faktur/surat jalan/kwitansi, §6), tidak dipakai untuk
+> laporan tabular yang bisa banyak kolom. Dikerjakan: hapus prop `:formats="['xlsx']"` di
+> 8 halaman `frontend/app/pages/laporan/*.vue`, sehingga jatuh ke default
+> `ExportButton` (`['xlsx', 'pdf']`) yang sudah ada sejak Hari 26.
 Sisa daftar: Sales Order **tidak boleh** (klien justru ingin memindahkannya dari kertas ke
 program) · Bad stock **tidak bisa lagi** (retur pembelian bergantung padanya).
 

@@ -1,0 +1,11 @@
+{
+	auto_https off
+	admin off
+}
+
+:80 {
+	root * /srv
+	encode gzip
+	try_files {path} /index.html
+	file_server
+}

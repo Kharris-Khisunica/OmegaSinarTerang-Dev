@@ -48,6 +48,11 @@ interface CustomerOption {
 }
 interface LineRow {
   productId: string | undefined
+  // Yang DIKETIK operator: angka + satuan (need_fixing.md #28, default satuan
+  // terbesar). qtyBaseUnit = qtyInput × isi, dihitung di saveLine() -- itulah
+  // satu-satunya angka yang dikirim ke backend.
+  qtyInput?: number
+  unitName?: string
   qtyBaseUnit: number | undefined
   // WAJIB untuk mode TITIPAN (paket R8 keputusan K7) -- baris dipilih DARI
   // BARIS FAKTUR, bukan dari master produk. undefined untuk mode TRANSFER.
@@ -374,8 +379,38 @@ const productOptions = computed<SelectOption[]>(() =>
 // N5 murni informasi read-only di bawah, bukan field yang bisa diketik).
 const lineOpen = ref(false)
 const lineEditIndex = ref<number | null>(null)
-const lineDraft = ref<LineRow>({ productId: undefined, qtyBaseUnit: undefined, salesInvoiceLineId: undefined })
+const lineDraft = ref<LineRow>({ productId: undefined, qtyInput: undefined, unitName: undefined, qtyBaseUnit: undefined, salesInvoiceLineId: undefined })
 const lineDirty = ref(false)
+const lineUnitChoices = computed(() => unitChoicesForProduct(lineDraft.value.productId ? productMap.value.get(lineDraft.value.productId) : undefined))
+const lineUnitOptions = computed(() => lineUnitChoices.value.map(u => ({
+  label: u.factor === 1 ? u.name : `${u.name} (isi ${qtyFmt(u.factor)})`,
+  value: u.name
+})))
+function draftQtyBaseUnit(): number {
+  const qty = lineDraft.value.qtyInput ?? 0
+  return Math.round(qty * unitFactor(lineUnitChoices.value, lineDraft.value.unitName) * 10000) / 10000
+}
+// Isi ulang angka + satuan dari qty satuan dasar (sisa titipan, baris lama/
+// draf sebelum #28) -- satuan terbesar yang membaginya habis.
+function fillDraftFromBase(productId: string | undefined, qtyBaseUnit: number | undefined) {
+  const choices = unitChoicesForProduct(productId ? productMap.value.get(productId) : undefined)
+  if (qtyBaseUnit === undefined) {
+    lineDraft.value.qtyInput = undefined
+    lineDraft.value.unitName = choices[0]?.name
+    return
+  }
+  const { qty, unitName } = largestExactUnit(choices, qtyBaseUnit)
+  lineDraft.value.qtyInput = qty
+  lineDraft.value.unitName = unitName
+}
+function onLineProductChange() {
+  lineDraft.value.unitName = lineUnitChoices.value[0]?.name
+  lineDirty.value = true
+}
+function lineQtyText(line: LineRow): string {
+  if (line.qtyInput !== undefined && line.unitName) return `${qtyFmt(line.qtyInput)} ${line.unitName}`
+  return qtyBreakdownFor(line.productId ?? '', line.qtyBaseUnit ?? 0)
+}
 const lineFormError = ref('')
 
 const selectedLine = ref<(LineRow & Record<string, unknown>) | null>(null)
@@ -384,7 +419,7 @@ function onLineRowClick(row: Record<string, unknown>) {
   selectedLine.value = row as LineRow & Record<string, unknown>
 }
 function openLineEntri() {
-  lineDraft.value = { productId: undefined, qtyBaseUnit: undefined, salesInvoiceLineId: undefined }
+  lineDraft.value = { productId: undefined, qtyInput: undefined, unitName: undefined, qtyBaseUnit: undefined, salesInvoiceLineId: undefined }
   lineEditIndex.value = null
   lineDirty.value = false
   lineFormError.value = ''
@@ -397,8 +432,13 @@ function openLineEditSelected() {
   if (index === -1) return
   lineDraft.value = {
     productId: selectedLine.value.productId,
+    qtyInput: selectedLine.value.qtyInput,
+    unitName: selectedLine.value.unitName,
     qtyBaseUnit: selectedLine.value.qtyBaseUnit,
     salesInvoiceLineId: selectedLine.value.salesInvoiceLineId
+  }
+  if (lineDraft.value.qtyInput === undefined || !lineDraft.value.unitName) {
+    fillDraftFromBase(lineDraft.value.productId, lineDraft.value.qtyBaseUnit)
   }
   lineEditIndex.value = index
   lineDirty.value = false
@@ -413,8 +453,20 @@ function removeSelectedLine() {
   lines.value.splice(index, 1)
   selectedLine.value = null
 }
+// need_fixing.md #8 — hotkey grid baris (PANDUAN_UI.md §12): Delete minta
+// konfirmasi; Enter di field terakhir modal baris = simpan lalu buka baris
+// kosong berikutnya (hanya saat entri baris baru, bukan saat mengubah).
+function confirmRemoveSelectedLine() {
+  if (selectedLine.value && window.confirm('Hapus baris terpilih?')) removeSelectedLine()
+}
+function saveLineAndNew() {
+  const wasNewLine = lineEditIndex.value === null
+  saveLine()
+  if (wasNewLine && !lineOpen.value) openLineEntri()
+}
 function saveLine() {
   lineFormError.value = ''
+  lineDraft.value.qtyBaseUnit = draftQtyBaseUnit()
   if (mode.value === 'TITIPAN') {
     if (!lineDraft.value.salesInvoiceLineId) {
       lineFormError.value = 'Pilih baris faktur terlebih dahulu.'
@@ -442,7 +494,7 @@ function saveLine() {
 
 const lineColumns: Column<LineRow & Record<string, unknown>>[] = [
   { key: 'productId', label: 'Produk', format: v => productOptions.value.find(p => p.value === v)?.label ?? '-' },
-  { key: 'qtyBaseUnit', label: 'Qty', align: 'right', format: v => qtyFmt(v as number) }
+  { key: 'qtyBaseUnit', label: 'Qty', align: 'right', format: (_v, row) => lineQtyText(row) }
 ]
 
 // ---- Pemilih baris faktur (mode TITIPAN, paket R8 K7) ----------------------
@@ -476,6 +528,7 @@ function onFakturLineRowClick(row: Record<string, unknown>) {
     qtyBaseUnit: remaining,
     salesInvoiceLineId: fakturLineId
   }
+  fillDraftFromBase(row.productId as string, remaining)
   lineDirty.value = true
 }
 
@@ -763,6 +816,9 @@ onMounted(async () => {
       :draft-data="draftData"
       @update:open="(v: boolean) => !v && closeEntri()"
       @restore-draft="restoreDraft"
+      @new-line="openLineEntri"
+      @edit-line="openLineEditSelected"
+      @delete-line="confirmRemoveSelectedLine"
       @save="submit"
     >
       <template #header>
@@ -772,7 +828,7 @@ onMounted(async () => {
           variant="subtle"
           icon="i-lucide-alert-triangle"
           :title="bannerError"
-          :close-button="{ icon: 'i-lucide-x', color: 'neutral', variant: 'link' }"
+          :close="{ icon: 'i-lucide-x', color: 'neutral', variant: 'link' }"
           @update:open="bannerError = ''"
         />
         <UAlert
@@ -967,6 +1023,7 @@ onMounted(async () => {
       width="640px"
       @update:open="(v: boolean) => (lineOpen = v)"
       @save="saveLine"
+      @enter-last="saveLineAndNew"
     >
       <template #form>
         <UAlert
@@ -975,7 +1032,7 @@ onMounted(async () => {
           variant="subtle"
           icon="i-lucide-alert-triangle"
           :title="lineFormError"
-          :close-button="{ icon: 'i-lucide-x', color: 'neutral', variant: 'link' }"
+          :close="{ icon: 'i-lucide-x', color: 'neutral', variant: 'link' }"
           @update:open="lineFormError = ''"
         />
 
@@ -1001,14 +1058,24 @@ onMounted(async () => {
             required
             :hint="selectedFakturLineId ? `Sisa: ${qtyBreakdownFor(lineDraft.productId ?? '', remainingForFakturLine(selectedFakturLineId, lineEditIndex))}` : undefined"
           >
-            <QtyInput
-              v-model="lineDraft.qtyBaseUnit"
-              placeholder="0"
-              :min="0"
-              :disabled="!selectedFakturLineId"
-              class="w-full"
-              @update:model-value="lineDirty = true"
-            />
+            <div class="grid grid-cols-2 gap-2">
+              <QtyInput
+                v-model="lineDraft.qtyInput"
+                placeholder="0"
+                :min="0"
+                :disabled="!selectedFakturLineId"
+                class="w-full"
+                @update:model-value="lineDirty = true"
+              />
+              <USelect
+                v-model="lineDraft.unitName"
+                :items="lineUnitOptions"
+                :disabled="!selectedFakturLineId"
+                placeholder="Satuan..."
+                class="w-full"
+                @update:model-value="lineDirty = true"
+              />
+            </div>
           </UFormField>
         </template>
 
@@ -1023,21 +1090,36 @@ onMounted(async () => {
               :items="productOptions"
               placeholder="Pilih produk..."
               class="w-full"
-              @update:model-value="lineDirty = true"
+              @update:model-value="onLineProductChange"
             />
           </UFormField>
-          <UFormField
-            label="Qty"
-            required
-          >
-            <QtyInput
-              v-model="lineDraft.qtyBaseUnit"
-              placeholder="0"
-              :min="0"
-              class="w-full"
-              @update:model-value="lineDirty = true"
-            />
-          </UFormField>
+          <div class="grid grid-cols-2 gap-2">
+            <UFormField
+              label="Qty"
+              required
+            >
+              <QtyInput
+                v-model="lineDraft.qtyInput"
+                placeholder="0"
+                :min="0"
+                class="w-full"
+                @update:model-value="lineDirty = true"
+              />
+            </UFormField>
+            <UFormField
+              label="Satuan"
+              required
+            >
+              <USelect
+                v-model="lineDraft.unitName"
+                :items="lineUnitOptions"
+                :disabled="!lineDraft.productId"
+                placeholder="Satuan..."
+                class="w-full"
+                @update:model-value="lineDirty = true"
+              />
+            </UFormField>
+          </div>
         </template>
       </template>
       <template #context>

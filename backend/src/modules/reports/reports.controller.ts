@@ -7,6 +7,7 @@ import { DocumentContinuityQueryDto } from './dto/document-continuity-query.dto'
 import { OperationalExpenseReportQueryDto } from './dto/operational-expense-report-query.dto';
 import { SalesReportQueryDto } from './dto/sales-report-query.dto';
 import { CashDailyReportService } from './cash-daily-report.service';
+import { DashboardService } from './dashboard.service';
 import { DocumentContinuityService } from './document-continuity.service';
 import { OperationalExpenseReportService } from './operational-expense-report.service';
 import { PayablesReportService } from './payables-report.service';
@@ -37,7 +38,16 @@ export class ReportsController {
     private readonly payablesReportService: PayablesReportService,
     private readonly cashDailyReportService: CashDailyReportService,
     private readonly operationalExpenseReportService: OperationalExpenseReportService,
+    private readonly dashboardService: DashboardService,
   ) {}
+
+  // need_fixing.md #9 — ringkasan beranda. MASTER+OPERATOR (Supervisor tidak
+  // punya dashboard, CLAUDE.md §5); tanpa ExportInterceptor.
+  @Roles(Role.MASTER, Role.OPERATOR)
+  @Get('dashboard-summary')
+  getDashboardSummary() {
+    return this.dashboardService.getSummary();
+  }
 
   // ?format=xlsx|pdf ditangani ExportInterceptor secara transparan — tanpa
   // ?format, respons JSON biasa {rows, columns, meta, summary} diteruskan

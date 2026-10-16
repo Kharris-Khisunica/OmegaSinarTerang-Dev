@@ -22,13 +22,17 @@ Setiap hari punya **2 prompt** (Backend & Frontend) + **1 blok verifikasi**.
 
 1. Taruh `CLAUDE.md` di root repo. Claude Code membacanya otomatis — jadi prompt harian
    di bawah ini sengaja pendek, karena aturan mainnya sudah ada di sana.
-2. Setiap pagi: jalankan **Prompt Pembuka** (§A) sekali.
-3. Lalu jalankan **Prompt Backend** hari itu di satu sesi, **Prompt Frontend** di sesi terpisah.
+2. **Setiap sesi Frontend wajib membaca `docs/PANDUAN_UI.md` lebih dulu.** Bentuk layar
+   dan nota diturunkan dari screenshot sistem lama di `docs/referensi/`, bukan dikarang.
+   Prompt FE di bawah ini sengaja tidak mengulang urutan tombol, nama kolom, atau istilah —
+   semuanya ada di sana. Tanpa membacanya, hasilnya kembali jadi tebakan seperti Hari 1–13.
+3. Setiap pagi: jalankan **Prompt Pembuka** (§A) sekali.
+4. Lalu jalankan **Prompt Backend** hari itu di satu sesi, **Prompt Frontend** di sesi terpisah.
    Sesi terpisah menjaga konteks tetap tajam; BE dan FE hari yang sama jarang perlu saling lihat
    kecuali soal bentuk response API — dan itu sudah ditulis eksplisit di tiap prompt FE.
-4. Setelah keduanya selesai: jalankan `./scripts/verify.sh`, lalu **Prompt Penutup** (§C).
-5. Kalau ada yang merah, jangan lanjut ke hari berikutnya. Catat di `PROGRESS.md` §3.
-6. Hari bertanda 🛑 punya **gerbang berhenti-dan-tanya**: ada keputusan klien yang belum
+5. Setelah keduanya selesai: jalankan `./scripts/verify.sh`, lalu **Prompt Penutup** (§C).
+6. Kalau ada yang merah, jangan lanjut ke hari berikutnya. Catat di `PROGRESS.md` §3.
+7. Hari bertanda 🛑 punya **gerbang berhenti-dan-tanya**: ada keputusan klien yang belum
    turun. Kerjakan bagian yang aman, lalu berhenti. Menebak di titik itu lebih mahal
    daripada menunggu — beberapa di antaranya baru ketahuan salah setelah data terlanjur masuk.
 
@@ -42,19 +46,22 @@ sudah bisa dipanggil, bukan endpoint yang "nanti ada".
 ```
 Baca CLAUDE.md, PROGRESS.md, dan KONTEKS_REVISI_2026-07-28.md §4.
 
-Sebelum kita mulai Hari 8, jawab singkat (maksimal 18 baris):
+Sebelum kita mulai Hari 32A, jawab singkat (maksimal 20 baris):
 1. Modul apa saja yang sudah selesai menurut PROGRESS.md §4?
    PENTING: §4 merekam keadaan sebelum revisi klien. Sebutkan mana yang
    sudah digantikan oleh rework Hari 7-9.
 2. Apakah ada blocker 🔒 dari hari sebelumnya yang belum tuntas?
 3. Apakah ada item di PROGRESS.md §1 (Menunggu Klien) yang tanggal
    "dibutuhkan sebelum"-nya sudah lewat atau jatuh hari ini?
-4. Apakah pekerjaan Hari 8 menyentuh salah satu PR terbuka di
+4. Apakah pekerjaan Hari 32A menyentuh salah satu PR terbuka di
    KONTEKS_REVISI §4.2? Kalau ya, sebutkan nomornya dan BERHENTI di situ —
    saya yang akan menanyakannya ke klien.
 5. Sebutkan file/service existing yang akan saya sentuh hari ini, supaya
    kamu tidak membuat duplikat.
-
+6. Kalau hari ini ada pekerjaan FRONTEND: baca docs/PANDUAN_UI.md dan
+   sebutkan bagian mana (§) yang mengatur layar hari ini, plus file
+   screenshot di docs/referensi/ yang jadi acuannya. Kalau layarnya tidak
+   ada di §2, katakan pola terdekat mana yang akan kamu turunkan.
 Jangan menulis kode dulu. Tunggu prompt tugas berikutnya.
 ```
 
@@ -1752,6 +1759,602 @@ DEFINITION OF DONE:
 
 ---
 
+## Hari 16A 🆕🎨 — Retrofit UI ke `PANDUAN_UI.md` (Komponen Dasar + Master Data)
+
+> **Hari sisipan, 10 Agustus 2026. Frontend saja — tidak ada perubahan backend.**
+>
+> Klien menyerahkan 25 screenshot sistem lama (Affari Retail System v7.57.27) pada
+> 10 Agu, setelah Hari 1–16 selesai. Seluruh bentuk layar yang sudah ada adalah
+> **tebakan** yang dibuat sebelum referensi itu ada. `docs/PANDUAN_UI.md` menuliskan
+> bentuk yang benar; hari ini kita menyusulkan kodenya.
+>
+> **Kenapa sekarang dan bukan disebar ke Hari 17+.** Hari 17 (Biaya Operasional FE),
+> 18 (form COA), 19 (Sales Order) semuanya membangun layar baru. Kalau komponen dasarnya
+> belum ada, ketiga hari itu menulis pola lama lalu harus dibongkar lagi — tiga kali
+> kerja untuk hasil yang sama. Bayar satu hari sekarang, atau tiga hari nanti.
+>
+> ⚠️ **Ini menambah satu hari ke jadwal yang marginnya sudah nol** (`CLAUDE.md` §1, §9.7).
+> Konsekuensinya: Hari 17 dan 18 bergeser ke 11–12 Agu, Fase 5 mulai 13 Agu. Kalau itu
+> tidak bisa diterima, yang dipotong adalah **Bagian C** (master data), bukan Bagian A —
+> komponen dasar tetap wajib lebih dulu.
+
+### 🎨 Frontend
+
+```
+KONTEKS: Hari 16A dari 37 (hari sisipan). FRONTEND SAJA, tidak menyentuh backend.
+Baca docs/PANDUAN_UI.md LEBIH DULU, seluruhnya. Semua nomor § di bawah merujuk
+ke sana. Screenshot acuan ada di docs/referensi/ (versi 1600px, teks terbaca).
+
+Ini bukan hari fitur. Tidak ada endpoint baru, tidak ada perilaku bisnis baru.
+Yang berubah hanya BENTUK. Kalau kamu tergoda mengubah payload API, validasi,
+atau alur data — berhenti, itu bukan lingkup hari ini.
+
+TUGAS — kerjakan berurutan A, B, C. Jangan mulai C sebelum A dan B hijau.
+
+=== BAGIAN A — Komponen dasar (§8) ===
+Buat di frontend/app/components/ dan composables/. Semuanya GENERIK; dilarang
+memfork per modul (CLAUDE.md §6).
+
+A1. <DocumentModal>  (§8.1) — modal lapis 1
+    Props: title, mode ('entri'|'ubah'), operator, hint, dirty (v-model),
+           width (default '1100px')
+    Slots: #header (blok field), #lines (toolbar+grid), #totals (strip)
+    WAJIB memasang KEEMPAT pengaman §1.1 DI DALAM komponen ini, bukan di
+    halaman pemanggil:
+      1. :dismissible="false" — klik overlay tidak menutup
+      2. Esc menutup SATU lapis + konfirmasi kalau dirty
+      3. guard beforeunload selama dirty
+      4. draf otomatis ke sessionStorage per jenis dokumen, dipulihkan saat
+         modal jenis sama dibuka lagi, DIHAPUS setelah Simpan berhasil
+    Kalau salah satu dipasang di pemanggil, satu halaman akan lupa memasangnya
+    dan TIDAK ADA ERROR APA PUN yang memberi tahu. Itu sebabnya di dalam.
+
+A2. <LineModal> (§8.2) — modal lapis 2, width default '900px'
+    Slots: #form (kolom kiri), #context (kolom kanan), #hotkeys (baris kaki)
+    Lapis 2 SELALU lebih sempit dari lapis 1 dan tampak menimpanya (§7.1 no.7).
+
+A3. <LookupField> (§8.3) — triplet [kode kecil] [tombol …] [nama read-only lebar]
+    Mengetik kode langsung lalu Tab HARUS bekerja tanpa membuka modal —
+    itu yang dilakukan operator lama. Slot #detail untuk baris kedua read-only.
+
+A4. <LookupModal> (§8.4) — toolbar "Pilih · Refresh", grid seleksi satu baris,
+    dobel-klik = pilih + tutup, Esc = batal.
+    Acuan: docs/referensi/penerimaan-kas/Penerimaan Kas - Entri baris - Daftar Nota.jpg
+
+A5. <TotalsBar> (§6.4) · <InfoStrip> (§8.5) · <HotkeyHint> (§7.1)
+
+A6. useDocumentHotkeys() (§12) — SATU composable, bukan listener tersebar.
+    Ctrl+H, Ctrl+D, Enter, Esc, Ctrl+S, Insert, F2, Delete, "/".
+    Hotkey tidak aktif saat fokus di dalam <input type="text"> KECUALI yang
+    memang ditujukan ke sana (Ctrl+H, Ctrl+D, Enter, Esc).
+
+=== BAGIAN B — Komponen & utilitas yang sudah ada ===
+
+B1. <DataTable> — TAMBAH PROP, JANGAN FORK (§8.7):
+      dense, zebra, selectable (seleksi 1 baris + penunjuk ▶, expose selectedRow),
+      slot #toolbar, slot #footerTotals, prop emptyText
+    - emptyText default '< Tidak Ada Data Untuk Ditampilkan >' — ganti UEmpty
+      "Belum ada data" yang dipakai sekarang (§5.2)
+    - Prop createTo yang merender tombol "Tambah" di KANAN ATAS dihapus dari
+      pemakaian; diganti tombol "Entri" paling KIRI di slot #toolbar (§5.1).
+      Sisakan createTo sebagai deprecated shim supaya halaman yang belum
+      dimigrasi tidak pecah, tandai dengan komentar.
+    - Mode data lokal (tanpa endpoint) untuk grid baris di dalam modal.
+
+B2. <CrudFormPage> — tambah mode `modal`:
+      Prop baru: `modal?: boolean`, `open?: boolean` (v-model)
+      Kalau modal=true → dirender di dalam <DocumentModal>, tombol "Kembali"
+      jadi "Keluar", sukses simpan meng-emit close alih-alih router.push(backTo).
+      SUDAH ADA dan dipakai ulang, jangan ditulis ulang: isDirty(), goBack()
+      berkonfirmasi, handler Ctrl+S/Esc, focusFirstField().
+      Ganti label tombol "Kembali" → "Keluar" (§11.2).
+
+B3. useRupiah() — tambah opsi bare:  format(value, { bare: true }) → tanpa "Rp"
+    untuk sel grid (§10). JANGAN buat formatter kedua — CLAUDE.md §6 mensyaratkan
+    satu composable. Uang di grid tanpa Rp tanpa desimal; Rp hanya di total.
+
+B4. config/navigation.ts — kelompokkan ulang + judul grup tampil (§4.1).
+    JANGAN ubah penyaringan roles: Supervisor tetap hanya 3 item (CLAUDE.md §5).
+    Grup yang kosong setelah penyaringan tidak dirender, termasuk judulnya.
+
+B5. layouts/default.vue — status bar tipis di kaki panel (§4.2):
+    "Omega Sinar Terang v1.0 · <user> (<role>) · <n> data · <tgl jam>"
+    Jumlah data dari meta.total halaman daftar yang terbuka; kosong di halaman
+    non-daftar. Pakai useClockTick() yang sudah ada.
+
+=== BAGIAN C — 7 modul master data ===
+Produk · Merek · Satuan · Pelanggan · Supplier · Salesman · Gudang
+= 7 halaman daftar + 14 halaman form (create.vue + [id]/edit.vue).
+
+C1. Halaman daftar → §5:
+    - Toolbar urutan §5.1: Entri · Ubah · Refresh · Hapus │ Cari : [___]
+      (Cetak/Batal Cetak/Pengecekan TIDAK berlaku untuk master data — dihilangkan,
+      posisi yang lain TIDAK digeser)
+    - "Entri" paling kiri, bukan "Tambah" di kanan atas
+    - Aksi baris terpilih (Ubah, Hapus) DISABLED selama belum ada seleksi
+    - Menu titik-tiga per baris boleh tetap ada sebagai jalan pintas, tapi setiap
+      aksinya WAJIB ada juga di toolbar
+    - Grid: dense, zebra, selectable, angka rata kanan, nol = "-" (§5.2)
+    - Master data TIDAK punya kolom P / Pengecekan — itu hanya untuk 7 dokumen
+      kunci cetak (CLAUDE.md §2.16). Jangan ditambahkan.
+
+C2. Halaman form → modal (§6, keputusan klien #1 §16.1):
+    - Klik "Entri"/"Ubah" di daftar membuka <CrudFormPage modal>, BUKAN pindah rute
+    - Rute lama /master-data/*/create dan /[id]/edit TETAP HIDUP sebagai pembungkus
+      tipis yang membuka modal yang sama di atas halaman daftar — bookmark dan
+      tautan lama tidak boleh mati
+    - Label field pola "Label : [field]", titik dua sejajar (§6.2)
+    - Tombol [Simpan] lalu [Keluar], urutan itu (§6.5)
+
+C3. Istilah (§11) di ketujuh modul:
+    - "Pelanggan" bukan "Customer" (navigation.ts sekarang menulis "Customer")
+    - Tombol: Entri · Ubah · Hapus · Simpan · Keluar — BUKAN Tambah/Edit/Batal/Tutup
+    - Tanggal dd-MM-yyyy
+
+ATURAN WAJIB HARI INI:
+- TIDAK ADA perubahan backend, DTO, payload, atau validasi. Kalau sebuah
+  penyesuaian UI kelihatannya butuh perubahan API, BERHENTI dan katakan —
+  jangan diubah.
+- TIDAK ADA perubahan pada aturan permission. Middleware 01.roles.global.ts,
+  definePageMeta roles, dan penyaringan roles di navigation.ts tetap persis
+  seperti sekarang. Retrofit UI yang diam-diam membuka satu halaman untuk role
+  yang salah tidak akan terlihat sebagai error apa pun.
+- 3 modul transaksi yang sudah ada (gudang/mutasi, pembelian/faktur,
+  pembelian/retur) BUKAN lingkup hari ini (PANDUAN_UI §16.2). Jangan disentuh.
+  Catat di akhir jawaban kalau kamu melihat sesuatu di sana, jangan dikerjakan.
+- Jalankan checklist PANDUAN_UI §15 untuk SETIAP halaman yang kamu sentuh, dan
+  tampilkan hasilnya per halaman — bukan satu checklist untuk semuanya.
+
+DEFINITION OF DONE:
+- npm run build + lint FE hijau, 0 error TypeScript
+- Ketujuh daftar master data: toolbar urutan §5.1, "Entri" paling kiri, Ubah/Hapus
+  disabled sebelum ada seleksi, empty state berbunyi
+  "< Tidak Ada Data Untuk Ditampilkan >"
+- Klik "Entri" di daftar Merek membuka MODAL di atas daftar; daftar masih terlihat
+  di belakang; URL tidak berubah
+- Buka /master-data/brands/create langsung di address bar → modal yang sama
+  terbuka di atas daftar (rute pembungkus hidup)
+- Isi sebagian lalu tekan Esc → muncul konfirmasi, bukan langsung tutup
+- Isi sebagian lalu tekan F5 → draf sessionStorage memulihkannya saat modal
+  dibuka lagi
+- Simpan berhasil → modal tutup, daftar ter-refresh, draf sessionStorage terhapus
+- Supervisor: sidebar TETAP hanya 3 item; tidak ada grup master data yang muncul
+- Tidak ada string "Tambah"/"Edit"/"Batal"/"Tutup"/"Customer" tersisa di
+  frontend/app/pages/master-data/ dan config/navigation.ts
+
+SETELAH SELESAI:
+Tampilkan (1) daftar file yang dibuat/diubah, (2) checklist §15 per halaman,
+(3) hasil build+lint, (4) catatan apa pun yang kamu lihat di luar lingkup —
+sebagai catatan saja, tidak dikerjakan.
+```
+
+### ✅ Verifikasi Hari 16A
+
+- [ ] Keempat pengaman §1.1 ada **di dalam** `<DocumentModal>`, bukan di pemanggil
+- [ ] `<DataTable>` bertambah prop, **tidak** difork jadi komponen kedua
+- [ ] `useRupiah()` tetap satu composable; tidak ada `toLocaleString` baru
+- [ ] Ketujuh daftar master data memakai urutan toolbar §5.1
+- [ ] Modal terbuka tanpa mengubah URL; rute pembungkus lama tetap hidup
+- [ ] Esc berkonfirmasi saat dirty; F5 memulihkan draf; Simpan menghapus draf
+- [ ] **Permission tidak berubah** — Supervisor tetap 3 item, middleware & `definePageMeta` utuh
+- [ ] Tidak ada perubahan di `backend/`
+- [ ] 3 modul transaksi tidak tersentuh (§16.2)
+- [ ] Istilah terlarang §11.2 nihil di `pages/master-data/` dan `config/navigation.ts`
+- [ ] `./scripts/verify.sh` hijau
+
+---
+
+## Hari 16B 🆕🎨 — Retrofit UI: 3 Modul Transaksi yang Sudah Ada
+
+> **Hari sisipan kedua, lanjutan Hari 16A. Frontend saja — tidak ada perubahan backend.**
+>
+> Menyelesaikan apa yang Hari 16A sengaja tinggalkan (`PANDUAN_UI.md` §16.2): tiga modul
+> transaksi yang dibangun Hari 13–16, sebelum referensi sistem lama ada.
+>
+> **10 berkas, ±3.600 baris.** Ini bukan pemolesan — ketiganya melanggar `CLAUDE.md` §6
+> hari ini juga: ada **lima `<table>` manual** di `create.vue` ketiganya, padahal aturannya
+> "dilarang menulis `<table>` manual, tambah prop di `<DataTable>`". Retrofit ini sekaligus
+> membayar utang itu.
+>
+> **Kenapa harus setelah 16A dan bukan sebelumnya.** Ketiganya adalah pemakai pertama
+> `<DocumentModal>` + `<LineModal>` untuk dokumen sungguhan. Kalau komponennya belum ada,
+> hari ini berubah jadi membangun komponen sambil memigrasikan tiga modul sekaligus — dan
+> bug yang muncul tidak akan jelas berasal dari komponen atau dari migrasi.
+>
+> ⚠️ **Biaya jadwal: +1 hari lagi.** Bersama Hari 16A total **+2 hari**, dimakan dari
+> **margin** (+2,65 → +0,65 hari), bukan dari buffer — buffer tetap 3 hari. Hari 17 & 18
+> bergeser ke 12–13 Agu, Fase 5 mulai 14 Agu; cut-over 1 Sep tidak bergerak. Setelah ini
+> keterlambatan **≥ 0,7 hari** sudah tidak punya tempat: laporkan hari itu juga.
+
+### 🎨 Frontend
+
+```
+KONTEKS: Hari 16B dari 37 (hari sisipan kedua). FRONTEND SAJA.
+Prasyarat: Hari 16A SUDAH selesai dan hijau. Kalau <DocumentModal>, <LineModal>,
+<LookupField>, <LookupModal>, atau useDocumentHotkeys() belum ada, BERHENTI —
+kerjakan Hari 16A dulu, jangan membangun komponennya di sini.
+
+Baca docs/PANDUAN_UI.md lebih dulu. Semua nomor § merujuk ke sana.
+
+LINGKUP: TEPAT 10 berkas, tidak lebih.
+  frontend/app/pages/gudang/mutasi/index.vue          (247 baris)
+  frontend/app/pages/gudang/mutasi/create.vue         (479)
+  frontend/app/pages/gudang/mutasi/[id]/cetak.vue     (226)
+  frontend/app/pages/pembelian/faktur/index.vue       (107)
+  frontend/app/pages/pembelian/faktur/create.vue      (754)
+  frontend/app/pages/pembelian/faktur/[id]/index.vue  (516)
+  frontend/app/pages/pembelian/retur/index.vue        (101)
+  frontend/app/pages/pembelian/retur/create.vue       (564)
+  frontend/app/pages/pembelian/retur/[id]/index.vue   (281)
+  frontend/app/pages/pembelian/retur/[id]/cetak.vue   (314)
++ frontend/app/components/DocumentActions.vue         (label saja, lihat C3)
+
+=========================================================================
+BAGIAN NOL — BACA INI SEBELUM MENGUBAH SATU BARIS PUN
+=========================================================================
+Ketiga modul ini punya perilaku halus yang mahal kalau rusak, dan yang
+RUSAKNYA TIDAK MENIMBULKAN ERROR APA PUN. Semuanya WAJIB tetap hidup:
+
+N1. Retur Pembelian: daftar Bad Stock KOSONG sampai supplier dipilih.
+    Diambil lewat watch(supplierId) yang memanggil endpoint, BUKAN filter
+    client-side atas daftar lengkap. Kalau kamu mengubahnya jadi filter
+    client-side, operator bisa melihat stok BS dari supplier lain — dan
+    layarnya kelihatan benar.
+
+N2. Retur Pembelian: fifoNextUnitCost ditampilkan sebagai harga pokok
+    referensi. Itu unit_cost lot TERTUA, bukan rata-rata. Jangan diganti
+    rata-rata "supaya lebih masuk akal". Ini SATU-SATUNYA tempat harga
+    pokok boleh dilihat operator (CLAUDE.md §3).
+
+N3. Retur Pembelian: selisih live per baris berlabel "(Estimasi)".
+    Label itu bukan hiasan — nilai finalnya dihitung backend.
+
+N4. Mutasi Gudang: BS -> STORE lewat withStepUp() (useStepUp).
+    Alur step-up 412 harus tetap jalan persis. Arah sebaliknya bebas.
+
+N5. Mutasi Gudang: Harga Pokok/Satuan sudah READ-ONLY (dirender sebagai
+    teks, bukan input). PERTAHANKAN. Kalau bisa diketik, operator punya
+    jalan mengubah nilai persediaan tanpa jurnal (CLAUDE.md §3, §7.2).
+
+N6. Nota Mutasi TIDAK PERNAH memuat rupiah. Dilarang memanggil useRupiah()
+    di gudang/mutasi/[id]/cetak.vue (CLAUDE.md §3, PANDUAN_UI §13.2).
+
+N7. DocumentActions: aturan tampil/sembunyi tombol (POSTED+PRINTED
+    menyembunyikan Edit/VOID dan memunculkan Batal Cetak, dst.) TIDAK
+    BOLEH BERUBAH. Hari ini hanya LABEL-nya yang disentuh.
+
+N8. utils/purchaseInvoiceCalc.ts, utils/purchaseReturnCalc.ts,
+    utils/computeQtyBreakdown.ts: JANGAN DISENTUH. Kalkulasi murni.
+
+>>> SEKARANG LOMPAT KE "LANGKAH NOL" DI BAGIAN D DAN JALANKAN. <<<
+Baseline untuk membuktikan N7 & N8 HARUS direkam sebelum kamu mengubah
+berkas pertama. Kalau dilewat, keduanya tidak bisa dibuktikan lagi — dan
+akan tampak HIJAU padahal tidak diperiksa. Baru setelah itu, Bagian A.
+
+TUGAS — kerjakan berurutan A, B, C, lalu D.
+
+=========================================================================
+BAGIAN A — 3 halaman daftar (§5)
+=========================================================================
+A1. Toolbar §5.1 LENGKAP — ketiganya dokumen kunci cetak, jadi kelompok
+    cetak berlaku:
+      Entri · Ubah · Refresh · Hapus │ Cetak · Batal Cetak · Pengecekan │
+      Cari : [___] · View Detail · Ekspor ke Excel
+    - "Entri" paling kiri, ganti create-to yang sekarang merender "Tambah"
+      di kanan atas
+    - Aksi baris terpilih DISABLED sebelum ada seleksi
+    - "Hapus" TIDAK BERLAKU: tidak ada hard-delete (CLAUDE.md §2.1).
+      HILANGKAN tombolnya, JANGAN digeser posisinya dan jangan diganti VOID
+    - Cetak/Batal Cetak/Pengecekan di toolbar daftar hanya boleh MENGARAHKAN
+      ke halaman detail baris terpilih. Semantik kunci cetak tetap tinggal
+      di <DocumentActions> di halaman detail — jangan disalin ke daftar,
+      nanti ada dua salinan aturan yang harus dijaga tetap sama.
+
+A2. Grid §5.2: dense, zebra, selectable (penunjuk ▶), angka rata kanan,
+    nol = "-", uang tanpa "Rp" tanpa desimal (useRupiah bare, §10).
+    Kolom Waktu format "dd-MM-yyyy ( HH:mm )".
+
+A3. Kolom ekor §5.2: ... │ P │ Pengecekan │ Operator │ Waktu
+    - P dan Pengecekan = CHECKBOX READ-ONLY, bukan badge
+      (faktur/index.vue sekarang merender reviewStatus sebagai UBadge —
+      ganti jadi checkbox di kolom "Pengecekan")
+    - KEPUTUSAN: posting_status TETAP badge terpisah, bukan checkbox.
+      Dokumen VOIDED harus tidak bisa terlewat sekilas, dan tiga sumbu
+      status tidak pernah dicampur (CLAUDE.md §2.16). Jadi: dua checkbox
+      + satu badge, bukan tiga checkbox dan bukan satu status gabungan.
+    - Kolom Operator/Waktu: kalau API belum mengirimnya, HILANGKAN
+      kolomnya. JANGAN menambah field ke response — itu backend.
+
+A4. Empty state: '< Tidak Ada Data Untuk Ditampilkan >'
+
+=========================================================================
+BAGIAN B — 3 halaman entri jadi dua lapis modal (§6, §7)
+=========================================================================
+B1. create.vue ketiganya -> <DocumentModal> yang dibuka dari halaman
+    daftar. Rute lama (/pembelian/faktur/create dst.) TETAP HIDUP sebagai
+    pembungkus tipis yang membuka modal yang sama di atas daftar.
+
+B2. HAPUS kelima <table> manual (faktur ×2, mutasi ×1, retur ×2), ganti
+    <DataTable> mode data lokal (CLAUDE.md §6). Ini utang yang sudah ada
+    sebelum hari ini, bukan tambahan.
+
+B3. Baris pindah dari inline "Tambah baris" ke <LineModal> (§7):
+    - toolbar baris §6.3: Entri · Ubah · Hapus · Cari
+      (+ "Bonus" HANYA di Faktur Pembelian)
+    - kolom kiri = isian, kolom kanan = konteks read-only
+    - kolom kanan berisi SISA STOK. TIDAK ADA panel riwayat harga di
+      ketiga modul ini — riwayat harga hanya untuk Penjualan & SO (§7.2).
+      Jangan dibuat-buat di sini.
+    - Retur Pembelian: kolom kanan menampilkan fifoNextUnitCost sebagai
+      harga pokok referensi (lihat N2)
+    - Mutasi: varian pendek §7.2, Harga Pokok read-only (N5)
+
+B4. Strip total §6.4, tepat sesuai dokumennya:
+      Faktur Pembelian : Item · Qty · Total Sblm Disc · Diskon Faktur · Total
+      Retur Pembelian  : Item · Qty · Diskon Faktur · Total
+      Mutasi Gudang    : Item · Qty     <- TANPA Total, mutasi tidak
+                                           menyentuh uang
+B5. Tombol [Simpan] lalu [Keluar] (§6.5). Ganti "Kembali" yang dipakai
+    ketiganya sekarang.
+
+B6. Judul halaman/modal: "Faktur Pembelian" + mode Entri/Ubah (§6.1).
+    Ganti definePageMeta title "Tambah Faktur Pembelian" dst. (§11.2 —
+    "Tambah" terlarang).
+
+=========================================================================
+BAGIAN C — halaman detail, cetak, dan label bersama
+=========================================================================
+C1. 3 halaman detail: <DocumentStatusBadges> + <DocumentActions> TETAP
+    seperti sekarang (sudah benar, tiga sumbu terpisah). Yang disesuaikan
+    hanya kepadatan grid baris & format angka §10.
+
+C2. gudang/mutasi/[id]/cetak.vue -> bentuk §13.2 PERSIS:
+      NOTA MUTASI GD (kiri)                        <kode toko> (kanan)
+      NO. NOTA / KET. / DARI / KEPADA / TGL. NOTA / Hal. n / m
+      kolom: NO. · BARCODE · NAMA BARANG · QTY · SATUAN · Q.MUTASI
+    Yang sekarang ada (blok identitas toko rata tengah + band "MUTASI
+    GUDANG") adalah TEBAKAN sebelum referensi ada — dibuang.
+    Tetap: A5×2 di A4, tanpa rupiah (N6).
+
+C3. pembelian/retur/[id]/cetak.vue -> selaraskan ke §13.1/§13.3:
+    kepala kiri-kanan sama pola nota penjualan, kaki GRAND TOTAL +
+    Hal. n/m + "CETAK : <user> - dd-MM-yyyy HH:mm:ss", garis horizontal
+    saja tanpa kotak, pemisah ribuan TITIK (§10).
+    PERTAHANKAN: 3 baris tanda tangan Dibuat/Diterima/Diketahui dan
+    pagination >14 baris yang sudah ada.
+
+C4. DocumentActions.vue — LABEL SAJA, logika tidak disentuh (N7):
+      "Edit"  -> "Ubah"      (§11.2, "Edit" terlarang)
+      "Batal" (tombol tutup dialog) -> "Keluar"
+    "Batal Cetak" TETAP "Batal Cetak" — itu istilah baku glosarium (§11.1),
+    bukan tombol batal.
+    Komponen ini dipakai 7 dokumen; ubah sekali di sini, jangan per halaman.
+
+=========================================================================
+BAGIAN D — BUKTI N1-N8, satu per satu
+=========================================================================
+"Sudah saya cek" BUKAN bukti. Tiap N di bawah punya langkah MEKANIS (bisa
+di-copy-paste, hasilnya angka atau teks) dan/atau MANUAL (di browser
+sungguhan). Tempelkan HASILNYA di laporan, bukan kesimpulannya.
+
+Semua perintah dijalankan dari root repo.
+
+-------------------------------------------------------------------------
+LANGKAH NOL — JALANKAN SEBELUM BAGIAN A, BUKAN DI AKHIR
+-------------------------------------------------------------------------
+D-N7 dan D-N8 membandingkan berkas terhadap keadaan AWAL. Kalau baseline-nya
+tidak direkam sebelum kamu mengubah apa pun, keduanya tidak bisa dibuktikan
+lagi — dan yang lebih buruk, keduanya akan tampak HIJAU.
+
+Sudah diuji 10 Agu 2026: `git diff` pada keempat berkas ini mengembalikan
+KOSONG apa pun yang terjadi padanya, karena semuanya masih untracked (??)
+— hasil Hari 10-16 belum di-commit. `git diff` di sini adalah CEK BUTA.
+
+Pilih SATU:
+
+  Jalur A (dianjurkan) — commit dulu pekerjaan Hari 10-16 yang menumpuk di
+  working tree, supaya `git diff` bermakna lagi untuk seluruh hari ini:
+      git add -A && git commit -m "Hari 10-16: ..."
+  Ini keputusan user, bukan keputusanmu. TANYA DULU.
+
+  Jalur B (kalau belum mau commit) — rekam baseline hash + salinan:
+      mkdir -p .baseline-16b
+      cp frontend/app/components/DocumentActions.vue \
+         frontend/app/utils/purchaseInvoiceCalc.ts \
+         frontend/app/utils/purchaseReturnCalc.ts \
+         frontend/app/utils/computeQtyBreakdown.ts .baseline-16b/
+      md5sum frontend/app/components/DocumentActions.vue \
+             frontend/app/utils/purchaseInvoiceCalc.ts \
+             frontend/app/utils/purchaseReturnCalc.ts \
+             frontend/app/utils/computeQtyBreakdown.ts | tee .baseline-16b/HASH.txt
+  Tempelkan isi HASH.txt di laporan. Hapus .baseline-16b/ setelah selesai.
+
+Rekam juga REGRESI ANGKA (bawah) sekarang, bukan nanti.
+
+D-N1  Gerbang supplier Retur Pembelian
+  Mekanis:
+    grep -n "watch(supplierId" frontend/app/pages/pembelian/retur/create.vue
+      -> WAJIB masih ada minimal 1 hasil
+    grep -nE "\.filter\(.*supplier" frontend/app/pages/pembelian/retur/create.vue
+      -> WAJIB NOL hasil (kalau ada, kamu mengubahnya jadi filter client-side)
+  Manual (Network tab dibuka SEBELUM halaman dimuat):
+    buka form Retur -> BELUM pilih supplier
+      -> WAJIB nol request ke GET /purchase-returns/bad-stock
+    pilih supplier A -> tepat 1 request, daftar hanya produk supplier A
+    ganti ke supplier B -> request baru, daftar BERUBAH TOTAL
+  Tempelkan: daftar request dari Network tab.
+
+D-N2  fifoNextUnitCost = unit_cost lot TERTUA, bukan rata-rata
+  Mekanis:
+    grep -n "fifoNextUnitCost" frontend/app/pages/pembelian/retur/create.vue
+      -> WAJIB masih ada, dan dipakai APA ADANYA
+    grep -nE "reduce|average|avg|/ *lots\.length" frontend/app/pages/pembelian/retur/create.vue
+      -> WAJIB tidak ada satu pun yang menghitung harga pokok
+  Manual — PILIH PRODUK YANG PUNYA >= 2 LOT DENGAN unit_cost BERBEDA.
+    Kalau semua lotnya berharga sama, tes ini TIDAK MEMBUKTIKAN APA PUN;
+    buat dulu 2 faktur pembelian produk sama dengan harga berbeda.
+    Bandingkan angka harga pokok referensi di layar dengan:
+      SELECT unit_cost, lot_date FROM stock_cost_lots
+      WHERE product_id = '<id>' AND warehouse_id = '<BS>'
+      ORDER BY lot_date ASC LIMIT 1;
+    -> WAJIB sama persis dengan baris pertama, BUKAN rata-rata keduanya.
+  Tempelkan: angka di layar, hasil query, dan unit_cost kedua lot.
+
+D-N3  Label "(Estimasi)" pada selisih per baris
+  Mekanis:
+    grep -c "Estimasi" frontend/app/pages/pembelian/retur/create.vue
+      -> WAJIB >= 1
+  Manual: isi 1 baris retur -> label "(Estimasi)" menempel PADA nilai
+    selisih baris itu, bukan pindah ke header/footer/tooltip.
+  Tempelkan: screenshot atau kutipan teks baris tersebut.
+
+D-N4  Step-up BS -> STORE
+  Mekanis:
+    grep -n "withStepUp" frontend/app/pages/gudang/mutasi/create.vue
+      -> WAJIB masih ada
+  Manual: Mutasi BAD_STOCK -> STORE -> Simpan
+    -> dialog step-up muncul (respons 412 di Network tab), approve,
+       tersimpan. Lalu arah sebaliknya STORE -> BAD_STOCK -> TANPA dialog.
+  Tempelkan: status code 412 dari Network tab + hasil kedua arah.
+
+D-N5  Harga Pokok mutasi READ-ONLY
+  Mekanis:
+    grep -nE "unitCost" frontend/app/pages/gudang/mutasi/create.vue
+      -> tidak satu pun boleh berada di dalam UInput/UInputNumber/USelect
+         atau terikat v-model. Tempelkan tiap baris hasil grep + 1 baris
+         konteksnya supaya terlihat itu render teks, bukan input.
+  Manual: buka modal baris mutasi -> klik area Harga Pokok, lalu tekan Tab
+    berulang menyusuri seluruh field
+    -> WAJIB tidak pernah bisa fokus ke sana, tidak bisa diketik,
+       tidak ada caret.
+  Tempelkan: hasil grep + kalimat urutan fokus Tab yang kamu lalui.
+
+D-N6  Nota Mutasi nihil rupiah
+  Mekanis — buang baris komentar DULU, baru cari pemakaian:
+    grep -vE "^\s*(//|\*|/\*)" "frontend/app/pages/gudang/mutasi/[id]/cetak.vue" \
+      | grep -nE "useRupiah|rupiah\(|unitCost|Rp[ .]?[0-9]"
+      -> WAJIB NOL hasil
+    JANGAN pakai grep polos "useRupiah|Rp|rupiah" pada berkas itu: kepala
+    berkas memuat komentar yang justru MELARANG rupiah, jadi grep polos
+    selalu memberi 2 hasil palsu. Sudah diuji 10 Agu 2026.
+    Komentar pelindung itu JANGAN DIHAPUS untuk "membuat grep hijau" —
+    itu membuang pagar, bukan lolos tes.
+  Manual: buka pratinjau cetak -> tidak ada satu pun angka uang di kertas.
+  Tempelkan: hasil grep (harus kosong) + konfirmasi visual.
+
+D-N7  Logika DocumentActions TIDAK berubah, hanya label
+  Mekanis — ini bukti terkuatnya. Pakai jalur yang kamu pilih di LANGKAH NOL:
+    Jalur A:  git diff -U0 frontend/app/components/DocumentActions.vue
+    Jalur B:  diff -u .baseline-16b/DocumentActions.vue \
+                      frontend/app/components/DocumentActions.vue
+    -> tiap baris +/- WAJIB hanya berisi teks label yang tampil ke
+       pengguna. TIDAK BOLEH ada baris +/- yang menyentuh:
+         showEditVoidDirect, showUnlockPrint, printLabel, canSubmit,
+         props, emit, postingStatus, printStatus, intent
+    Diff KOSONG juga salah — labelnya memang harus berubah (C4).
+  Manual — EMPAT kombinasi status, semuanya, jangan cuma satu:
+    POSTED + NOT_PRINTED      -> Cetak, Ubah, VOID; TANPA Batal Cetak
+    POSTED + PRINTED          -> Cetak, Batal Cetak; TANPA Ubah/VOID
+    POSTED + PRINT_CANCELLED  -> Cetak, Ubah, VOID
+    VOIDED                    -> HANYA "Cetak Arsip"
+  Tempelkan: git diff mentahnya + tombol apa yang muncul di tiap kombinasi.
+
+D-N8  Tiga util kalkulasi tidak tersentuh
+  Mekanis — JANGAN pakai `git diff --stat` sendirian: kalau berkasnya masih
+  untracked, perintah itu mengembalikan kosong APA PUN yang terjadi (cek
+  buta, sudah diuji 10 Agu 2026). Pakai jalur LANGKAH NOL:
+    Jalur A:  git diff --stat -- frontend/app/utils/purchaseInvoiceCalc.ts \
+                                 frontend/app/utils/purchaseReturnCalc.ts \
+                                 frontend/app/utils/computeQtyBreakdown.ts
+              -> WAJIB 0 baris berubah
+    Jalur B:  md5sum -c .baseline-16b/HASH.txt
+              -> ketiga util WAJIB "OK" (DocumentActions.vue memang FAILED,
+                 itu yang diharapkan — labelnya berubah)
+  Tempelkan: output perintahnya apa adanya.
+
+REGRESI ANGKA — pengaman terakhir kalau salah satu D di atas lolos padahal
+rusak. SEBELUM mulai mengubah apa pun, catat total dari 1 faktur pembelian
+dan 1 retur pembelian yang sudah ada di DB dev (nomor + totalAmount).
+Setelah retrofit, buka keduanya lagi:
+  -> total di layar WAJIB sama persis, sampai rupiah terakhir.
+Tempelkan: nomor dokumen + total sebelum dan sesudah.
+
+ATURAN WAJIB HARI INI:
+- TIDAK ADA perubahan di backend/. Tidak ada field baru di response, tidak
+  ada endpoint baru. Kalau sebuah penyesuaian UI kelihatannya membutuhkannya,
+  BERHENTI dan katakan — jangan diubah, jangan diakali di frontend.
+- TIDAK ADA perubahan permission: definePageMeta roles, middleware, dan
+  navigation.ts persis seperti sekarang.
+- Delapan perilaku N1-N8 wajib masih hidup di akhir hari. Cara membuktikan
+  tiap satunya ada di BAGIAN D — jalankan SEMUA langkahnya dan tempelkan
+  HASILNYA (angka, output perintah, daftar request), bukan kesimpulannya.
+  "Sudah dicek" tanpa hasil = belum dicek.
+- Checklist PANDUAN_UI §15 dijalankan PER BERKAS, hasilnya ditampilkan
+  per berkas.
+
+DEFINITION OF DONE:
+- npm run build + lint FE hijau, 0 error TypeScript
+- grep '<table' di ketiga folder modul -> NOL hasil
+- grep 'Tambah\|Kembali\|Edit\|Tutup' di ketiga folder + DocumentActions.vue
+  -> NOL hasil (kecuali "Batal Cetak")
+- Ketiga daftar: toolbar §5.1, "Entri" paling kiri, tanpa tombol "Hapus",
+  P & Pengecekan sebagai checkbox, posting status tetap badge
+- Klik "Entri" di daftar Faktur Pembelian -> modal di atas daftar, URL tidak
+  berubah; buka /pembelian/faktur/create di address bar -> modal yang sama
+- Modal baris terbuka di atas modal dokumen, lebih sempit, dokumen masih
+  terlihat di belakang
+- Esc menutup SATU lapis; dirty -> konfirmasi; F5 -> draf pulih
+- SELURUH BAGIAN D dijalankan (D-N1 s/d D-N8 + REGRESI ANGKA), hasilnya
+  ditempel. Bagian D adalah SATU-SATUNYA daftar langkah bukti — jangan
+  membuat versi ringkasnya di tempat lain, nanti ada dua daftar yang harus
+  dijaga tetap sama.
+- MANUAL END-TO-END tambahan di browser sungguhan, di luar Bagian D:
+    * Faktur Pembelian BARU dengan 2 baris + 1 baris Bonus -> tersimpan,
+      jurnal balance (cek langsung ke DB), baris bonus unit_cost = 0
+    * Cetak nota retur -> pemisah ribuan TITIK, 3 tanda tangan
+      Dibuat/Diterima/Diketahui, "Hal. n / m" saat >14 baris
+- Data uji dihapus lagi dari DB dev setelah verifikasi (termasuk faktur
+  pembelian yang dibuat untuk kasus 2-lot D-N2)
+
+SETELAH SELESAI:
+Tampilkan (1) daftar 11 berkas yang diubah, (2) checklist §15 per berkas,
+(3) HASIL Bagian D — D-N1 s/d D-N8 + REGRESI ANGKA, output mentahnya,
+(4) hasil build+lint, (5) hasil manual end-to-end tambahan, (6) catatan di
+luar lingkup — sebagai catatan saja.
+```
+
+### ✅ Verifikasi Hari 16B
+
+**Bentuk (`PANDUAN_UI`)**
+
+- [ ] Nol `<table>` manual tersisa di ketiga modul (utang `CLAUDE.md` §6 lunas)
+- [ ] Ketiga daftar memakai toolbar §5.1; tanpa "Hapus"; posisi lain tidak digeser
+- [ ] `P` & `Pengecekan` checkbox; posting status tetap badge terpisah
+- [ ] Entri dokumen jadi modal; rute lama tetap hidup; URL tidak berubah
+- [ ] Baris lewat `<LineModal>`; tidak ada panel riwayat harga yang dibuat-buat
+- [ ] Strip total Mutasi **tanpa Total**
+- [ ] Nota Mutasi bentuk §13.2; Nota Retur pemisah ribuan titik, 3 tanda tangan, pagination
+
+**Perilaku yang rusaknya senyap — hasil Bagian D ditempel, bukan dicentang saja**
+
+- [ ] **D-N1** Retur: `watch(supplierId)` masih ada, nol `.filter(...supplier)`, nol request sebelum supplier dipilih *(daftar request Network tab)*
+- [ ] **D-N2** `fifoNextUnitCost` dipakai apa adanya; diuji pada produk **≥2 lot berbeda harga**; angka layar = lot tertua, bukan rata-rata *(angka layar + hasil query + unit_cost kedua lot)*
+- [ ] **D-N3** Label "(Estimasi)" masih menempel pada nilai selisih **per baris** *(kutipan baris)*
+- [ ] **D-N4** `withStepUp` masih ada; BS→STORE memunculkan 412 lalu tersimpan; STORE→BS tanpa dialog *(status code)*
+- [ ] **D-N5** Tidak satu pun `unitCost` mutasi berada di dalam input; Tab tidak pernah bisa fokus ke sana *(hasil grep + urutan fokus)*
+- [ ] **D-N6** grep pemakaian rupiah di `cetak.vue` mutasi (**buang komentar dulu**, lihat D-N6) → **nol hasil**; komentar pelindung di kepala berkas **masih ada** *(output grep kosong)*
+- [ ] **D-N7** `git diff -U0 DocumentActions.vue` → tiap baris +/- hanya teks label; **empat** kombinasi status diuji *(diff mentah + tombol per kombinasi)*
+- [ ] **D-N8** `git diff --stat` tiga util kalkulasi → **0 baris berubah** *(output apa adanya)*
+- [ ] **REGRESI ANGKA** 1 faktur + 1 retur lama: total sebelum = total sesudah, sampai rupiah terakhir *(nomor dokumen + kedua angka)*
+
+**Pagar**
+
+- [ ] Tidak ada perubahan di `backend/`; permission utuh
+- [ ] Data uji dibersihkan dari DB dev (termasuk faktur 2-lot untuk D-N2)
+- [ ] `./scripts/verify.sh` hijau
+
+---
+
 ## Hari 17 🛑 — Biaya Operasional + Approval Kas Besar  *(v2: Hari 14)*
 
 ### 🔧 Backend
@@ -1822,6 +2425,158 @@ DEFINITION OF DONE:
 - [ ] Ongkir tercatat sebagai biaya, tidak menyentuh lot
 - [ ] Tidak ada fitur yang dibangun di luar (a) dan (b)
 - [ ] Pertanyaan biaya operasional sudah ditulis untuk klien
+- [ ] `./scripts/verify.sh` hijau
+
+---
+
+## Hari 17A 🆕🔒 — Restrukturisasi Bagan Akun (COA)
+
+> **Kenapa hari ini ada.** Sistem berjalan di atas **11 akun** hasil seed Hari 1 — cukup untuk
+> menguji mesin jurnal, tidak cukup untuk membukukan usaha nyata. Bagan penggantinya sudah
+> disusun dan **direkonsiliasi ke laporan Juli klien: 18 titik, semuanya cocok**.
+> `docs/COA_USULAN.md` memuat alasan rancangan dan spesifikasi kolomnya;
+> `docs/COA_Usulan_OmegaSinarTerang.xlsx` lembar `Bagan Akun` memuat 114 barisnya.
+>
+> **Wajib mendarat sebelum Hari 18**, karena Hari 18 membuka bagan akun untuk diedit MASTER —
+> kalau strukturnya belum benar saat itu, klien mengedit di atas fondasi yang salah.
+
+### 🔧 Backend
+
+```
+KONTEKS: Hari 17A dari 37. Hari sisipan.
+
+BACA DULU, JANGAN MENGARANG DAFTAR AKUN:
+  - docs/COA_USULAN.md
+    -> alasan tiap keputusan + spesifikasi lima kolom baru (Sec.7)
+  - docs/COA_Usulan_OmegaSinarTerang.xlsx, lembar "Bagan Akun"
+    -> 114 baris: Kode, Nama, Tingkat (G/K/J), Kelompok Laporan, Saldo Normal
+Daftar akunnya SUDAH FINAL dan sudah dicocokkan ke laporan keuangan klien.
+Tugas hari ini memindahkannya ke database, bukan menyusunnya ulang.
+
+TUGAS (BACKEND):
+1. ALTER TABLE chart_of_accounts, lima kolom baru:
+   - normal_balance                     ENUM('DEBIT','CREDIT') NOT NULL
+   - account_subtype                    ENUM(17 nilai, COA_USULAN Sec.7) NOT NULL
+   - is_postable                        BOOLEAN NOT NULL DEFAULT true
+   - is_opening_balance_equity_account  BOOLEAN NOT NULL DEFAULT false
+   - requires_outflow_approval          BOOLEAN NOT NULL DEFAULT false  (dari Hari 17)
+
+2. Migration data. 13 akun lama di-UPDATE, BUKAN dihapus lalu dibuat ulang.
+   id WAJIB bertahan, karena journal_entry_lines, customers.ar_account_id, dan
+   settings.default_ar_account_id (menyimpan UUID akun '1102') menunjuk ke id itu.
+   Peta 13 kode ada di COA_USULAN Sec.4. Kode lama (1101) dan kode baru
+   (01.130.00001) tidak beririsan, jadi indeks unik aman tanpa langkah antara.
+   Lalu INSERT sisanya, isi parent_id per tingkat, set semua flag.
+
+3. Seed VERSI A saja. Lima akun 06.130 (Beban Pribadi Pemilik) milik Versi B —
+   tulis sebagai migration TERPISAH yang TIDAK dijalankan sampai klien memilih.
+   Bedanya cuma 6 baris; yang mahal bukan membuatnya, melainkan memindahkan
+   transaksi yang terlanjur masuk ke akun yang salah.
+
+4. 03.120.00009 Ikhtisar Laba Rugi di-seed dengan is_active = false.
+   Bentuk tutup bulan masih PR terbuka (CLAUDE.md Sec.2.15) dan tidak boleh ditebak.
+   Kalau nanti jawabannya "jurnal penutup sungguhan", akun ini tinggal diaktifkan.
+
+5. PERBAIKI BUG. opening-balance.service.ts baris 180-185 meresolve akun
+   penyeimbang jurnal pembuka dengan resolveSingleActive("account_type = 'EQUITY'"),
+   yang melempar kalau hasilnya bukan TEPAT SATU baris. Bagan baru punya lima akun
+   EQUITY aktif. Ganti ke flag is_opening_balance_equity_account = true, pola sama
+   persis dengan empat flag yang sudah ada di repo.
+   Tanpa ini seluruh alur Saldo Awal gagal, dan gagalnya baru terlihat Hari 36 —
+   tiga hari sebelum cut-over, di alur yang CLAUDE.md Sec.8 tandai
+   tidak-boleh-dipotong.
+
+6. JournalPosterService: tolak baris jurnal ke akun is_postable = false.
+   Ini validasi KEENAM, menambah lima yang terkunci di CLAUDE.md Sec.2.6.
+   Sifatnya memperketat, bukan melonggarkan. Perbarui CLAUDE.md Sec.2.6 di commit
+   yang sama supaya aturan dan kode tidak berbeda isi.
+
+7. Perbarui test yang mengunci kode akun lama. Pakai kode baru, JANGAN
+   melonggarkan assertion-nya:
+     core/invariants/five-invariants.spec.ts
+     core/void/void.service.spec.ts
+     core/journal-poster/journal-poster.service.spec.ts
+     modules/journal-manual/journal-manual.service.spec.ts
+     modules/opening-balance/opening-balance.service.spec.ts
+     modules/purchase-returns/purchase-returns.service.spec.ts
+
+JANGAN dikerjakan hari ini: validasi arah saldo di CRUD COA (menolak
+account_subtype x normal_balance yang mustahil). Aturannya sudah ditulis di
+COA_USULAN Sec.7.1, tapi tempatnya di CRUD Hari 18.
+
+ATURAN WAJIB HARI INI:
+- UPDATE, bukan DELETE + INSERT, untuk 13 akun lama. Sekali id-nya berganti,
+  seluruh jurnal yang sudah ada menunjuk akun yang tidak pernah ada — dan tidak
+  ada satu pun error yang memberi tahu.
+- Flag resolver tunggal WAJIB dimiliki TEPAT SATU akun aktif:
+  is_inventory_account, is_payable_account, is_input_vat_account,
+  is_purchase_return_diff_account, is_opening_balance_equity_account.
+- is_receivable_account boleh dimiliki lebih dari satu akun (dipakai
+  customers.service.ts:130 untuk memvalidasi pilihan, bukan meresolve tunggal).
+  TAPI hari ini hanya 01.120.00001 yang diberi flag, supaya Piutang Karyawan dan
+  Piutang Pihak Berelasi tidak ikut muncul di dropdown ar_account_id pelanggan.
+- Akun kas & bank DI-SEED hari ini (Kas Kecil, Kas Toko, Kas Besar, 3 bank).
+  Ini menyimpang dari CLAUDE.md Sec.3 yang menyatakan tidak di-seed. Aturan itu
+  ditulis saat struktur kas belum diketahui; klien sudah menjawabnya lengkap, dan
+  requires_outflow_approval pada Kas Besar adalah inti kontrol Hari 17.
+  Perbarui CLAUDE.md Sec.3 di commit yang sama.
+- down() wajib benar: kembalikan 13 kode lama, hapus sisanya.
+
+DEFINITION OF DONE:
+- migration up -> down -> up berhasil di DB kosong
+- SELECT count(*) FROM chart_of_accounts = 108
+  ... WHERE is_postable = false     = 26
+- Lima query flag tunggal semuanya mengembalikan tepat 1
+- Query pelanggar arah saldo (COA_USULAN Sec.7.1) mengembalikan 0 baris
+- five-invariants.spec.ts hijau dengan kode akun baru
+- opening-balance.service.spec.ts hijau, DIUJI dengan lima akun EQUITY aktif di
+  DB — bukan satu. Ini bug yang sedang diperbaiki, jadi test harus membuktikannya
+- Jurnal ke akun header 01.000.00000 ditolak 400 berbahasa Indonesia
+- settings.default_ar_account_id masih menunjuk baris yang ada, dan baris itu
+  kini berkode 01.120.00001
+
+SETELAH SELESAI: verify.sh + checklist DoD + sebutkan bagian CLAUDE.md mana saja
+yang kamu ubah beserta alasannya.
+```
+
+### 🎨 Frontend
+
+```
+KONTEKS: Hari 17A dari 37. Baca docs/PANDUAN_UI.md lebih dulu.
+
+TUGAS (FRONTEND):
+1. Halaman /akuntansi/bagan-akun. Composable useChartOfAccountsTree.ts SUDAH
+   menyusun tree dari parentId dan mengurutkan per code di tiap tingkat. Begitu
+   parentId terisi migration hari ini, hierarki tiga tingkat muncul sendiri.
+   JANGAN menulis ulang composable-nya, JANGAN fork komponen tabelnya.
+2. Tambah kolom Saldo Normal. Tampilkan "Debet" / "Kredit", bukan D/K.
+3. Baris Grup dan Kategori dibedakan secara visual DAN tidak bisa dipilih di
+   picker akun mana pun. Akun header yang bisa dipilih adalah cara paling cepat
+   operator membuat jurnal yang tidak bisa dibaca siapa pun.
+4. Kolom Kelompok Laporan pakai bahasa manusia ("Aset Lancar", "Beban Penjualan
+   & Distribusi"), bukan nama enum. Peta labelnya ada di COA_USULAN Sec.7.
+
+JANGAN dikerjakan hari ini: form tambah/ubah akun COA. Itu Hari 18.
+
+DEFINITION OF DONE:
+- Tujuh grup tampil sebagai pohon tiga tingkat, urut kode di tiap tingkat
+- Baris header terlihat berbeda dan tidak bisa dipilih sebagai akun
+- Tidak ada satu pun nama enum yang bocor ke layar
+```
+
+### ✅ Verifikasi Hari 17A
+
+- [ ] `migration:run` → `revert` → `run` bersih di DB kosong
+- [ ] `chart_of_accounts` = **108** baris, **26** di antaranya `is_postable = false`
+- [ ] Lima flag resolver tunggal masing-masing mengembalikan tepat 1 baris
+- [ ] Query pelanggar arah saldo mengembalikan 0 baris
+- [ ] `five-invariants.spec.ts` hijau dengan kode akun baru
+- [ ] `opening-balance.service.spec.ts` hijau dengan **lima** akun EQUITY aktif
+- [ ] Jurnal ke akun header ditolak 400 berbahasa Indonesia
+- [ ] `settings.default_ar_account_id` masih valid, kini berkode `01.120.00001`
+- [ ] Pohon tiga tingkat tampil di `/akuntansi/bagan-akun`, header tidak bisa dipilih
+- [ ] `CLAUDE.md` §2.6 (validasi keenam) dan §3 (seed akun kas) sudah diperbarui
+- [ ] Migration Versi B (`06.130`) sudah ditulis tapi **belum** dijalankan
 - [ ] `./scripts/verify.sh` hijau
 
 ---
@@ -2035,20 +2790,16 @@ TUGAS (FRONTEND):
    Modal ini menyimpan ar_account_id NULL — operator tidak pernah melihat
    field itu, dan tidak butuh akses COA.
 4. Ctrl+H (ubah harga) dan Ctrl+D (ubah diskon): pola dari sistem lama yang
-   dipertahankan, TAPI WAJIB DIBUAT TERLIHAT. Operator lama tidak tahu cara
-   memakainya selama bertahun-tahun. Tampilkan petunjuknya di layar, jangan
-   mengandalkan orang mengingat.
+   dipertahankan tetapi beri hint di ujung saja.
 
 ATURAN WAJIB HARI INI:
 - Ergonomi keyboard diturunkan ke "cukup baik" (disetujui klien): navigasi
   keyboard tetap dibangun, tapi tidak dipoles sampai bebas-mouse total.
-  Yang TIDAK boleh diturunkan: panel harga, sisa stok, modal tambah pelanggan.
 
 DEFINITION OF DONE:
 - Panel muncul < 300 ms setelah produk dipilih, dengan kolom satuan terlihat
 - Mengganti satuan mengubah isi panel
 - Modal tambah pelanggan menyimpan dan langsung terpilih di form
-- Petunjuk Ctrl+H / Ctrl+D terlihat tanpa perlu dihafal
 ```
 
 ### ✅ Verifikasi Hari 20
@@ -2173,6 +2924,14 @@ DEFINITION OF DONE:
 KONTEKS: Hari 22 dari 37. Mekanisme kunci cetak sudah ada sejak Hari 15 —
 hari ini memakainya, bukan membangunnya ulang.
 
+BUG DITEMUKAN Hari 21 sore (uji manual browser, lihat PROGRESS.md §2 & §4 Hari 21):
+GET /sales-invoices dan GET /sales-invoices/:id TIDAK ADA SAMA SEKALI di backend —
+hanya POST yang ter-mapping. Halaman daftar Faktur Penjualan (/penjualan/faktur)
+selalu gagal "Cannot GET /sales-invoices". Ini BUKAN cuma soal FE hari ini butuh
+detailnya — Hari 22A juga wajib memakai ulang endpoint yang sama dengan filter
+reviewStatus (CLAUDE.md §2.2 "dilarang membuat keluarga endpoint /supervisor/*").
+Bangun sekarang, jangan ditunda lagi ke Hari 22A.
+
 TUGAS (BACKEND):
 1. Edit bersyarat + VOID Sales Invoice lewat VoidEngine + print-lock.
    VOID oleh OPERATOR WAJIB lewat authorization_requests (step-up).
@@ -2181,6 +2940,9 @@ TUGAS (BACKEND):
 3. Endpoint cetak: kembalikan data + nomor revisi + penanda VOID bila perlu.
 4. Faktur yang di-VOID tetap punya nomor dan tetap muncul di Laporan Kontinuitas
    (Hari 28). Nomor tidak boleh hilang, dan void_reason_note WAJIB terisi.
+5. GET /sales-invoices (daftar, pola sama GET /purchase-invoices: paging, sort,
+   filter reviewStatus) + GET /sales-invoices/:id (detail, termasuk lines) —
+   pola sama persis PurchaseInvoicesController, jangan dirancang baru dari nol.
 
 DEFINITION OF DONE:
 - VOID mengembalikan stok & lot persis seperti semula (bandingkan isi tabel lots
@@ -2188,6 +2950,8 @@ DEFINITION OF DONE:
 - VOID oleh Operator memicu step-up; oleh Master tidak
 - Edit setelah dicetak tanpa batal cetak -> ditolak
 - Nota revisi membawa nomor revisi yang naik
+- GET /sales-invoices mengembalikan daftar sungguhan (bukan 404); GET /sales-invoices/:id
+  mengembalikan detail + lines
 ```
 
 ### 🎨 Frontend
@@ -2198,7 +2962,30 @@ belum mengirimkannya (PROGRESS.md Sec.1). Kalau sampai hari ini belum ada,
 pakai LAYOUT STANDAR sesuai aturan cadangan, dan catat di PROGRESS.md Sec.3
 bahwa revisi format masuk pasca-MVP.
 
+BUG DITEMUKAN Hari 21 sore (uji manual browser sungguhan, lihat PROGRESS.md §2
+& §4 Hari 21 untuk bukti lengkap — dibuktikan document.elementFromPoint(), bukan
+dugaan): <StepUpDialog> (global, dipasang sekali di layouts/default.vue, dipakai
+lewat useStepUp().withStepUp()) TIDAK TERLIHAT dan TIDAK BISA DIKLIK operator
+selama DocumentModal halaman masih terbuka di baliknya. Akar masalah: kedua
+modal Teleport ke <body> dengan z-index: auto, jadi urutan tumpuk cuma ikut
+urutan DOM — StepUpDialog di-mount lebih dulu (layout mount sebelum page),
+jadi modal HALAMAN APAPUN yang masih terbuka (DocumentModal) SELALU menutupinya
+secara visual DAN menghadang klik (dibuktikan overlay DocumentModal yang
+menerima klik, bukan tombol "Batalkan" milik StepUpDialog). Efek ke operator:
+tombol Simpan tampak macet berputar tanpa penjelasan, tidak bisa Batalkan.
+Kemungkinan besar bug yang sama ada di gudang/mutasi/index.vue (BS_TO_STORE,
+Hari 13) — pola pemakaiannya identik dan sepertinya belum pernah diuji visual
+di browser sungguhan sebelum Hari 21 sore (verifikasi sebelumnya cuma "manual
+curl end-to-end").
+
 TUGAS (FRONTEND):
+0. PERBAIKI DULU stacking <StepUpDialog> vs modal halaman (Sales Invoice DAN
+   Mutasi Gudang) sebelum lanjut ke tugas cetak nota di bawah — bug ini
+   memblokir SEMUA alur step-up yang dipicu dari dalam modal terbuka, termasuk
+   VOID Sales Invoice (tugas 1 backend hari ini juga lewat step-up untuk
+   Operator). Perbaikan disarankan di satu tempat (StepUpDialog atau wrapper
+   modalnya) supaya berlaku untuk SEMUA pemakai withStepUp() sekarang dan nanti
+   (kas besar, dst) — jangan tempel z-index di tiap halaman pemanggil satu-satu.
 1. CETAK NOTA — semua dokumen A5 LANDSCAPE, DUA PER LEMBAR A4 PORTRAIT,
    dipotong mendatar. Klien mencetak di kertas A5 kosong hasil membelah A4.
    - MUAT 14 BARIS per halaman; lebih dari itu lanjut ke halaman 2 (Hal. 1/2)
@@ -2217,16 +3004,29 @@ TUGAS (FRONTEND):
 ATURAN WAJIB HARI INI:
 - Uji cetak SUNGGUHAN ke kertas, bukan hanya preview browser. Dua nota A5 harus
   jatuh presisi di satu lembar A4 dan garis potongnya masuk akal.
+- Uji perbaikan StepUpDialog DI BROWSER SUNGGUHAN (bukan cuma baca kode) —
+  pantang mengulang kesalahan yang sama: konfirmasi tombol "Batalkan" benar-benar
+  bisa diklik (bukan cuma "ada di DOM"), dengan cara yang sama dipakai Hari 21
+  sore (mis. cek elemen teratas di titik itu), pada KEDUA pemakai
+  (Sales Invoice dan Mutasi Gudang).
 
 DEFINITION OF DONE:
 - Nota 16 baris pecah ke 2 halaman dengan benar (Hal. 1/2, Hal. 2/2)
 - Dua nota A5 muat presisi di satu A4 saat dicetak sungguhan
 - Identitas toko kosong tidak meninggalkan baris kosong menganga
 - Nota VOID bertanda jelas
+- <StepUpDialog> terlihat DAN bisa diklik saat dipicu dari Sales Invoice maupun
+  Mutasi Gudang dengan modal halaman masih terbuka; tombol "Batalkan" benar-benar
+  menerima klik (dibuktikan di browser, bukan cuma dari kode)
 ```
 
 ### ✅ Verifikasi Hari 22
 
+- [ ] `GET /sales-invoices` (daftar) & `GET /sales-invoices/:id` (detail) ada dan dipakai FE —
+  halaman `/penjualan/faktur` tidak lagi menampilkan "Gagal memuat data"
+- [ ] **`<StepUpDialog>` terlihat & bisa diklik** saat dipicu dari Sales Invoice maupun
+  Mutasi Gudang dengan modal halaman masih terbuka — uji di browser sungguhan,
+  bukan cuma baca kode (lihat catatan bug Hari 21 sore)
 - [ ] VOID mengembalikan lot asal, bukan lot baru
 - [ ] VOID oleh Operator memicu step-up
 - [ ] Nota 16 baris pecah 2 halaman dengan penomoran benar
@@ -2317,8 +3117,7 @@ DEFINITION OF DONE:
 ### 🔧 Backend
 
 ```
-KONTEKS: Hari 23 dari 37. Di sistem lama retur penjualan hanya 1 record —
-jarang terjadi, tapi ketika terjadi harus benar.
+KONTEKS: Hari 23 dari 37.
 
 TUGAS (BACKEND):
 1. Migration `sales_returns`(+lines) + nomor RJ. Ikut kunci cetak.
@@ -2592,16 +3391,6 @@ DEFINITION OF DONE:
 ```
 KONTEKS: Hari 26 dari 37.
 
-BERHENTI DAN BACA DULU: modul Pembayaran / Kas & Bank BELUM DIBAHAS SAMA SEKALI
-(KONTEKS_REVISI Sec.4.1 dan Sec.4.2 PR #8). Yang boleh dikerjakan hari ini adalah
-skema + preview alokasi berdasarkan plan v2. Yang HARUS ditunggu sebelum menulis
-jurnalnya (Hari 27): bentuk setoran sopir, pembayaran sebagian, dan pembayaran
-yang menutup beberapa faktur sekaligus.
-
-Kalau selama mengerjakan kamu menemukan pertanyaan yang jawabannya menentukan
-bentuk tabel, BERHENTI dan tulis pertanyaannya. Mengubah skema pembayaran setelah
-data masuk jauh lebih mahal daripada menunggu sehari.
-
 TUGAS (BACKEND):
 1. Migration:
    `payment_batches`: id, batch_number (PAY/RM01-YYMMXXXX), payment_date,
@@ -2775,27 +3564,52 @@ DEFINITION OF DONE:
 - Export Excel memuat kolom yang sama dengan layar
 ```
 
-### ⚠️ Kontrol pengganti yang WAJIB dipastikan hari ini
+### ✅ Kontrol pengganti — DIJAWAB KLIEN 30 Agu 2026
 
 Rekap setoran agen **dipotong** dari scope. Rekap itu berdiri persis di titik uang tunai
 berpindah tangan — sopir membawa pulang uang. "Manual bulan pertama" gampang berubah jadi
-tidak ada yang mengerjakan.
+tidak ada yang mengerjakan. Pertanyaannya sudah dijawab klien, **cukup kontrol di kertas,
+tidak ada perubahan skema/kode**:
 
-- [ ] **Siapa** yang mencocokkan setoran sopir dengan faktur terkirim: `__________`
-- [ ] **Kapan**: `__________` (tempelkan ke ritual pengecekan sore supervisor — itu gratis)
-- [ ] **Siapa yang memeriksa** bahwa pencocokan itu benar-benar dilakukan: `__________`
+- [x] **Siapa**: masing-masing **agen** bertanggung jawab atas total uang hasil penjualan
+  dari invoice yang ia bawa hari itu (1 agen selalu berpasangan 1 sopir). Kalau ada
+  kekurangan/kesalahan, agen itu yang menanggung.
+- [x] **Kapan**: setiap **sore di hari yang sama**, bersamaan dengan proses pelunasan
+  (modul Payment, Hari 26–27).
+- [x] **Cara cocok**: total nilai invoice/surat jalan yang dibawa agen dibandingkan
+  dengan jumlah uang yang benar-benar diterima/disetor.
+- [x] **Kalau ada selisih**: menjadi tanggung jawab agen yang bersangkutan.
 
-Kalau ketiga baris ini masih kosong saat Hari 28 selesai, catat di `PROGRESS.md` §3
-sebagai risiko terbuka dan bawa ke klien. Jangan diserahterimakan dalam keadaan kosong.
+**Kenapa tidak perlu kode baru**: pencocokan ini menempel pas di proses Payment yang
+sudah ada — kalau operator menyatakan faktur lunas dengan uang kurang, `Selisih
+Pembayaran` otomatis terbentuk, dan di atas Rp 10.000 otomatis ditandai di layar
+Pengecekan Invoice Harian (Hari 22A). Siapa agen yang bertanggung jawab atas selisih itu
+**tidak dicatat di sistem** — itu diketahui manual oleh supervisor/pemilik dari surat
+jalan (satu agen satu perjalanan) dan diselesaikan di luar aplikasi. Kalau nanti klien
+minta ini tercatat di sistem (misal kolom penanggung jawab di `Selisih Pembayaran`), itu
+scope tambahan baru, bukan bagian Hari 28.
 
 ### ✅ Verifikasi Hari 28
 
-- [ ] Nomor VOID tetap muncul beserta alasannya
-- [ ] Tidak ada lubang nomor, termasuk setelah transaksi yang sengaja digagalkan
-- [ ] Laporan jalan untuk semua jenis dokumen selain SO
-- [ ] Export Excel
-- [ ] Tiga baris kontrol pengganti terisi **atau** tercatat sebagai risiko
-- [ ] `./scripts/verify.sh` hijau
+- [x] Nomor VOID tetap muncul beserta alasannya — dibuktikan test integrasi BE +
+  screenshot manual FE (baris amber, kolom Keterangan terisi tanpa perlu diklik)
+- [x] Tidak ada lubang nomor, termasuk setelah transaksi yang sengaja digagalkan —
+  skenario literal "5 faktur, gagal di tengah transaksi ke-3" ada di
+  `document-continuity.service.spec.ts`
+- [x] Laporan jalan untuk semua jenis dokumen selain SO — 8 tipe di dropdown FE = 8 tipe
+  di registry BE, `SALES_ORDER` ditolak 400
+- [x] Export Excel — `GET .../document-continuity?...&format=xlsx` balas 200 dengan file
+  xlsx valid (dibuktikan `curl` + ExcelJS langsung terhadap 871 baris data dev DB
+  sungguhan); klik tombol sungguhan di browser terkonfirmasi memicu request yang sama,
+  tapi file di disk tidak sempat diverifikasi (kemungkinan dialog "pilih lokasi simpan"
+  OS di luar jangkauan automasi browser sesi ini)
+- [x] Tiga baris kontrol pengganti terisi **atau** tercatat sebagai risiko — sudah dijawab
+  klien 30 Agu 2026, lihat bagian di atas
+- [ ] `./scripts/verify.sh` hijau — **8/10**. 2 gagal, keduanya dibuktikan bukan regresi
+  Hari 28 (test backend: flake paralel pra-ada, re-run 261/261 lulus; build frontend: OOM
+  heap Node pra-ada, sukses dengan `--max-old-space-size` lebih besar, OOM terbukti terjadi
+  juga tanpa perubahan Hari 28 lewat isolasi). Risiko OOM lintas-hari dicatat di
+  `PROGRESS.md` §4 Hari 28 (FE) — belum diperbaiki, butuh keputusan eksplisit dulu.
 
 ---
 ---
@@ -2890,6 +3704,15 @@ DEFINITION OF DONE:
 > ⚠️ Pastikan layar pembayaran benar-benar menampilkan sisa tagihan per faktur dengan jelas.
 > Selama laporan piutang belum ada, layar itulah satu-satunya cara klien melihat siapa
 > berutang berapa.
+>
+> ✅ **Keputusan kerja user 03 Sep 2026** (belum dikonfirmasi ke klien, pola sama Laporan
+> Stok/Titipan §1): (1) lebar bucket umur piutang **dan** hutang = **30 hari**, dari
+> `settings` (key baru `aging_bucket_days`), **bukan hardcode** — supaya bisa diubah tanpa
+> deploy ulang, dan supaya kalau klien nanti minta 15/60 hari tidak perlu sentuh kode;
+> (2) layar laporan piutang & hutang pakai **pola generik §14 PANDUAN_UI apa adanya** — tidak
+> ada foto sistem lama untuk dua layar ini (beda dari Laporan Penjualan yang punya acuan
+> `penjualan/Laporan-Rekap Penjualan.jpg`), jadi jangan mengarang tata letak baru, turunkan
+> dari §14.1/§14.2 saja.
 
 ### 🔧 Backend
 
@@ -2902,33 +3725,73 @@ TUGAS (BACKEND):
    TIDAK ADA KOMISI — laporan ini untuk melihat kinerja, bukan menghitung upah.
 2. Laporan piutang (umur piutang) — akun piutang lewat resolveArAccount().
    Pelanggan yang punya akun piutang custom TIDAK BOLEH hilang dari laporan
-   hanya karena query memfilter akun default.
+   hanya karena query memfilter akun default. Total per pelanggan direkonsiliasi
+   ke buku besar lewat journal_entry_lines.customer_id (sudah ditag di 5 titik
+   wajib sejak Hari 18 — JANGAN dihitung ulang dari sales_invoices, itu bisa
+   diam-diam menyimpang dari GL kalau ada baris VOID/retur yang tidak tersentuh).
 3. Laporan hutang per supplier, umur dari due_date (= tanggal faktur supplier
    + termin, bukan tanggal terima barang).
+   PENTING — beda dari piutang: journal_entry_lines TIDAK punya kolom supplier_id
+   (akun Hutang Usaha satu akun, tidak dipecah per-supplier di GL). Sumber
+   kebenaran saldo per-supplier WAJIB dari purchase_invoices + payments,
+   pakai ulang logika yang sama dengan PaymentsService.getOutstandingInvoices()/
+   findOpenInvoices() (Hari 26-27) — JANGAN menulis query outstanding baru yang
+   bisa diam-diam menghitung beda dari layar pembayaran, dan JANGAN mencoba
+   membuat resolver GL per-supplier tandingan ArAccountResolverService.
+4. BUCKET UMUR (piutang & hutang): lebar bucket = 30 hari per bucket TAPI
+   angka "30"-nya WAJIB dibaca dari settings (key baru `aging_bucket_days`,
+   value_type NUMBER, seed default '30' lewat migration), bukan angka mati di
+   kode. Baca lewat SettingsService tiap request laporan dipanggil — supaya
+   ubah setting langsung berlaku tanpa redeploy. Jumlah bucket tetap 4
+   (mis. "1-N", "N+1-2N", "2N+1-3N", ">3N" dengan N = aging_bucket_days),
+   label kolom dibentuk dari N, bukan teks "30 hari" yang ditulis manual.
 
 DEFINITION OF DONE:
 - Total piutang di laporan = saldo akun-akun piutang di buku besar
 - Pelanggan ber-ar_account_id custom muncul di laporan
+- Total hutang di laporan = SUM(outstanding) dari purchase_invoices via
+  logika PaymentsService yang sama dengan layar pembayaran (bukan breakdown GL)
 - Umur hutang dihitung dari due_date, dibuktikan dengan satu faktur yang tiga
   tanggalnya sengaja berbeda
+- Ubah `settings.aging_bucket_days` dari 30 ke angka lain lalu panggil ulang
+  laporan → batas & label bucket ikut berubah, tanpa restart aplikasi
+- `grep` di service laporan tidak menemukan angka `30` yang dipakai sebagai
+  lebar bucket — satu-satunya sumber adalah settings
 ```
 
 ### 🎨 Frontend
 
 ```
 TUGAS (FRONTEND):
-1. Tiga halaman laporan + export Excel.
+1. Tiga halaman laporan + export Excel, ikuti pola generik §14 PANDUAN_UI
+   (panel parameter radio+filter, kepala hasil dgn parameter dipisah "|",
+   baris GRAND TOTAL). Laporan Piutang & Hutang TIDAK punya foto acuan
+   sistem lama — turunkan dari §14 apa adanya, jangan menebak tata letak
+   yang tidak ada sumbernya. Laporan Penjualan tetap ikuti kepala hasil dari
+   `penjualan/Laporan-Rekap Penjualan.jpg` (§14.2).
 2. Angka bisa diklik sampai ke dokumen sumbernya.
+3. Header kolom bucket umur (piutang & hutang) dibentuk dari angka
+   `aging_bucket_days` yang dikembalikan BE (mis. "1-30"/"31-60"/dst) —
+   JANGAN di-hardcode teks "30 hari" di komponen FE mana pun.
 
 DEFINITION OF DONE:
-- Klik nominal piutang -> membuka faktur yang membentuknya
+- Klik nominal piutang/hutang -> membuka faktur yang membentuknya
+- Ubah `aging_bucket_days` di Settings lalu buka ulang laporan → label kolom
+  bucket berubah mengikuti angka baru
 ```
 
 ### ✅ Verifikasi Hari 30
 
-- [ ] Total piutang laporan = saldo buku besar
+- [ ] Total piutang laporan = saldo buku besar (via `customer_id` di GL)
 - [ ] Pelanggan ber-akun custom tidak hilang dari laporan
+- [ ] Total hutang laporan = outstanding `purchase_invoices` via logika Payment
+      (bukan breakdown GL per-supplier — GL tidak punya `supplier_id`)
 - [ ] Umur hutang dari `due_date`
+- [ ] Lebar bucket umur dibaca dari `settings.aging_bucket_days` (default 30),
+      bukan angka mati di kode — dibuktikan dengan mengubah setting lalu
+      memanggil ulang laporan
+- [ ] Layar Laporan Piutang/Hutang mengikuti pola generik §14 PANDUAN_UI,
+      tidak mengarang tata letak baru
 - [ ] Angka bisa ditelusuri ke dokumen
 - [ ] `./scripts/verify.sh` hijau
 
@@ -3013,6 +3876,266 @@ DEFINITION OF DONE:
 - [ ] Rekonsiliasi selisih 0 di DB sehat
 - [ ] Selisih karena titipan terjelaskan
 - [ ] `docs/queries.md` berisi query pengganti yang sudah diuji
+- [ ] `./scripts/verify.sh` hijau
+
+---
+
+## Hari 32A 🆕 — Biaya Operasional Lanjutan (Pindah Buku Kas, Kasbon, Laporan)
+
+> **Kenapa hari ini ada.** Modul Biaya Operasional (Hari 17) dibangun dengan banyak default
+> karena daftar akun asli dan beberapa alur belum dijawab klien saat itu
+> (`docs/PERTANYAAN_KLIEN_BIAYA_OPERASIONAL.md` §15). Sesi tertulis 05 September menuntaskan
+> sisa pertanyaan itu plus Putaran 2 — **lima giliran tanya-jawab**, hasilnya dirangkum di
+> `CLAUDE.md` §3 "Biaya Operasional" dan `PROGRESS.md` §3 (05 Sep). Ini **keputusan kerja**,
+> belum dikonfirmasi ke klien asli — pola sama Payment (§2.12) dan Laporan Stok/Piutang-Hutang
+> (Hari 29/30). Kalau klien menjawab beda nanti, itu yang direvisi, bukan dianggap final.
+>
+> **JANGAN mengulang riset akun.** Godaan pertama begitu baca "akun biaya belum lengkap" di
+> riwayat pertanyaan adalah menulis migration akun baru. **Itu sudah selesai sejak Hari 17A
+> (13 Agustus)** — baca dulu `RestructureChartOfAccountsV2` (migration `1785080602948`)
+> baris ~164-179 dan ~285-315: 11 placeholder `52xx` dari Hari 17 pagi sudah dihapus hari
+> yang sama, digantikan akun real hasil rekonsiliasi laporan Juli klien (`06.110.xxx`/
+> `06.120.xxx`, sumber `docs/COA_USULAN.md`). Cross-check dengan `SELECT code, name FROM
+> chart_of_accounts WHERE code LIKE '06.11%' OR code LIKE '06.12%'` di `omega_dev` SEBELUM
+> menulis satu baris migration pun — kalau hasilnya sudah berisi `B. Gaji Salesman`/`B. Upah
+> Tukang Angkut`/`B. BBM Kendaraan`, akun itu SUDAH ADA, jangan dibuat ulang.
+
+### 🔧 Backend
+
+```
+KONTEKS: Hari 32A dari 37. Hari sisipan (sisipan ketiga: 17A, 22A, 23A sebelumnya).
+Baca CLAUDE.md §3 "Biaya Operasional" dan §2.9/§2.16/§2.19 dulu — semua keputusan
+hari ini sudah ditulis di sana, tugas ini memindahkannya ke kode, bukan
+memutuskan ulang.
+
+TUGAS (BACKEND):
+
+1. DUA FLAG BARU di chart_of_accounts (BUKAN migration akun, akunnya sudah ada):
+   - restricted_to_master BOOLEAN NOT NULL DEFAULT false
+     -> UPDATE ... SET restricted_to_master = true WHERE code = '06.110.00001'
+        (B. Gaji Salesman)
+   - is_employee_receivable_account BOOLEAN NOT NULL DEFAULT false
+     -> UPDATE ... SET is_employee_receivable_account = true
+        WHERE code = '01.120.00002' (Piutang Karyawan)
+   Pola sama persis flag singleton yang sudah ada (is_payment_diff_account dkk,
+   Hari 17A/27) — JANGAN menciptakan mekanisme role-restriction yang berbeda.
+
+2. DUA AKUN BARU (baru genuinely, tidak ada di 108 akun Hari 17A) di kategori
+   06.110 (Beban Penjualan & Distribusi), lanjutan kode setelah 06.110.00009:
+   - 06.110.00010  B. Ongkos Kirim Pembelian   (postable, sama pola baris lain)
+   - 06.110.00011  B. Bongkar Barang Masuk     (postable)
+   Parent_id, normal_balance DEBIT, account_subtype SELLING_EXPENSE — copy
+   persis pola INSERT akun 06.110.xxx lain di migration 1785080602948.
+
+3. MASTER BARU "workers" (pola SAMA PERSIS salesmen/vehicles — jangan menambah
+   kolom di luar ini tanpa alasan baru):
+   - id uuid, code (unique), name, is_active default true, timestamps
+   - Seed 2 baris dari saldo Piutang Karyawan Juli (COA_USULAN.md):
+     'Icung', 'Firman' — MASTER menambah sisanya lewat CRUD nanti
+   CRUD standar (Controller+Service+Module+DTO), tanpa role restriction khusus
+   (dipakai baik oleh OPERATOR maupun MASTER).
+
+4. operational_expense_lines — dua kolom baru, keduanya nullable FK:
+   - worker_id UUID REFERENCES workers(id)   -- dipakai baris Gaji Tukang
+     Angkut & Kasbon
+   - vehicle_id UUID REFERENCES vehicles(id) -- dipakai baris BBM/Servis &
+     Suku Cadang/Pajak & Perizinan Kendaraan (06.110.00006/07/08)
+   Validasi TIDAK memaksa keduanya wajib diisi di service — itu keputusan FE
+   (tampilkan field kalau akunnya cocok), backend cukup terima kalau ada.
+
+5. operational_expense_documents — kolom baru:
+   - review_status ENUM('BELUM_DICEK','DISETUJUI','BERMASALAH')
+     NOT NULL DEFAULT 'BELUM_DICEK'
+   - review_note TEXT NULL
+   Pola PERSIS SalesInvoiceReviewStatus (sales-invoices/entities/
+   sales-invoice.entity.ts) dan ReviewSalesInvoiceDto — copy strukturnya,
+   jangan merancang skema baru.
+   Endpoint baru: PATCH /operational-expenses/:id/review
+   (Roles: MASTER, SUPERVISOR — sama seperti review sales/purchase invoice).
+
+6. PATCH /operational-expenses/lines/:lineId (BELUM ADA sama sekali hari ini
+   — createLine dan voidLine sudah ada, edit belum). Body: amount, description,
+   expenseAccountId, workerId?, vehicleId?, referenceNumber?. Tolak 400 kalau
+   document.reviewStatus === 'DISETUJUI' ("Bukti sudah disetujui supervisor -
+   gunakan VOID untuk koreksi."). Validasi akun sama seperti createLine
+   (langkah 8 di bawah). Roles: MASTER, OPERATOR (sama seperti createLine).
+
+7. cash_transfers (Pindah Buku Kas) — entitas + migration baru:
+   - id, document_number (unique, format PB/{store_code}-YYMMXXXX lewat
+     DocumentCounterService)
+   - transfer_date DATE
+   - from_cash_account_id UUID, to_cash_account_id UUID (keduanya wajib
+     is_cash_account = true, dan wajib BEDA satu sama lain)
+   - amount NUMERIC(16,2), note TEXT NULL
+   - posting_status ENUM('POSTED','VOIDED') default POSTED
+   - review_status ENUM('BELUM_DICEK','DISETUJUI','BERMASALAH')
+     default 'BELUM_DICEK'  -- setelah-fakta, BUKAN gate StepUp
+   - void_reason_code/void_reason_note (pola VoidEngine standar)
+   - created_by, timestamps
+   DocumentCounterService: tambah 'CASH_TRANSFER' ke DocumentType union dan
+   DOCUMENT_PREFIXES ('PB'). JournalPosterService: Dr to_cash_account_id /
+   Cr from_cash_account_id sebesar amount, sourceType 'CASH_TRANSFER'.
+   VoidEngine hook baru: reversing journal bertanggal hari ini (§2.1/§2.2),
+   pola sama hook operational-expense-lines.
+   Endpoint: POST /cash-transfers, POST /cash-transfers/:id/void,
+   PATCH /cash-transfers/:id/review, GET /cash-transfers (list + filter
+   tanggal). Roles POST: MASTER, OPERATOR. Roles review: MASTER, SUPERVISOR.
+
+8. PERBAIKI DUA BUG di operational-expenses.service.ts (ditemukan sesi ini,
+   BUKAN regresi baru — sudah ada sejak Hari 17):
+   a. findExpenseAccounts() query `{ accountType: EXPENSE, isActive: true }`
+      TIDAK memfilter isPostable — akun header/kategori EXPENSE (mis.
+      06.110.00000, 06.120.00000, 06.000.00000) ikut muncul di dropdown
+      "Akun Biaya". Tambah isPostable: true.
+   b. Validasi createLine() (baris ~288-293) menolak SEMUA akun non-EXPENSE
+      tanpa kecuali — Kasbon butuh 01.120.00002 (accountType ASSET) bisa
+      lolos. Ganti syaratnya jadi:
+        account.accountType === EXPENSE
+        ATAU (account.accountType === ASSET AND
+              account.isEmployeeReceivableAccount === true)
+      Piutang/Hutang/Persediaan LAIN tetap ditolak seperti sekarang — jangan
+      melonggarkan lebih dari satu akun spesifik ini.
+   Sekalian: findExpenseAccounts() untuk role OPERATOR WAJIB menyaring akun
+   restricted_to_master = true (06.110.00001 B. Gaji Salesman tidak boleh
+   muncul di dropdown OPERATOR sama sekali — bukan cuma ditolak saat submit).
+   createLine() juga menolak 400 kalau OPERATOR memilih akun
+   restricted_to_master tanpa lolos dari dropdown (defense in depth, sama
+   pola supplier masking §3 "Lain-lain").
+
+9. Backdate 7 hari KHUSUS modul ini + Pindah Buku Kas. PeriodLockValidator
+   (§2.9) sudah jadi satu titik masuk sejak Hari 9 — tambah parameter
+   maxBackdateDays (default 2) yang di-override jadi 7 hanya dari pemanggil
+   operational-expenses & cash-transfers. JANGAN mengubah default global
+   ke 7 — modul yang menyentuh FIFO/stok wajib tetap 2.
+
+10. GET /reports/operational-expenses?month=YYYY-MM — rekap per akun EXPENSE:
+    { accountId, accountCode, accountName, amount }[], + grandTotal.
+    Query: SUM(operational_expense_lines.amount) WHERE posting_status =
+    'POSTED' JOIN chart_of_accounts WHERE accountType = 'EXPENSE' (Kasbon/
+    Piutang Karyawan TIDAK ikut — itu bukan EXPENSE), GROUP BY account,
+    filter tanggal dalam bulan yang diminta, ORDER BY code. Akun tanpa
+    transaksi bulan itu TIDAK ditampilkan (baris kosong tidak berguna untuk
+    rekap sesederhana ini — beda dari laporan lain yang menampilkan 0).
+
+ATURAN WAJIB HARI INI:
+- JANGAN membuat modul Payment/Penerimaan Kas untuk pelunasan Kasbon.
+  Untuk sekarang, uang masuk pelunasan dicatat manual lewat Jurnal Manual
+  yang sudah ada (endpoint sudah jalan sejak Hari 12) — bukan dibangun jalur
+  baru. Tulis catatan di PROGRESS.md kalau ini terasa menyakitkan di
+  pemakaian nyata nanti.
+- cash_transfers TIDAK lewat StepUpService/CASH_OUTFLOW meski salah satu
+  sisi Kas Besar (requires_outflow_approval) — ini pemindahan internal,
+  bukan pengeluaran ke pihak luar. review_status setelah-fakta sudah cukup.
+- JANGAN menyentuh kunci cetak §2.16 (daftar 7 dokumen tetap tidak berubah).
+  Biaya Operasional dan Pindah Buku Kas SENGAJA di luar daftar itu.
+
+DEFINITION OF DONE:
+- SELECT dari omega_dev membuktikan 06.110.00001/06.110.00002/06.110.00006
+  SUDAH ADA sebelum migration hari ini dijalankan (bukti tidak ada migration
+  akun duplikat ditulis)
+- OPERATOR: GET /operational-expenses/expense-accounts TIDAK memuat
+  06.110.00001 maupun akun header (is_postable=false)
+- MASTER: GET yang sama MEMUAT 06.110.00001
+- POST createLine dengan expenseAccountId = 01.120.00002 (Piutang Karyawan)
+  + workerId terisi -> 201, baris tercatat sebagai Kasbon
+- POST createLine dengan akun Piutang Usaha/Hutang Usaha/Persediaan lain
+  (BUKAN 01.120.00002) -> tetap 400 seperti sebelumnya
+- PATCH lines/:id sebelum review disetujui -> 200, jurnal lama dibalik+ganti
+  baru (atau update in-place sesuai desain VoidEngine yang dipakai — pilih
+  salah satu tapi audit_logs WAJIB mencatat before/after)
+- PATCH lines/:id setelah review_status DISETUJUI -> 400
+- POST /cash-transfers dari Kas Toko ke Kas Besar -> jurnal Dr Kas Besar/
+  Cr Kas Toko, nomor PB/RM01-YYMMXXXX, review_status BELUM_DICEK
+- PATCH /cash-transfers/:id/review -> DISETUJUI, transaksi TIDAK berubah
+  (murni penanda, bukan re-posting)
+- Backdate 8 hari ke belakang untuk operational-expenses -> 400; backdate
+  6 hari -> 200. Backdate 3 hari untuk faktur penjualan -> tetap 400
+  (validator default tidak ikut melonggar)
+- GET /reports/operational-expenses?month=2026-09 mengembalikan rekap benar
+  dibandingkan SUM manual via psql, Kasbon tidak ikut baris manapun
+
+SETELAH SELESAI: verify.sh + checklist DoD + jelaskan di mana saja
+CLAUDE.md §3 "Biaya Operasional" dipakai sebagai rujukan (atau kalau ada
+yang ternyata tidak cocok dengan kode yang sudah ada, laporkan sebagai
+kontradiksi yang perlu diputuskan user — jangan ditimpa sepihak).
+```
+
+### 🎨 Frontend
+
+```
+KONTEKS: Hari 32A dari 37. Baca docs/PANDUAN_UI.md dulu untuk pola §14
+(laporan generik) dan pola form/tabel yang sudah ada.
+
+TUGAS (FRONTEND):
+1. Halaman Biaya Operasional (kas-bank/biaya-operasional/index.vue, SUDAH
+   ADA sejak Hari 17):
+   - Baris memilih akun BBM/Servis-Suku Cadang/Pajak-Perizinan Kendaraan
+     (06.110.00006/07/08) -> muncul dropdown Kendaraan (vehicles aktif:
+     D-8327 TD, F 8746 SR). JANGAN hardcode dua plat ini di FE — ambil dari
+     GET /vehicles seperti biasa.
+   - Baris memilih akun Gaji Tukang Angkut ATAU Piutang Karyawan -> muncul
+     dropdown Pekerja (workers aktif).
+   - Tambah tombol Edit per baris, aktif hanya kalau
+     document.reviewStatus !== 'DISETUJUI'. Setelah disetujui, tombol Edit
+     hilang/disabled, hanya VOID yang muncul (pola sama tombol Edit/VOID di
+     faktur lain).
+   - Tab/toggle "Kasbon" di layar yang sama (bukan halaman terpisah) —
+     dropdown akun otomatis terbatas ke 01.120.00002 saat tab ini aktif,
+     dan field Pekerja WAJIB diisi (bukan opsional seperti baris biaya).
+
+2. Halaman baru Pindah Buku Kas (kas-bank/pindah-buku/index.vue atau
+   sejenis, ikuti pola direktori kas-bank/ yang sudah ada) — form: dari kas
+   (dropdown akun kas) -> ke kas (dropdown akun kas, tidak boleh sama) ->
+   nominal -> keterangan. Cetak A5 sesuai template dokumen lain (komponen
+   cetak yang sudah ada, JANGAN membuat sistem cetak baru).
+
+3. Tab tambahan di halaman Pengecekan Invoice Harian
+   (pengecekan-invoice/index.vue) untuk Biaya Operasional dan Pindah Buku
+   Kas — per bukti (bukan per baris), supervisor menandai DISETUJUI/
+   BERMASALAH, sama pola dengan tab faktur yang sudah ada di halaman itu.
+   JANGAN fork komponennya jadi halaman baru.
+
+4. Halaman baru Laporan Biaya Operasional (laporan/biaya-operasional.vue)
+   — pola generik §14 PANDUAN_UI: panel parameter (pilih bulan), hasil
+   tabel Nama Biaya | Jumlah + baris Grand Total, tombol export Excel
+   (<ExportButton>, pola sama laporan lain). TIDAK ada tombol/opsi cetak
+   PDF (keputusan lama §7 tetap berlaku untuk laporan, beda dari bukti
+   transaksi Pindah Buku Kas/KK yang memang dicetak).
+
+JANGAN dikerjakan hari ini: layar Kasbon sebagai modul terpisah (masih
+menumpang layar Biaya Operasional) · layar pelunasan Kasbon (uang masuk,
+masih lewat Jurnal Manual manual) · perubahan apa pun ke kunci cetak.
+
+DEFINITION OF DONE:
+- Pilih akun BBM di form biaya -> dropdown Kendaraan muncul, berisi hanya
+  kendaraan aktif dari GET /vehicles
+- Bukti yang sudah DISETUJUI -> tombol Edit hilang di semua barisnya
+- Pindah Buku Kas tersimpan, tercetak A5, nomor PB/RM01-YYMMXXXX terlihat
+- Tab Biaya Operasional & Pindah Buku Kas muncul di Pengecekan Invoice
+  Harian, supervisor bisa menandai DISETUJUI/BERMASALAH per bukti
+- Laporan Biaya Operasional menampilkan rekap benar untuk bulan berjalan,
+  export Excel jalan, tidak ada tombol cetak PDF
+```
+
+### ✅ Verifikasi Hari 32A
+
+- [ ] `SELECT` di `omega_dev` membuktikan akun `06.110.xxx`/`06.120.xxx` sudah ada SEBELUM
+      migration hari ini — tidak ada akun duplikat tertulis
+- [ ] Flag `restricted_to_master` & `is_employee_receivable_account` ter-set benar
+- [ ] Dua akun baru (`06.110.00010`/`00011`) ada dan postable
+- [ ] `workers` ter-seed (Icung, Firman) + CRUD jalan
+- [ ] OPERATOR tidak melihat `B. Gaji Salesman` di dropdown; MASTER melihatnya
+- [ ] Kasbon (akun Piutang Karyawan) bisa dicatat di baris Biaya Operasional; akun
+      Piutang/Hutang/Persediaan lain tetap ditolak
+- [ ] Edit baris jalan sebelum `review_status = DISETUJUI`, ditolak sesudahnya
+- [ ] Pindah Buku Kas: jurnal benar, nomor `PB` berurut, review setelah-fakta tidak menahan
+      transaksi
+- [ ] Backdate 7 hari khusus modul ini & Pindah Buku Kas; modul lain tetap 2 hari
+- [ ] Laporan Biaya Operasional benar dibanding SUM manual, Kasbon tidak ikut, export
+      Excel jalan, tanpa opsi PDF
+- [ ] Kolom Kendaraan (BBM/Servis/Pajak Kendaraan) berfungsi, sumbernya `GET /vehicles`
+- [ ] `CLAUDE.md` §3 "Biaya Operasional" dan §2.9 (pengecualian backdate) sudah konsisten
+      dengan kode
 - [ ] `./scripts/verify.sh` hijau
 
 ---

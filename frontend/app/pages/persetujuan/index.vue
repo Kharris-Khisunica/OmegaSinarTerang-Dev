@@ -36,7 +36,19 @@ onUnmounted(() => {
   if (pollTimer) clearInterval(pollTimer)
 })
 
+// Label Bahasa Indonesia per jenis aksi (enum backend ActionType); jenis baru
+// yang belum terdaftar jatuh ke humanize generik di bawah.
+const ACTION_TYPE_LABELS: Record<string, string> = {
+  VOID_DOCUMENT: 'VOID Dokumen',
+  UNLOCK_PRINT: 'Batal Cetak',
+  SELL_BELOW_COST: 'Jual di Bawah Harga Pokok',
+  CASH_OUTFLOW: 'Pengeluaran Kas',
+  BS_TO_STORE: 'Mutasi Bad Stock ke Toko',
+  TEST_STEP_UP_ACTION: 'Uji Coba'
+}
+
 function humanizeActionType(value: string): string {
+  if (ACTION_TYPE_LABELS[value]) return ACTION_TYPE_LABELS[value]
   return value
     .toLowerCase()
     .split('_')

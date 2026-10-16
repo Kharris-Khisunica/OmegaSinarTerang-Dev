@@ -239,7 +239,7 @@ export class PaymentsService {
         total_amount: string;
       }[] = await runner.query(
         `SELECT si.id, si.customer_id, cust.name AS customer_name,
-                si.invoice_number, si.invoice_date, si.total_amount
+                si.invoice_number, si.invoice_date::text AS invoice_date, si.total_amount
          FROM sales_invoices si
          JOIN customers cust ON cust.id = si.customer_id
          WHERE si.posting_status = 'POSTED' ${partyFilter}
@@ -272,7 +272,8 @@ export class PaymentsService {
       total_amount: string;
     }[] = await runner.query(
       `SELECT pi.id, pi.supplier_id, sup.name AS supplier_name,
-              pi.invoice_number, pi.receipt_date, pi.due_date, pi.total_amount
+              pi.invoice_number, pi.receipt_date::text AS receipt_date,
+              pi.due_date::text AS due_date, pi.total_amount
        FROM purchase_invoices pi
        JOIN suppliers sup ON sup.id = pi.supplier_id
        WHERE pi.posting_status = 'POSTED' ${partyFilter}
@@ -474,6 +475,7 @@ export class PaymentsService {
       methodIndex: number;
       accountId: string;
       amount: number;
+      contextSummary: string;
     }[] = [];
     if (dto.invoiceType === PaymentInvoiceType.PURCHASE) {
       const threshold = await this.readCashOutflowThreshold();
@@ -481,17 +483,24 @@ export class PaymentsService {
         const methods = dto.lines[li].methods;
         for (let mi = 0; mi < methods.length; mi++) {
           const method = methods[mi];
-          const rows: { requires_outflow_approval: boolean }[] =
-            await this.dataSource.query(
-              `SELECT requires_outflow_approval FROM chart_of_accounts WHERE id = $1`,
-              [method.cashAccountId],
-            );
+          const rows: {
+            requires_outflow_approval: boolean;
+            code: string;
+            name: string;
+          }[] = await this.dataSource.query(
+            `SELECT requires_outflow_approval, code, name FROM chart_of_accounts WHERE id = $1`,
+            [method.cashAccountId],
+          );
           if (rows[0]?.requires_outflow_approval && method.amount > threshold) {
+            // Kode + nama akun, bukan UUID — supervisor menilai permintaan
+            // dari teks ini apa adanya di Antrian Persetujuan.
+            const contextSummary = `Pengeluaran Kas ${method.amount.toLocaleString('id-ID')} dari akun ${rows[0].code} ${rows[0].name}`;
             methodsNeedingApproval.push({
               lineIndex: li,
               methodIndex: mi,
               accountId: method.cashAccountId,
               amount: method.amount,
+              contextSummary,
             });
             if (!method.authorizationRequestId) {
               await this.stepUpService.requireApproval({
@@ -501,7 +510,7 @@ export class PaymentsService {
                   accountId: method.cashAccountId,
                   amount: method.amount,
                 },
-                contextSummary: `Pengeluaran Kas ${method.amount.toLocaleString('id-ID')} dari akun ${method.cashAccountId}`,
+                contextSummary,
               });
             }
           }
@@ -517,7 +526,7 @@ export class PaymentsService {
           user,
           actionType: ActionType.CASH_OUTFLOW,
           payload: { accountId: pending.accountId, amount: pending.amount },
-          contextSummary: `Pengeluaran Kas ${pending.amount.toLocaleString('id-ID')} dari akun ${pending.accountId}`,
+          contextSummary: pending.contextSummary,
           authorizationRequestId: method.authorizationRequestId,
           manager,
         });

@@ -5,6 +5,7 @@ import { StockRecorderModule } from '../../core/stock-recorder/stock-recorder.mo
 import { PaymentsModule } from '../payments/payments.module';
 import { SettingsModule } from '../settings/settings.module';
 import { CashDailyReportService } from './cash-daily-report.service';
+import { DashboardService } from './dashboard.service';
 import { DocumentContinuityService } from './document-continuity.service';
 import { OperationalExpenseReportService } from './operational-expense-report.service';
 import { PayablesReportService } from './payables-report.service';
@@ -40,6 +41,7 @@ import { StockReportsService } from './stock-reports.service';
     PayablesReportService,
     CashDailyReportService,
     OperationalExpenseReportService,
+    DashboardService,
   ],
 })
 export class ReportsModule {}

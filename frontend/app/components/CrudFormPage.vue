@@ -47,6 +47,12 @@ const { user } = useAuth()
 const isEdit = computed(() => props.id !== undefined && props.id !== null && props.id !== '')
 const operatorName = computed(() => user.value?.fullName ?? '')
 const draftKey = computed(() => `md-draft:${props.endpoint}:${isEdit.value ? `edit:${props.id}` : 'create'}`)
+// Field 'password' dibuang dari draf sessionStorage (need_fixing.md #24).
+const passwordKeys = computed(() => props.schema.filter(f => f.type === 'password').map(f => f.key))
+const draftData = computed(() => {
+  if (passwordKeys.value.length === 0) return form
+  return Object.fromEntries(Object.entries(form).filter(([key]) => !passwordKeys.value.includes(key)))
+})
 
 function repeaterDefaultRow(field: FieldDef): Record<string, unknown> {
   const row: Record<string, unknown> = {}
@@ -443,7 +449,7 @@ watch(() => props.open, async (isOpen) => {
       variant="subtle"
       icon="i-lucide-alert-triangle"
       :title="bannerError"
-      :close-button="{ icon: 'i-lucide-x', color: 'neutral', variant: 'link' }"
+      :close="{ icon: 'i-lucide-x', color: 'neutral', variant: 'link' }"
       @update:open="bannerError = ''"
     />
 
@@ -531,6 +537,16 @@ watch(() => props.open, async (isOpen) => {
               {{ field.action.label }}
             </UButton>
           </div>
+          <UInput
+            v-else-if="field.type === 'password'"
+            type="password"
+            autocomplete="new-password"
+            :model-value="asString(field.key)"
+            :placeholder="field.placeholder"
+            :disabled="isDisabled(field)"
+            class="w-full"
+            @update:model-value="(v) => setField(field.key, v)"
+          />
           <div
             v-else-if="field.type === 'display'"
             class="text-xl font-semibold px-4 py-2.5 min-h-9 flex items-center rounded-md border border-default bg-elevated/50"
@@ -630,10 +646,10 @@ watch(() => props.open, async (isOpen) => {
                 <USelect
                   v-else-if="col.type === 'select'"
                   :model-value="(repeaterCellValue(field.key, rowIndex, col.key) as string) ?? undefined"
-                  :items="resolvedRepeaterOptions[repeaterOptionsKey(field.key, col.key)] ?? []"
+                  :items="col.rowOptions ? col.rowOptions(row) : (resolvedRepeaterOptions[repeaterOptionsKey(field.key, col.key)] ?? [])"
                   :placeholder="repeaterPlaceholder(field, col, rowIndex)"
                   class="w-full"
-                  @update:model-value="(v) => setRepeaterCellValue(field.key, rowIndex, col.key, v)"
+                  @update:model-value="(v) => { setRepeaterCellValue(field.key, rowIndex, col.key, v); col.onChange?.(row) }"
                 />
                 <MoneyInput
                   v-else-if="col.type === 'currency'"
@@ -710,7 +726,7 @@ watch(() => props.open, async (isOpen) => {
     :dirty="isDirty()"
     :saving="submitting"
     :draft-key="draftKey"
-    :draft-data="form"
+    :draft-data="draftData"
     @update:open="(v: boolean) => emit('update:open', v)"
     @restore-draft="(d) => Object.assign(form, d as Record<string, unknown>)"
     @save="submit(false)"
@@ -722,7 +738,7 @@ watch(() => props.open, async (isOpen) => {
         variant="subtle"
         icon="i-lucide-alert-triangle"
         :title="bannerError"
-        :close-button="{ icon: 'i-lucide-x', color: 'neutral', variant: 'link' }"
+        :close="{ icon: 'i-lucide-x', color: 'neutral', variant: 'link' }"
         @update:open="bannerError = ''"
       />
 
@@ -810,6 +826,16 @@ watch(() => props.open, async (isOpen) => {
                 {{ field.action.label }}
               </UButton>
             </div>
+            <UInput
+              v-else-if="field.type === 'password'"
+              type="password"
+              autocomplete="new-password"
+              :model-value="asString(field.key)"
+              :placeholder="field.placeholder"
+              :disabled="isDisabled(field)"
+              class="w-full"
+              @update:model-value="(v) => setField(field.key, v)"
+            />
             <div
               v-else-if="field.type === 'display'"
               class="text-xl font-semibold px-4 py-2.5 min-h-9 flex items-center rounded-md border border-default bg-elevated/50"

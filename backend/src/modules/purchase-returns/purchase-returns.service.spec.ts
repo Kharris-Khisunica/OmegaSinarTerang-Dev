@@ -8,6 +8,9 @@ import { PeriodLockValidatorService } from '../../core/period-lock/period-lock-v
 import { PrintLockService } from '../../core/print-lock/print-lock.service';
 import { StockRecorderService } from '../../core/stock-recorder/stock-recorder.service';
 import { StepUpService } from '../../core/step-up/step-up.service';
+import { DocumentReviseService } from '../../core/document-revise/document-revise.service';
+import { VoidEngineService } from '../../core/void/void.service';
+import { PurchaseReturnVoidHook } from './purchase-return-void.hook';
 import { AuthenticatedUser } from '../auth/types/jwt-payload.interface';
 import { AuthorizationRequestsService } from '../authorization-requests/authorization-requests.service';
 import { AuthorizationRequest } from '../authorization-requests/entities/authorization-request.entity';
@@ -39,6 +42,7 @@ import { CreatePurchaseReturnDto } from './dto/create-purchase-return.dto';
 import { PurchaseReturnLine } from './entities/purchase-return-line.entity';
 import {
   PurchaseReturn,
+  PurchaseReturnPostingStatus,
   PurchaseReturnSettlementType,
   PurchaseReturnUnitMode,
 } from './entities/purchase-return.entity';
@@ -127,6 +131,16 @@ describe('PurchaseReturnsService', () => {
     );
     const stepUpService = new StepUpService(authorizationRequestsService);
     const printLockService = new PrintLockService(dataSource, stepUpService);
+    const voidEngineService = new VoidEngineService(
+      journalPosterService,
+      stockRecorderService,
+    );
+    new PurchaseReturnVoidHook(voidEngineService).onModuleInit();
+    const documentReviseService = new DocumentReviseService(
+      journalPosterService,
+      stockRecorderService,
+      periodLockValidatorService,
+    );
 
     service = new PurchaseReturnsService(
       dataSource,
@@ -137,6 +151,9 @@ describe('PurchaseReturnsService', () => {
       journalPosterService,
       accountResolverService,
       printLockService,
+      voidEngineService,
+      stepUpService,
+      documentReviseService,
     );
 
     const suffix = Date.now();
@@ -208,6 +225,18 @@ describe('PurchaseReturnsService', () => {
 
   afterAll(async () => {
     if (createdReturnIds.length > 0) {
+      // Jurnal pembalik VOID/revisi dulu (anak sebelum induk).
+      await dataSource.query(
+        `DELETE FROM journal_entry_lines WHERE journal_entry_id IN (
+           SELECT id FROM journal_entries WHERE reversed_entry_id IN (
+             SELECT id FROM journal_entries WHERE source_type = 'PURCHASE_RETURN' AND source_id = ANY($1)))`,
+        [createdReturnIds],
+      );
+      await dataSource.query(
+        `DELETE FROM journal_entries WHERE reversed_entry_id IN (
+           SELECT id FROM journal_entries WHERE source_type = 'PURCHASE_RETURN' AND source_id = ANY($1))`,
+        [createdReturnIds],
+      );
       await dataSource.query(
         `DELETE FROM journal_entry_lines WHERE journal_entry_id IN (
            SELECT id FROM journal_entries WHERE source_type = 'PURCHASE_RETURN' AND source_id = ANY($1)
@@ -661,5 +690,117 @@ describe('PurchaseReturnsService', () => {
       (l) => l.accountId === payableAccountId,
     );
     expect(payableLine).toBeUndefined();
+  });
+
+  describe('VOID & revisi-di-tempat (need_fixing.md #19)', () => {
+    async function bsRemaining(productId: string): Promise<number> {
+      const rows: { qty: string }[] = await dataSource.query(
+        `SELECT COALESCE(SUM(qty_remaining), 0) AS qty FROM stock_cost_lots
+         WHERE product_id = $1 AND warehouse_id = $2`,
+        [productId, badStockWarehouseId],
+      );
+      return Number(rows[0].qty);
+    }
+
+    it('VOID oleh MASTER -> VOIDED, stok BS kembali penuh, ada jurnal VOID_REVERSAL', async () => {
+      const supplierId = await createTestSupplier();
+      const productId = await createTestProduct('Produk VOID RB', []);
+      await seedBadStockLot(productId, supplierId, 10, 5000);
+      const created = await service.create(
+        {
+          supplierId,
+          returnDate: isoTodayMinus(0),
+          unitMode: PurchaseReturnUnitMode.KECIL,
+          settlementType: PurchaseReturnSettlementType.REDUCE_INVOICE,
+          lines: [{ productId, qtyInput: 4, agreedUnitPrice: 6000 }],
+        },
+        masterUser,
+      );
+      createdReturnIds.push(created.purchaseReturn.id);
+      expect(await bsRemaining(productId)).toBe(6);
+
+      const voided = await service.voidReturn(
+        created.purchaseReturn.id,
+        { reasonCode: 'SALAH_INPUT', reasonNote: 'supplier menolak retur' },
+        masterUser,
+        undefined,
+      );
+      expect(voided.postingStatus).toBe(PurchaseReturnPostingStatus.VOIDED);
+      expect(await bsRemaining(productId)).toBe(10);
+      const reversal: unknown[] = await dataSource.query(
+        `SELECT id FROM journal_entries WHERE source_type = 'VOID_REVERSAL' AND reversed_entry_id IN (
+           SELECT id FROM journal_entries WHERE source_type = 'PURCHASE_RETURN' AND source_id = $1)`,
+        [created.purchaseReturn.id],
+      );
+      expect(reversal).toHaveLength(1);
+    });
+
+    it('revisi qty 4 -> 7 & nilai: nomor tetap, revision_number 1, stok BS & total ikut', async () => {
+      const supplierId = await createTestSupplier();
+      const productId = await createTestProduct('Produk Revisi RB', []);
+      await seedBadStockLot(productId, supplierId, 10, 5000);
+      const created = await service.create(
+        {
+          supplierId,
+          returnDate: isoTodayMinus(0),
+          unitMode: PurchaseReturnUnitMode.KECIL,
+          settlementType: PurchaseReturnSettlementType.REDUCE_INVOICE,
+          lines: [{ productId, qtyInput: 4, agreedUnitPrice: 5000 }],
+        },
+        masterUser,
+      );
+      createdReturnIds.push(created.purchaseReturn.id);
+
+      const revised = await service.reviseReturn(
+        created.purchaseReturn.id,
+        {
+          supplierId,
+          returnDate: isoTodayMinus(0),
+          unitMode: PurchaseReturnUnitMode.KECIL,
+          settlementType: PurchaseReturnSettlementType.REDUCE_INVOICE,
+          lines: [{ productId, qtyInput: 7, agreedUnitPrice: 5500 }],
+        },
+        masterUser,
+        undefined,
+      );
+      expect(revised.returnNumber).toBe(created.purchaseReturn.returnNumber);
+      expect(revised.revisionNumber).toBe(1);
+      expect(Number(revised.subtotalAgreedAmount)).toBe(38500);
+      expect(Number(revised.totalCostBasis)).toBe(35000);
+      expect(Number(revised.differenceAmount)).toBe(3500);
+      expect(await bsRemaining(productId)).toBe(3);
+    });
+
+    it('revisi ke supplier lain -> ditolak', async () => {
+      const supplierId = await createTestSupplier();
+      const otherSupplierId = await createTestSupplier();
+      const productId = await createTestProduct('Produk Revisi Supplier', []);
+      await seedBadStockLot(productId, supplierId, 5, 5000);
+      const created = await service.create(
+        {
+          supplierId,
+          returnDate: isoTodayMinus(0),
+          unitMode: PurchaseReturnUnitMode.KECIL,
+          settlementType: PurchaseReturnSettlementType.REDUCE_INVOICE,
+          lines: [{ productId, qtyInput: 1, agreedUnitPrice: 5000 }],
+        },
+        masterUser,
+      );
+      createdReturnIds.push(created.purchaseReturn.id);
+      await expect(
+        service.reviseReturn(
+          created.purchaseReturn.id,
+          {
+            supplierId: otherSupplierId,
+            returnDate: isoTodayMinus(0),
+            unitMode: PurchaseReturnUnitMode.KECIL,
+            settlementType: PurchaseReturnSettlementType.REDUCE_INVOICE,
+            lines: [{ productId, qtyInput: 1, agreedUnitPrice: 5000 }],
+          },
+          masterUser,
+          undefined,
+        ),
+      ).rejects.toThrow(/tidak bisa diganti/i);
+    });
   });
 });

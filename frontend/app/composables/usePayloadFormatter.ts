@@ -1,8 +1,34 @@
 const SENSITIVE_KEY_PATTERN = /threshold|batas|limit|cost|hpp/i
 
+// Kunci *Id (sourceId, accountId, customerId, fromWarehouseId, ...) berisi UUID
+// mentah yang tidak bisa dinilai supervisor — disembunyikan. Nama dokumen/akun/
+// pelanggan yang manusiawi sudah ada di contextSummary yang tampil di atasnya.
+const HIDDEN_KEY_PATTERN = /Id$/
+
 const FIELD_LABELS: Record<string, string> = {
-  accountId: 'Akun',
-  amount: 'Nominal'
+  amount: 'Nominal',
+  sourceType: 'Jenis Dokumen',
+  intent: 'Tujuan',
+  invoiceDate: 'Tanggal Faktur',
+  lines: 'Jumlah Baris'
+}
+
+const SOURCE_TYPE_LABELS: Record<string, string> = {
+  SALES_INVOICE: 'Faktur Penjualan',
+  PURCHASE_INVOICE: 'Faktur Pembelian',
+  SALES_ORDER: 'Sales Order',
+  DELIVERY_ORDER: 'Surat Jalan',
+  SALES_RETURN: 'Retur Penjualan',
+  PURCHASE_RETURN: 'Retur Pembelian',
+  PAYMENT: 'Penerimaan/Pengeluaran Kas',
+  WAREHOUSE_MUTATION: 'Mutasi Gudang',
+  CASH_TRANSFER: 'Pindah Buku Kas',
+  OPERATIONAL_EXPENSE: 'Biaya Operasional'
+}
+
+const INTENT_LABELS: Record<string, string> = {
+  EDIT: 'Ubah',
+  VOID: 'VOID'
 }
 
 function humanizeKey(key: string): string {
@@ -12,8 +38,12 @@ function humanizeKey(key: string): string {
 }
 
 function humanizeValue(key: string, value: unknown, rupiah: (v: number) => string): string {
-  if (key === 'amount' && typeof value === 'number') return rupiah(value)
   if (value === null || value === undefined) return '-'
+  if (key === 'amount' && typeof value === 'number') return rupiah(value)
+  if (key === 'sourceType' && typeof value === 'string') return SOURCE_TYPE_LABELS[value] ?? value
+  if (key === 'intent' && typeof value === 'string') return INTENT_LABELS[value] ?? value
+  if (key === 'invoiceDate' && typeof value === 'string') return formatDate(value)
+  if (Array.isArray(value)) return `${value.length} baris`
   if (typeof value === 'object') return JSON.stringify(value)
   return String(value)
 }
@@ -49,7 +79,7 @@ export function usePayloadFormatter() {
         : payload
 
     return Object.entries(flatSource)
-      .filter(([key]) => !SENSITIVE_KEY_PATTERN.test(key))
+      .filter(([key]) => !SENSITIVE_KEY_PATTERN.test(key) && !HIDDEN_KEY_PATTERN.test(key))
       .map(([key, value]) => ({
         label: humanizeKey(key),
         value: humanizeValue(key, value, rupiah)

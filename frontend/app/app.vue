@@ -4,7 +4,9 @@ useHead({
     { name: 'viewport', content: 'width=device-width, initial-scale=1' }
   ],
   link: [
-    { rel: 'icon', href: '/favicon.ico' }
+    // Ikon "store" Lucide, sama dengan logo sidebar (AppLogo.vue) — mengganti
+    // favicon.ico placeholder template Nuxt UI (Hari 1).
+    { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }
   ],
   htmlAttrs: {
     lang: 'id'

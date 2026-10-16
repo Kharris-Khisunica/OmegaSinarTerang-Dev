@@ -252,7 +252,7 @@ onMounted(loadAccounts)
       variant="subtle"
       icon="i-lucide-check-circle-2"
       :title="`${saveNotice.documentNumber} tersimpan.`"
-      :close-button="{ icon: 'i-lucide-x', color: 'neutral', variant: 'link' }"
+      :close="{ icon: 'i-lucide-x', color: 'neutral', variant: 'link' }"
       @update:open="saveNotice = null"
     >
       <template #actions>
@@ -426,7 +426,7 @@ onMounted(loadAccounts)
           variant="subtle"
           icon="i-lucide-alert-triangle"
           :title="bannerError"
-          :close-button="{ icon: 'i-lucide-x', color: 'neutral', variant: 'link' }"
+          :close="{ icon: 'i-lucide-x', color: 'neutral', variant: 'link' }"
           @update:open="bannerError = ''"
         />
         <UAlert

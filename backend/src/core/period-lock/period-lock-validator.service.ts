@@ -38,12 +38,12 @@ export class PeriodLockValidatorService {
 
     if (diffDays < 0) {
       throw new BadRequestException(
-        'Tanggal jurnal tidak boleh di masa depan.',
+        'Tanggal transaksi tidak boleh di masa depan.',
       );
     }
     if (diffDays > maxDays) {
       throw new BadRequestException(
-        `Tanggal jurnal maksimal mundur ${maxDays} hari dari hari ini.`,
+        `Tanggal transaksi maksimal mundur ${maxDays} hari dari hari ini.`,
       );
     }
   }

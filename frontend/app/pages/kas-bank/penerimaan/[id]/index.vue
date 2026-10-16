@@ -40,7 +40,7 @@ interface PaymentDetail {
 
 const route = useRoute()
 const api = useApi()
-const { withStepUp } = useStepUp()
+const { performDualGateVoid } = useDualGateVoid()
 const { format: rupiah } = useRupiah()
 
 const batchId = route.params.id as string
@@ -90,42 +90,10 @@ function voidPayload() {
 function callVoid(headers?: Record<string, string>) {
   return api.post(`/payments/${batchId}/void`, voidPayload(), headers)
 }
-
-/**
- * VOID batch pembayaran bisa memicu DUA gerbang step-up INDEPENDEN
- * (PaymentsController.voidBatch(), lihat komentar panjang di
- * payments.service.ts):
- *   - UNLOCK_PRINT (header x-authorization-request-id) -- semua role, HANYA
- *     kalau batch sudah PRINTED.
- *   - VOID_DOCUMENT (header x-void-authorization-request-id) -- HANYA role
- *     OPERATOR, tidak peduli status cetak.
- * Salinan PERSIS pola penjualan/faktur/[id]/index.vue's performVoid() --
- * lihat komentar panjang di sana untuk alasan lengkap kenapa dua gerbang
- * tidak bisa dirantai polos lewat useStepUp().withStepUp() biasa.
- */
-async function performVoid(): Promise<unknown> {
-  const isPrinted = detail.value?.paymentBatch.printStatus === 'PRINTED'
-  const firstHeaderKey = isPrinted ? 'x-authorization-request-id' : 'x-void-authorization-request-id'
-  let firstHeaders: Record<string, string> = {}
-  const SKIP = Symbol('void-round-one-skip')
-
-  const roundOne = await withStepUp(async (headers) => {
-    if (headers) {
-      firstHeaders = { [firstHeaderKey]: headers['x-authorization-request-id'] as string }
-      return SKIP
-    }
-    return callVoid()
-  })
-  if (roundOne !== SKIP) return roundOne
-
-  if (!isPrinted) {
-    return callVoid(firstHeaders)
-  }
-
-  return withStepUp(headers => callVoid({
-    ...firstHeaders,
-    ...(headers ? { 'x-void-authorization-request-id': headers['x-authorization-request-id'] as string } : {})
-  }))
+// Dua gerbang VOID (UNLOCK_PRINT + VOID_DOCUMENT) — penjelasan lengkap di
+// composables/useDualGateVoid.ts.
+function performVoid(): Promise<unknown> {
+  return performDualGateVoid(detail.value?.paymentBatch.printStatus === 'PRINTED', callVoid)
 }
 
 async function submitVoid() {

@@ -214,8 +214,9 @@ const lineColumns: Column<ExpenseLine>[] = [
   { key: 'postingStatus', label: 'Status', align: 'center', slot: 'postingStatus' }
 ]
 
-// ---- VOID per baris (tanpa step-up -- CLAUDE.md §2.13 belum berlaku modul
-// ini, lihat catatan operational-expenses.controller.ts) --------------------
+// ---- VOID per baris -- OPERATOR wajib step-up VOID_DOCUMENT (§2.13, sejak
+// need_fixing.md #14). Satu gerbang saja (tidak ikut kunci cetak), header
+// x-void-authorization-request-id, pola sama Pindah Buku Kas ---------------
 const voidOpen = ref(false)
 const voidLineId = ref<string | null>(null)
 const voidReasonCode = ref('')
@@ -240,14 +241,21 @@ async function submitVoid() {
   voidError.value = ''
   voidSubmitting.value = true
   try {
-    await api.post(`/operational-expenses/lines/${voidLineId.value}/void`, {
-      reasonCode: voidReasonCode.value,
-      reasonNote: voidReasonNote.value
-    })
+    const lineId = voidLineId.value
+    await withStepUp(headers =>
+      api.post(`/operational-expenses/lines/${lineId}/void`, {
+        reasonCode: voidReasonCode.value,
+        reasonNote: voidReasonNote.value
+      }, headers ? { 'x-void-authorization-request-id': headers['x-authorization-request-id'] as string } : undefined)
+    )
     voidOpen.value = false
     if (detail.value) await openDetail(detail.value)
     table.value?.reload()
   } catch (err) {
+    if (err instanceof StepUpCancelledError) {
+      voidError.value = 'Persetujuan dibatalkan — baris belum dibatalkan.'
+      return
+    }
     voidError.value = getErrorMessage(err, 'Gagal membatalkan baris biaya operasional.')
   } finally {
     voidSubmitting.value = false
@@ -433,6 +441,17 @@ function setLineKind(kind: 'BIAYA' | 'KASBON') {
   lineDirty.value = true
 }
 const lineFormError = ref('')
+// need_fixing.md #8 — hotkey grid baris (PANDUAN_UI.md §12): Delete minta
+// konfirmasi; Enter di field terakhir modal baris = simpan lalu buka baris
+// kosong berikutnya (hanya saat entri baris baru, bukan saat mengubah).
+function confirmRemoveSelectedLine() {
+  if (selectedLine.value && window.confirm('Hapus baris terpilih?')) removeSelectedLine()
+}
+function saveLineAndNew() {
+  const wasNewLine = lineEditIndex.value === null
+  saveLine()
+  if (wasNewLine && !lineOpen.value) openLineEntri()
+}
 function saveLine() {
   const err = validateLineDraft(lineDraft.value.kind, lineDraft.value)
   if (err) {
@@ -527,7 +546,7 @@ onMounted(loadOptions)
       variant="subtle"
       icon="i-lucide-check-circle-2"
       :title="saveNotice"
-      :close-button="{ icon: 'i-lucide-x', color: 'neutral', variant: 'link' }"
+      :close="{ icon: 'i-lucide-x', color: 'neutral', variant: 'link' }"
       @update:open="saveNotice = ''"
     />
 
@@ -691,6 +710,9 @@ onMounted(loadOptions)
       :draft-data="draftData"
       @update:open="(v: boolean) => (entriOpen = v)"
       @restore-draft="restoreDraft"
+      @new-line="openLineEntri"
+      @edit-line="openLineEditSelected"
+      @delete-line="confirmRemoveSelectedLine"
       @save="submit"
     >
       <template #header>
@@ -700,7 +722,7 @@ onMounted(loadOptions)
           variant="subtle"
           icon="i-lucide-alert-triangle"
           :title="bannerError"
-          :close-button="{ icon: 'i-lucide-x', color: 'neutral', variant: 'link' }"
+          :close="{ icon: 'i-lucide-x', color: 'neutral', variant: 'link' }"
           @update:open="bannerError = ''"
         />
         <UAlert
@@ -801,6 +823,7 @@ onMounted(loadOptions)
       width="720px"
       @update:open="(v: boolean) => (lineOpen = v)"
       @save="saveLine"
+      @enter-last="saveLineAndNew"
     >
       <template #form>
         <UAlert

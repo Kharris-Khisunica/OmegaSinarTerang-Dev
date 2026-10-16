@@ -116,6 +116,7 @@ export class OperationalExpensesService {
       dto.expenseAccountId,
       user.role,
     );
+    this.assertKasbonHasWorker(expenseAccount, dto.workerId);
     await this.assertOptionalWorkerAndVehicle(dto.workerId, dto.vehicleId);
     const threshold = await this.readCashOutflowThreshold();
     const needsApproval =
@@ -296,6 +297,7 @@ export class OperationalExpensesService {
             lineDto.expenseAccountId,
             user.role,
           );
+          this.assertKasbonHasWorker(expenseAccount, lineDto.workerId);
           await this.assertOptionalWorkerAndVehicle(
             lineDto.workerId,
             lineDto.vehicleId,
@@ -412,6 +414,7 @@ export class OperationalExpensesService {
       dto.expenseAccountId,
       user.role,
     );
+    this.assertKasbonHasWorker(expenseAccount, dto.workerId);
     await this.assertOptionalWorkerAndVehicle(dto.workerId, dto.vehicleId);
 
     return this.dataSource.transaction(async (manager) => {
@@ -523,12 +526,58 @@ export class OperationalExpensesService {
     return this.findOne(id);
   }
 
+  /**
+   * VOID per baris. OPERATOR wajib step-up VOID_DOCUMENT (§2.13, keputusan
+   * 6 Okt 2026 need_fixing.md #14 — dulu dikecualikan). Satu gerbang saja,
+   * pola PERSIS CashTransfersService.voidTransfer(): Biaya Operasional tidak
+   * ikut kunci cetak (§3), jadi tidak ada UNLOCK_PRINT.
+   */
   async voidLine(
     lineId: string,
     dto: VoidOperationalExpenseLineDto,
     user: AuthenticatedUser,
+    voidAuthorizationRequestId?: string,
   ): Promise<OperationalExpenseLine> {
+    const existing = await this.linesRepository.findOne({
+      where: { id: lineId },
+      relations: { document: true },
+    });
+    if (!existing) {
+      throw new BadRequestException('Baris biaya operasional tidak ditemukan.');
+    }
+
+    const needsVoidApproval = user.role === Role.OPERATOR;
+    const voidPayload = { sourceType: 'OPERATIONAL_EXPENSE', sourceId: lineId };
+    let voidContextSummary = '';
+    if (needsVoidApproval) {
+      const account = await this.chartOfAccountsRepository.findOne({
+        where: { id: existing.expenseAccountId },
+      });
+      const amountText = Number(existing.amount).toLocaleString('id-ID');
+      voidContextSummary = `VOID baris Biaya Operasional ${existing.document.documentNumber} — ${account?.name ?? '-'} ${amountText}${existing.description ? ` (${existing.description})` : ''}: ${dto.reasonNote}`;
+    }
+
+    if (needsVoidApproval && !voidAuthorizationRequestId) {
+      await this.stepUpService.requireApproval({
+        user,
+        actionType: ActionType.VOID_DOCUMENT,
+        payload: voidPayload,
+        contextSummary: voidContextSummary,
+      });
+    }
+
     await this.dataSource.transaction(async (manager) => {
+      if (needsVoidApproval) {
+        await this.stepUpService.requireApproval({
+          user,
+          actionType: ActionType.VOID_DOCUMENT,
+          payload: voidPayload,
+          contextSummary: voidContextSummary,
+          authorizationRequestId: voidAuthorizationRequestId,
+          manager,
+        });
+      }
+
       await this.voidEngineService.voidDocument({
         sourceType: 'OPERATIONAL_EXPENSE',
         sourceId: lineId,
@@ -685,6 +734,21 @@ export class OperationalExpensesService {
       );
     }
     return account;
+  }
+
+  // need_fixing.md #26 — Kasbon WAJIB menyebut pekerjanya: sisa kasbon per
+  // pekerja (dilunasi lewat Pelunasan Kasbon, modul kasbon-repayments)
+  // dihitung dari worker_id baris ini. Kasbon tanpa pekerja tidak pernah bisa
+  // dilunasi lewat jalur resmi. Baris lama tanpa pekerja tidak disentuh.
+  private assertKasbonHasWorker(
+    account: ChartOfAccount,
+    workerId: string | undefined,
+  ): void {
+    if (account.isEmployeeReceivableAccount && !workerId) {
+      throw new BadRequestException(
+        'Kasbon wajib memilih pekerja yang menerima kasbon.',
+      );
+    }
   }
 
   // Hari 32A tugas 4 — worker_id/vehicle_id nullable & opsional, tapi kalau

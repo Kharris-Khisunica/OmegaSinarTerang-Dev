@@ -18,6 +18,10 @@
  * - Dokumen POSTED + (NOT_PRINTED | PRINT_CANCELLED): Edit dan VOID bebas
  *   langsung, tanpa dialog niat (backend tidak memerlukan approval sama
  *   sekali kalau dokumen belum/tidak sedang dalam status PRINTED).
+ * - `noEdit`: dokumen yang isinya tidak bisa diedit lewat kunci cetak (Surat
+ *   Jalan — status kirimnya diubah lewat tombol sendiri yang bebas kunci
+ *   cetak, need_fixing.md #18). Tombol Ubah dan niat "Diperbaiki" disembunyikan;
+ *   Batal Cetak hanya untuk VOID.
  */
 type PostingStatus = 'POSTED' | 'VOIDED'
 type PrintStatus = 'NOT_PRINTED' | 'PRINTED' | 'PRINT_CANCELLED'
@@ -27,6 +31,7 @@ const props = defineProps<{
   postingStatus: PostingStatus
   printStatus: PrintStatus
   printLoading?: boolean
+  noEdit?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -53,7 +58,7 @@ const reason = ref('')
 const canSubmit = computed(() => intent.value !== null && reason.value.trim().length > 0)
 
 function openUnlockDialog() {
-  intent.value = null
+  intent.value = props.noEdit ? 'VOID' : null
   reason.value = ''
   dialogOpen.value = true
 }
@@ -79,6 +84,7 @@ function submitUnlock() {
 
     <template v-if="showEditVoidDirect">
       <UButton
+        v-if="!noEdit"
         icon="i-lucide-pencil"
         color="neutral"
         variant="subtle"
@@ -118,6 +124,7 @@ function submitUnlock() {
           </p>
           <UButtonGroup>
             <UButton
+              v-if="!noEdit"
               :color="intent === 'EDIT' ? 'primary' : 'neutral'"
               :variant="intent === 'EDIT' ? 'solid' : 'subtle'"
               icon="i-lucide-pencil"

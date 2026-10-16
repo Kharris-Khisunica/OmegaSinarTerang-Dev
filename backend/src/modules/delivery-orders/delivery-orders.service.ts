@@ -10,7 +10,10 @@ import {
 } from '../../common/pagination';
 import { DocumentCounterService } from '../../core/document-counter/document-counter.service';
 import { PrintLockService } from '../../core/print-lock/print-lock.service';
+import { StepUpService } from '../../core/step-up/step-up.service';
+import { Role } from '../../common/enums/role.enum';
 import { AuthenticatedUser } from '../auth/types/jwt-payload.interface';
+import { ActionType } from '../authorization-requests/action-type.enum';
 import {
   SalesInvoice,
   SalesInvoicePostingStatus,
@@ -20,6 +23,7 @@ import { Vehicle } from '../vehicles/entities/vehicle.entity';
 import { CreateDeliveryOrderDto } from './dto/create-delivery-order.dto';
 import { DeliveryOrderQueryDto } from './dto/delivery-order-query.dto';
 import { UpdateDeliveryOrderStatusDto } from './dto/update-delivery-order-status.dto';
+import { VoidDeliveryOrderDto } from './dto/void-delivery-order.dto';
 import { DeliveryOrderLine } from './entities/delivery-order-line.entity';
 import {
   DeliveryOrder,
@@ -56,10 +60,11 @@ export interface CreateDeliveryOrderResult {
  * (product/unit/qty), tidak pernah dihitung ulang.
  *
  * Status pengiriman (PENDING/DELIVERED/POSTPONED/RETURNED, Hari 25) diedit
- * lewat updateStatus() — digerbangi kunci cetak (sopir sudah membawa lembar
- * ke jalan setelah dicetak). VOID SJ sendiri TIDAK dibangun hari ini —
- * masih sengaja ditunda, sama seperti RJ/RB menunda VOID di hari
- * pembuatannya.
+ * lewat updateStatus() — TIDAK digerbangi kunci cetak (keputusan 6 Okt
+ * 2026, need_fixing.md #18: SJ selalu dicetak sebelum sopir berangkat, jadi
+ * gerbang itu membuat SETIAP update status butuh approval; status kirim
+ * adalah status sub-ledger, bukan isi dokumen — pola sama paid_amount
+ * faktur, CLAUDE.md §2.15). VOID SJ lewat voidDeliveryOrder().
  */
 @Injectable()
 export class DeliveryOrdersService {
@@ -74,6 +79,7 @@ export class DeliveryOrdersService {
     private readonly vehiclesRepository: Repository<Vehicle>,
     private readonly documentCounterService: DocumentCounterService,
     private readonly printLockService: PrintLockService,
+    private readonly stepUpService: StepUpService,
   ) {}
 
   async create(
@@ -219,64 +225,111 @@ export class DeliveryOrdersService {
   }
 
   /**
-   * Satu-satunya "edit" surat jalan hari ini (Hari 25) — status pengiriman.
-   * Digerbangi kunci cetak (CLAUDE.md §2.16): kalau SJ sudah PRINTED, sopir
-   * sudah membawa lembar itu ke jalan, jadi butuh alasan + approval
-   * UNLOCK_PRINT (intent EDIT) sebelum status boleh berubah — pola identik
-   * PurchaseInvoicesService.update() Hari 15. Kalau belum pernah dicetak,
-   * bebas tanpa approval apa pun.
+   * Satu-satunya "edit" surat jalan (Hari 25) — status pengiriman. BEBAS
+   * tanpa kunci cetak (need_fixing.md #18, lihat komentar kelas): status
+   * kirim tidak mengubah isi lembar yang dibawa sopir, jadi print_status &
+   * revision_number TIDAK disentuh. Jejaknya di audit_logs (@Audit EDIT di
+   * controller, `reason` opsional ikut tercatat di body).
    */
   async updateStatus(
     id: string,
     dto: UpdateDeliveryOrderStatusDto,
-    user: AuthenticatedUser,
-    authorizationRequestId: string | undefined,
   ): Promise<DeliveryOrder> {
     const existing = await this.findOne(id);
+    if (existing.postingStatus === DeliveryOrderPostingStatus.VOIDED) {
+      throw new BadRequestException(
+        'Surat jalan ini sudah VOID, status kirim tidak bisa diubah.',
+      );
+    }
+    await this.deliveryOrdersRepository.update(id, {
+      deliveryStatus: dto.deliveryStatus,
+    });
+    return this.findOne(id);
+  }
 
-    // WAJIB tanpa manager — kalau SJ sudah PRINTED dan belum ada
-    // authorizationRequestId, baris authorization_requests baru yang
-    // dibuat di sini TIDAK BOLEH ikut rollback transaction di bawah (pola
-    // sama PurchaseInvoicesService.update()/WarehouseMutationsService.create()).
+  /**
+   * VOID surat jalan (need_fixing.md #18). SJ tidak punya jurnal maupun stok
+   * (lihat komentar kelas), jadi TIDAK lewat VoidEngineService (mesin itu
+   * membalik jurnal/stok) — cukup posting_status VOIDED + alasan. Gerbangnya
+   * PERSIS SalesInvoicesService.voidInvoice():
+   *   - UNLOCK_PRINT intent VOID (§2.16, semua role, kalau sudah PRINTED);
+   *   - VOID_DOCUMENT (§2.13, hanya OPERATOR).
+   * Setelah VOID, faktur asalnya boleh dibuatkan SJ baru (create() hanya
+   * menolak kalau masih ada SJ POSTED).
+   */
+  async voidDeliveryOrder(
+    id: string,
+    dto: VoidDeliveryOrderDto,
+    user: AuthenticatedUser,
+    authorizationRequestId: string | undefined,
+    voidAuthorizationRequestId?: string,
+  ): Promise<DeliveryOrder> {
+    const existing = await this.findOne(id);
+    if (existing.postingStatus === DeliveryOrderPostingStatus.VOIDED) {
+      throw new BadRequestException(
+        'Surat jalan ini sudah pernah di-VOID sebelumnya.',
+      );
+    }
+    const unlockReason = dto.unlockReason ?? dto.reasonNote;
+
+    // WAJIB tanpa manager — baris authorization_requests baru tidak boleh
+    // ikut rollback (pola sama SalesInvoicesService.voidInvoice()).
     await this.printLockService.preflight({
       table: 'delivery_orders',
       sourceType: 'DELIVERY_ORDER',
       documentId: id,
       documentLabel: existing.deliveryNumber,
-      intent: 'EDIT',
-      reason: dto.reason,
+      intent: 'VOID',
+      reason: unlockReason,
       user,
       authorizationRequestId,
     });
 
-    return this.dataSource.transaction(async (manager) => {
-      // No-op kalau SJ belum pernah dicetak — edit bebas tanpa approval
-      // apa pun (CLAUDE.md §2.16 literal).
+    const needsVoidApproval = user.role === Role.OPERATOR;
+    const voidPayload = { sourceType: 'DELIVERY_ORDER', sourceId: id };
+    const voidContextSummary = `VOID surat jalan ${existing.deliveryNumber}: ${dto.reasonNote}`;
+
+    if (needsVoidApproval && !voidAuthorizationRequestId) {
+      await this.stepUpService.requireApproval({
+        user,
+        actionType: ActionType.VOID_DOCUMENT,
+        payload: voidPayload,
+        contextSummary: voidContextSummary,
+      });
+    }
+
+    await this.dataSource.transaction(async (manager) => {
       await this.printLockService.consume({
         table: 'delivery_orders',
         sourceType: 'DELIVERY_ORDER',
         documentId: id,
         documentLabel: existing.deliveryNumber,
-        intent: 'EDIT',
-        reason: dto.reason,
+        intent: 'VOID',
+        reason: unlockReason,
         user,
         authorizationRequestId,
         manager,
       });
 
-      await manager.update(DeliveryOrder, id, {
-        deliveryStatus: dto.deliveryStatus,
-      });
-
-      const updated = await manager.findOne(DeliveryOrder, {
-        where: { id },
-        relations: { lines: true },
-      });
-      if (!updated) {
-        throw new BadRequestException('Surat jalan tidak ditemukan.');
+      if (needsVoidApproval) {
+        await this.stepUpService.requireApproval({
+          user,
+          actionType: ActionType.VOID_DOCUMENT,
+          payload: voidPayload,
+          contextSummary: voidContextSummary,
+          authorizationRequestId: voidAuthorizationRequestId,
+          manager,
+        });
       }
-      return updated;
+
+      await manager.update(DeliveryOrder, id, {
+        postingStatus: DeliveryOrderPostingStatus.VOIDED,
+        voidReasonCode: dto.reasonCode,
+        voidReasonNote: dto.reasonNote,
+      });
     });
+
+    return this.findOne(id);
   }
 
   /**

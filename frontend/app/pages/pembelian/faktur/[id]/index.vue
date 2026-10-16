@@ -46,7 +46,7 @@ interface InvoiceDetail {
 
 const route = useRoute()
 const api = useApi()
-const { withStepUp } = useStepUp()
+const { performDualGateVoid } = useDualGateVoid()
 const { format: rupiah } = useRupiah()
 const { format: qtyFmt } = useQty()
 const { loadSupplierMap, loadProductMap } = usePurchaseInvoiceLookups()
@@ -95,20 +95,14 @@ function productLabel(id: string): string {
 }
 
 // --- Cetak -----------------------------------------------------------------
-const printLoading = ref(false)
+// Navigasi ke halaman nota (CLAUDE.md §6, PANDUAN_UI §13.3), BUKAN POST
+// .../print langsung -- dulu tombol ini mengunci faktur (PRINTED) tanpa
+// mencetak apa pun. Registrasi cetak terjadi di [id]/cetak.vue, pola sama
+// Faktur Penjualan.
 const actionError = ref('')
 
-async function handlePrint() {
-  actionError.value = ''
-  printLoading.value = true
-  try {
-    await api.post(`/purchase-invoices/${invoiceId}/print`)
-    await loadInvoice()
-  } catch (err) {
-    actionError.value = getErrorMessage(err, 'Gagal mencetak faktur.')
-  } finally {
-    printLoading.value = false
-  }
+function handlePrint() {
+  navigateTo(`/pembelian/faktur/${invoiceId}/cetak`)
 }
 
 // --- Batal Cetak (niat dideklarasikan di depan) -----------------------------
@@ -147,6 +141,19 @@ function openVoidModal(prefillReason = '') {
   voidOpen.value = true
 }
 
+function callVoid(headers?: Record<string, string>) {
+  return api.post(
+    `/purchase-invoices/${invoiceId}/void`,
+    { reasonCode: voidReasonCode.value, reasonNote: voidReasonNote.value },
+    headers
+  )
+}
+// Dua gerbang VOID (UNLOCK_PRINT + VOID_DOCUMENT) — penjelasan lengkap di
+// composables/useDualGateVoid.ts.
+function performVoid(): Promise<unknown> {
+  return performDualGateVoid(invoice.value?.printStatus === 'PRINTED', callVoid)
+}
+
 async function submitVoid() {
   if (!voidReasonCode.value.trim() || !voidReasonNote.value.trim()) {
     voidError.value = 'Kode alasan dan catatan alasan wajib diisi.'
@@ -158,16 +165,7 @@ async function submitVoid() {
   // tidak tertutup modal VOID ini.
   voidOpen.value = false
   try {
-    await withStepUp(headers =>
-      api.post(
-        `/purchase-invoices/${invoiceId}/void`,
-        {
-          reasonCode: voidReasonCode.value,
-          reasonNote: voidReasonNote.value
-        },
-        headers
-      )
-    )
+    await performVoid()
     await loadInvoice()
   } catch (err) {
     voidOpen.value = true
@@ -223,7 +221,7 @@ async function submitVoid() {
         variant="subtle"
         icon="i-lucide-alert-triangle"
         :title="actionError"
-        :close-button="{ icon: 'i-lucide-x', color: 'neutral', variant: 'link' }"
+        :close="{ icon: 'i-lucide-x', color: 'neutral', variant: 'link' }"
         @update:open="actionError = ''"
       />
 
@@ -239,7 +237,6 @@ async function submitVoid() {
           <DocumentActions
             :posting-status="invoice.postingStatus"
             :print-status="invoice.printStatus"
-            :print-loading="printLoading"
             @print="handlePrint"
             @edit="goToEdit()"
             @void="openVoidModal()"

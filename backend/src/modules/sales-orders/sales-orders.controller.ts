@@ -13,6 +13,7 @@ import { Role } from '../../common/enums/role.enum';
 import { Audit } from '../audit/decorators/audit.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { AuthenticatedUser } from '../auth/types/jwt-payload.interface';
+import { CancelSalesOrderDto } from './dto/cancel-sales-order.dto';
 import { CreateSalesOrderDto } from './dto/create-sales-order.dto';
 import { SalesOrderQueryDto } from './dto/sales-order-query.dto';
 import { UpdateSalesOrderDto } from './dto/update-sales-order.dto';
@@ -54,5 +55,17 @@ export class SalesOrdersController {
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateSalesOrderDto) {
     return this.salesOrdersService.update(id, dto);
+  }
+
+  // need_fixing.md #20 — batalkan SO yang tidak jadi (bukan VOID, bukan hapus).
+  @Roles(Role.MASTER, Role.OPERATOR)
+  @Audit('CANCEL', 'sales_orders')
+  @Post(':id/cancel')
+  cancel(
+    @Param('id') id: string,
+    @Body() dto: CancelSalesOrderDto,
+    @Req() req: RequestWithUser,
+  ) {
+    return this.salesOrdersService.cancel(id, dto, req.user);
   }
 }

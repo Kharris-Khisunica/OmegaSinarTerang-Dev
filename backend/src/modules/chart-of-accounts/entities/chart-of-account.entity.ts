@@ -148,6 +148,12 @@ export class ChartOfAccount {
   @Column({ name: 'is_employee_receivable_account', default: false })
   isEmployeeReceivableAccount: boolean;
 
+  // need_fixing.md #25 (migration 1785080602982) — akun lawan koreksi Stok
+  // Opname ('05.110.00002 Selisih Persediaan (Stok Opname)'), diresolve
+  // StockOpnamesService lewat resolveSingleActive().
+  @Column({ name: 'is_stock_opname_diff_account', default: false })
+  isStockOpnameDiffAccount: boolean;
+
   // Hari 17A (docs/COA_USULAN.md §7) — arah saldo normal akun. Akun kontra
   // (Retur Penjualan, Diskon Penjualan, Akum. Penyusutan, Prive) bersaldo
   // normal BERLAWANAN dengan AccountType-nya; tanpa kolom ini neraca dan

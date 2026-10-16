@@ -23,8 +23,9 @@ interface SalesOrderRow extends Record<string, unknown> {
   // Faktur Penjualan saat "Jadikan Faktur", terkunci di sana (lihat
   // penjualan/faktur/index.vue).
   salesmanId: string
-  status: 'OPEN' | 'CONVERTED'
+  status: 'OPEN' | 'CONVERTED' | 'CANCELLED'
   notes: string | null
+  cancelReason?: string | null
   createdAt: string
 }
 interface SalesOrderLine {
@@ -47,7 +48,13 @@ interface LineRow {
 
 const STATUS_LABEL: Record<string, string> = {
   OPEN: 'Terbuka',
-  CONVERTED: 'Sudah Dikonversi'
+  CONVERTED: 'Sudah Dikonversi',
+  CANCELLED: 'Dibatalkan'
+}
+const STATUS_COLOR: Record<string, 'success' | 'neutral' | 'error'> = {
+  OPEN: 'success',
+  CONVERTED: 'neutral',
+  CANCELLED: 'error'
 }
 
 function newLine(): LineRow {
@@ -131,7 +138,8 @@ const filters: FilterDef[] = [
     type: 'select',
     options: [
       { label: 'Terbuka', value: 'OPEN' },
-      { label: 'Sudah Dikonversi', value: 'CONVERTED' }
+      { label: 'Sudah Dikonversi', value: 'CONVERTED' },
+      { label: 'Dibatalkan', value: 'CANCELLED' }
     ]
   }
 ]
@@ -162,6 +170,36 @@ async function openDetail(row: SalesOrderRow) {
   } catch (err) {
     detailStatus.value = 'error'
     detailError.value = getErrorMessage(err, 'Gagal memuat detail Sales Order.')
+  }
+}
+
+// ---- Batalkan SO yang tidak jadi (need_fixing.md #20) -- bukan VOID: SO
+// tidak mengikat uang/stok (CLAUDE.md §2.16), tanpa persetujuan. Alasan wajib.
+const cancelOpen = ref(false)
+const cancelReason = ref('')
+const cancelSubmitting = ref(false)
+const cancelError = ref('')
+function openCancel() {
+  cancelReason.value = ''
+  cancelError.value = ''
+  cancelOpen.value = true
+}
+async function submitCancel() {
+  if (!detail.value) return
+  if (!cancelReason.value.trim()) {
+    cancelError.value = 'Alasan pembatalan wajib diisi.'
+    return
+  }
+  cancelSubmitting.value = true
+  cancelError.value = ''
+  try {
+    detail.value = await api.post<SalesOrderDetail>(`/sales-orders/${detail.value.id}/cancel`, { reason: cancelReason.value.trim() })
+    cancelOpen.value = false
+    table.value?.reload()
+  } catch (err) {
+    cancelError.value = getErrorMessage(err, 'Gagal membatalkan Sales Order.')
+  } finally {
+    cancelSubmitting.value = false
   }
 }
 
@@ -382,6 +420,17 @@ const lineStockWarningText = computed(() => {
   const sisa = computeQtyBreakdown(stockQtyBaseUnit.value, baseUnitName, conversions, { largestOnly: true })
   return `Qty melebihi sisa stok (sisa ${sisa}). Boleh dilanjutkan.`
 })
+// need_fixing.md #8 — hotkey grid baris (PANDUAN_UI.md §12): Delete minta
+// konfirmasi; Enter di field terakhir modal baris = simpan lalu buka baris
+// kosong berikutnya (hanya saat entri baris baru, bukan saat mengubah).
+function confirmRemoveSelectedLine() {
+  if (selectedLine.value && window.confirm('Hapus baris terpilih?')) removeSelectedLine()
+}
+function saveLineAndNew() {
+  const wasNewLine = lineEditIndex.value === null
+  saveLine()
+  if (wasNewLine && !lineOpen.value) openLineEntri()
+}
 function saveLine() {
   if (!lineDraft.value.productId || !lineDraft.value.unitId || !((lineDraft.value.qtyInput ?? 0) > 0)) return
   if (lineEditIndex.value === null) lines.value.push({ ...lineDraft.value })
@@ -502,7 +551,7 @@ onMounted(async () => {
       </template>
       <template #status="{ value }">
         <UBadge
-          :color="value === 'CONVERTED' ? 'neutral' : 'success'"
+          :color="STATUS_COLOR[value as string] ?? 'neutral'"
           variant="subtle"
         >
           {{ STATUS_LABEL[value as string] ?? value }}
@@ -541,7 +590,7 @@ onMounted(async () => {
             <div class="flex items-center gap-2">
               <span class="font-mono font-medium">{{ detail.orderNumber }}</span>
               <UBadge
-                :color="detail.status === 'CONVERTED' ? 'neutral' : 'success'"
+                :color="STATUS_COLOR[detail.status] ?? 'neutral'"
                 variant="subtle"
               >
                 {{ STATUS_LABEL[detail.status] }}
@@ -555,6 +604,12 @@ onMounted(async () => {
               class="text-sm"
             >
               {{ detail.notes }}
+            </div>
+            <div
+              v-if="detail.status === 'CANCELLED'"
+              class="text-sm text-error"
+            >
+              Alasan batal: {{ detail.cancelReason ?? '-' }}
             </div>
           </div>
 
@@ -605,10 +660,66 @@ onMounted(async () => {
             >
               Jadikan Faktur
             </UButton>
+            <UButton
+              v-if="detail.status === 'OPEN'"
+              icon="i-lucide-x-circle"
+              color="error"
+              variant="subtle"
+              @click="openCancel()"
+            >
+              Batalkan SO
+            </UButton>
           </div>
         </div>
       </template>
     </USlideover>
+
+    <UModal
+      v-model:open="cancelOpen"
+      title="Batalkan Sales Order"
+      description="SO yang dibatalkan tidak bisa diubah atau dijadikan faktur lagi."
+    >
+      <template #body>
+        <div class="flex flex-col gap-4">
+          <UAlert
+            v-if="cancelError"
+            color="error"
+            variant="subtle"
+            icon="i-lucide-alert-triangle"
+            :description="cancelError"
+          />
+          <UFormField
+            label="Alasan"
+            required
+          >
+            <UTextarea
+              v-model="cancelReason"
+              class="w-full"
+              placeholder="mis. Pelanggan batal pesan"
+            />
+          </UFormField>
+        </div>
+      </template>
+      <template #footer>
+        <div class="flex justify-end gap-2 w-full">
+          <UButton
+            color="neutral"
+            variant="ghost"
+            @click="cancelOpen = false"
+          >
+            Kembali
+          </UButton>
+          <UButton
+            color="error"
+            :loading="cancelSubmitting"
+            :disabled="cancelSubmitting"
+            @click="submitCancel"
+          >
+            Batalkan SO
+          </UButton>
+        </div>
+      </template>
+    </UModal>
 
     <!-- Bagian B: entri/ubah dua lapis modal -->
     <DocumentModal
@@ -623,6 +734,9 @@ onMounted(async () => {
       :draft-data="draftData"
       @update:open="(v: boolean) => !v && closeEntri()"
       @restore-draft="restoreDraft"
+      @new-line="openLineEntri"
+      @edit-line="openLineEditSelected"
+      @delete-line="confirmRemoveSelectedLine"
       @save="submit"
     >
       <template #header>
@@ -632,7 +746,7 @@ onMounted(async () => {
           variant="subtle"
           icon="i-lucide-alert-triangle"
           :title="bannerError"
-          :close-button="{ icon: 'i-lucide-x', color: 'neutral', variant: 'link' }"
+          :close="{ icon: 'i-lucide-x', color: 'neutral', variant: 'link' }"
           @update:open="bannerError = ''"
         />
 
@@ -749,6 +863,7 @@ onMounted(async () => {
       :dirty="lineDirty"
       @update:open="(v: boolean) => (lineOpen = v)"
       @save="saveLine"
+      @enter-last="saveLineAndNew"
     >
       <template #form>
         <UFormField

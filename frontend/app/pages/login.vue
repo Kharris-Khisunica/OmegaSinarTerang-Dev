@@ -37,6 +37,11 @@ async function onSubmit() {
     <UCard class="w-full max-w-sm">
       <template #header>
         <div class="flex flex-col items-center gap-2 py-2">
+          <!-- Ikon sama dengan logo sidebar & favicon (AppLogo.vue). -->
+          <UIcon
+            name="i-lucide-store"
+            class="size-10 text-primary"
+          />
           <h1 class="text-sm">
             Omega Sinar Terang
           </h1>

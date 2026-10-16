@@ -28,6 +28,8 @@ interface DeliveryOrderDetail {
   deliveryStatus: DeliveryStatus
   printCount: number
   revisionNumber: number
+  voidReasonCode: string | null
+  voidReasonNote: string | null
   notes: string | null
   lines: DeliveryOrderLine[]
 }
@@ -35,7 +37,7 @@ interface InvoiceRef { invoiceNumber: string }
 
 const route = useRoute()
 const api = useApi()
-const { withStepUp } = useStepUp()
+const { performDualGateVoid } = useDualGateVoid()
 const { format: qtyFmt } = useQty()
 const { loadCustomerMap, loadProductMap, loadUnitMap, loadSalesmanMap, loadVehicleMap } = useSalesInvoiceLookups()
 
@@ -125,41 +127,82 @@ function handlePrint() {
   navigateTo(`/penjualan/surat-jalan/${deliveryId}/cetak`)
 }
 
-// --- VOID: belum dibangun untuk Surat Jalan (sengaja ditunda, pola sama
-// Retur Penjualan/Pembelian) -- DocumentActions tetap menampilkan tombolnya
-// karena postingStatus selalu POSTED, jadi diberi pesan eksplisit alih-alih
-// dead click senyap.
-const unsupportedNotice = ref(false)
-function showUnsupportedNotice() {
-  unsupportedNotice.value = true
+// --- VOID (need_fixing.md #18) ------------------------------------------------
+// Dua gerbang INDEPENDEN, persis Faktur Penjualan: UNLOCK_PRINT
+// (x-authorization-request-id, semua role, hanya kalau PRINTED, dicek lebih
+// dulu) dan VOID_DOCUMENT (x-void-authorization-request-id, hanya OPERATOR).
+// Alur performVoid() sama dengan penjualan/faktur/[id]/index.vue -- baca
+// komentar panjang di sana.
+const voidOpen = ref(false)
+const voidReasonCode = ref('')
+const voidReasonNote = ref('')
+const voidSubmitting = ref(false)
+const voidError = ref('')
+
+function openVoidModal(prefillReason = '') {
+  voidReasonCode.value = ''
+  voidReasonNote.value = prefillReason
+  voidError.value = ''
+  voidOpen.value = true
+}
+
+function callVoid(headers?: Record<string, string>) {
+  return api.post(
+    `/delivery-orders/${deliveryId}/void`,
+    { reasonCode: voidReasonCode.value, reasonNote: voidReasonNote.value },
+    headers
+  )
+}
+
+// Dua gerbang VOID (UNLOCK_PRINT + VOID_DOCUMENT) — penjelasan lengkap di
+// composables/useDualGateVoid.ts.
+function performVoid(): Promise<unknown> {
+  return performDualGateVoid(deliveryOrder.value?.printStatus === 'PRINTED', callVoid)
+}
+
+async function submitVoid() {
+  if (!voidReasonCode.value.trim() || !voidReasonNote.value.trim()) {
+    voidError.value = 'Kode alasan dan catatan alasan wajib diisi.'
+    return
+  }
+  voidError.value = ''
+  voidSubmitting.value = true
+  voidOpen.value = false
+  try {
+    await performVoid()
+    await loadDeliveryOrder()
+  } catch (err) {
+    voidOpen.value = true
+    if (err instanceof StepUpCancelledError) {
+      voidError.value = 'Persetujuan dibatalkan — surat jalan belum dibatalkan.'
+      return
+    }
+    voidError.value = getErrorMessage(err, 'Gagal membatalkan surat jalan.')
+  } finally {
+    voidSubmitting.value = false
+  }
 }
 
 // --- Ubah Status Pengiriman (satu-satunya "edit" SJ, Hari 25) ---------------
-// Digerbangi kunci cetak: kalau sudah PRINTED, backend menolak 412 tanpa
-// alasan+approval (sopir sudah membawa lembar ke jalan) -- withStepUp()
-// menangani dialog approval-nya secara transparan.
+// BEBAS kunci cetak sejak need_fixing.md #18 -- SJ selalu dicetak sebelum
+// sopir berangkat; status kirim bukan isi lembar. Tanpa withStepUp().
 const statusOpen = ref(false)
 const statusValue = ref<DeliveryStatus | null>(null)
 const statusReason = ref('')
 const statusSubmitting = ref(false)
 const statusError = ref('')
-const statusCancelledNotice = ref(false)
 
-function openStatusModal(prefillReason = '') {
+function openStatusModal() {
   if (!deliveryOrder.value) return
   statusValue.value = deliveryOrder.value.deliveryStatus
-  statusReason.value = prefillReason
+  statusReason.value = ''
   statusError.value = ''
-  statusCancelledNotice.value = false
   statusOpen.value = true
 }
 
+// DocumentActions dipasang `no-edit` -- Batal Cetak hanya bisa ber-niat VOID.
 function handleUnlockPrint(payload: { intent: 'EDIT' | 'VOID', reason: string }) {
-  if (payload.intent === 'EDIT') {
-    openStatusModal(payload.reason)
-  } else {
-    showUnsupportedNotice()
-  }
+  if (payload.intent === 'VOID') openVoidModal(payload.reason)
 }
 
 async function submitStatus() {
@@ -168,26 +211,15 @@ async function submitStatus() {
     return
   }
   statusError.value = ''
-  statusCancelledNotice.value = false
   statusSubmitting.value = true
-  // Tutup dulu SEBELUM withStepUp -- <StepUpDialog> global dan modal ini
-  // sama-sama UModal, pola sama PurchaseInvoicesController submitEdit().
-  statusOpen.value = false
   try {
-    await withStepUp(headers =>
-      api.patch(
-        `/delivery-orders/${deliveryId}/status`,
-        { deliveryStatus: statusValue.value, reason: statusReason.value || undefined },
-        headers
-      )
+    await api.patch(
+      `/delivery-orders/${deliveryId}/status`,
+      { deliveryStatus: statusValue.value, reason: statusReason.value || undefined }
     )
+    statusOpen.value = false
     await loadDeliveryOrder()
   } catch (err) {
-    if (err instanceof StepUpCancelledError) {
-      statusCancelledNotice.value = true
-      return
-    }
-    statusOpen.value = true
     statusError.value = getErrorMessage(err, 'Gagal mengubah status pengiriman.')
   } finally {
     statusSubmitting.value = false
@@ -231,24 +263,12 @@ async function submitStatus() {
       class="flex flex-col gap-4"
     >
       <UAlert
-        v-if="unsupportedNotice"
-        color="neutral"
+        v-if="deliveryOrder.postingStatus === 'VOIDED'"
+        color="error"
         variant="subtle"
-        icon="i-lucide-info"
-        title="Belum didukung"
-        description="VOID surat jalan belum didukung."
-        :close-button="{ icon: 'i-lucide-x', color: 'neutral', variant: 'link' }"
-        @update:open="unsupportedNotice = false"
-      />
-      <UAlert
-        v-if="statusCancelledNotice"
-        color="neutral"
-        variant="subtle"
-        icon="i-lucide-x"
-        title="Dibatalkan"
-        description="Persetujuan dibatalkan sebelum selesai — status belum diubah."
-        :close-button="{ icon: 'i-lucide-x', color: 'neutral', variant: 'link' }"
-        @update:open="statusCancelledNotice = false"
+        icon="i-lucide-ban"
+        title="Surat jalan ini sudah VOID"
+        :description="`${deliveryOrder.voidReasonCode ?? ''} — ${deliveryOrder.voidReasonNote ?? ''}`"
       />
 
       <div class="flex flex-col gap-2">
@@ -260,18 +280,27 @@ async function submitStatus() {
               class="text-xs text-muted"
             >Revisi {{ deliveryOrder.revisionNumber }}</span>
           </div>
-          <DocumentActions
-            :posting-status="deliveryOrder.postingStatus"
-            :print-status="deliveryOrder.printStatus"
-            @print="handlePrint"
-            @edit="openStatusModal()"
-            @void="showUnsupportedNotice"
-            @unlock-print="handleUnlockPrint"
-          />
-          <!-- "Ubah" pada DocumentActions memicu modal ini (satu-satunya
-               "edit" SJ, Hari 25: status pengiriman). Label tombolnya generik
-               ("Ubah") karena komponennya dipakai 7 dokumen -- isinya baru
-               diketahui di sini lewat modal yang terbuka. -->
+          <div class="flex items-center gap-2">
+            <!-- Status kirim bebas kunci cetak (#18) -- tombol sendiri, tetap
+                 tampil walau SJ sudah dicetak. -->
+            <UButton
+              v-if="deliveryOrder.postingStatus === 'POSTED'"
+              icon="i-lucide-truck"
+              color="neutral"
+              variant="subtle"
+              @click="openStatusModal()"
+            >
+              Ubah Status Kirim
+            </UButton>
+            <DocumentActions
+              :posting-status="deliveryOrder.postingStatus"
+              :print-status="deliveryOrder.printStatus"
+              no-edit
+              @print="handlePrint"
+              @void="openVoidModal()"
+              @unlock-print="handleUnlockPrint"
+            />
+          </div>
         </div>
 
         <div class="flex items-center gap-2 flex-wrap">
@@ -356,8 +385,8 @@ async function submitStatus() {
             </UFieldGroup>
           </UFormField>
           <UFormField
-            label="Alasan"
-            hint="Wajib diisi kalau surat jalan sudah dicetak — sopir sudah membawa lembar ke jalan."
+            label="Keterangan"
+            hint="Opsional — tercatat di jejak audit."
           >
             <UTextarea
               v-model="statusReason"
@@ -381,6 +410,63 @@ async function submitStatus() {
             @click="submitStatus"
           >
             Simpan
+          </UButton>
+        </div>
+      </template>
+    </UModal>
+
+    <!-- VOID Surat Jalan -->
+    <UModal
+      v-model:open="voidOpen"
+      title="VOID Surat Jalan"
+      description="Surat jalan dibatalkan; faktur asalnya boleh dibuatkan surat jalan baru."
+    >
+      <template #body>
+        <div class="flex flex-col gap-4">
+          <UAlert
+            v-if="voidError"
+            color="error"
+            variant="subtle"
+            icon="i-lucide-alert-triangle"
+            :description="voidError"
+          />
+          <UFormField
+            label="Kode Alasan"
+            required
+          >
+            <UInput
+              v-model="voidReasonCode"
+              placeholder="mis. SALAH_INPUT"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField
+            label="Catatan Alasan"
+            required
+          >
+            <UTextarea
+              v-model="voidReasonNote"
+              class="w-full"
+            />
+          </UFormField>
+        </div>
+      </template>
+      <template #footer>
+        <div class="flex justify-end gap-2 w-full">
+          <UButton
+            color="neutral"
+            variant="ghost"
+            @click="voidOpen = false"
+          >
+            Batal
+          </UButton>
+          <UButton
+            color="error"
+            :loading="voidSubmitting"
+            :disabled="voidSubmitting"
+            @click="submitVoid"
+          >
+            VOID
           </UButton>
         </div>
       </template>

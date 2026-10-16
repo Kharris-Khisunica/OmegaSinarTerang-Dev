@@ -123,6 +123,9 @@ export class PurchaseInvoicesController {
     );
   }
 
+  // DUA header independen, pola sama SalesInvoicesController.voidInvoice():
+  //   x-authorization-request-id       -> UNLOCK_PRINT (§2.16)
+  //   x-void-authorization-request-id  -> VOID_DOCUMENT (§2.13, OPERATOR)
   @Roles(Role.MASTER, Role.OPERATOR)
   @Audit('VOID', 'purchase_invoices')
   @Post(':id/void')
@@ -135,11 +138,16 @@ export class PurchaseInvoicesController {
     const authorizationRequestId = Array.isArray(headerId)
       ? headerId[0]
       : headerId;
+    const voidHeaderId = req.headers['x-void-authorization-request-id'];
+    const voidAuthorizationRequestId = Array.isArray(voidHeaderId)
+      ? voidHeaderId[0]
+      : voidHeaderId;
     return this.purchaseInvoicesService.voidInvoice(
       id,
       dto,
       req.user,
       authorizationRequestId,
+      voidAuthorizationRequestId,
     );
   }
 }

@@ -123,8 +123,14 @@ export class DocumentReviseService {
       await this.periodLockValidatorService.validate(originalDate, manager);
     } catch (err) {
       if (err instanceof BadRequestException) {
+        // Batasnya dari settings.backdate_max_days (sama dengan yang dibaca
+        // validator), bukan angka 2 yang ditulis mati.
+        const rows: { value: string }[] = await manager.query(
+          `SELECT value FROM settings WHERE key = 'backdate_max_days'`,
+        );
+        const maxDays = rows[0] ? Number(rows[0].value) : 2;
         throw new BadRequestException(
-          'Faktur berumur lebih dari 2 hari tidak bisa direvisi. Gunakan VOID lalu terbitkan faktur baru.',
+          `Faktur berumur lebih dari ${maxDays} hari tidak bisa direvisi. Gunakan VOID lalu terbitkan faktur baru.`,
         );
       }
       throw err;

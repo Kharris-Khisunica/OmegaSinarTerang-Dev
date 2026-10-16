@@ -1,0 +1,17 @@
+{
+	auto_https off
+	admin off
+}
+
+:80 {
+	encode gzip
+
+	# /api/* -> backend (prefix /api dibuang; backend tidak punya global prefix)
+	handle_path /api/* {
+		reverse_proxy backend:3000
+	}
+
+	handle {
+		reverse_proxy frontend:80
+	}
+}

@@ -56,6 +56,7 @@ interface CreateResult {
 const api = useApi()
 const router = useRouter()
 const route = useRoute()
+const { withStepUp } = useStepUp()
 const { user } = useAuth()
 const { format: rupiah } = useRupiah()
 const { format: qtyFmt } = useQty()
@@ -145,6 +146,16 @@ function goToDetailSelected() {
 // LineModal akan merusak N1 (gerbang supplier). Grid checkbox-list ini
 // sendiri sudah <DataTable> mode lokal (bukan <table> manual).
 const entriOpen = ref(false)
+// Mode Ubah = revisi-di-tempat (need_fixing.md #19, §2.16a) — dibuka dari
+// halaman detail lewat ?revise=<id>[&reason=...]. Supplier DIKUNCI (FIFO BS
+// di-scope per supplier). Barang yang dikeluarkan retur ini sendiri
+// dikembalikan ke "Tersedia" supaya qty-nya bisa dinaikkan/diturunkan.
+const formMode = ref<'entri' | 'ubah'>('entri')
+const revisingReturnId = ref<string | null>(null)
+const revisingReturnNumber = ref('')
+const reviseReason = ref('')
+interface RevisingLine { productId: string, qtyInput: number, qtyBaseUnit: number, agreedUnitPrice: number, costBasisUnitCost: number }
+let pendingReviseLines: RevisingLine[] | null = null
 
 const supplierId = ref<string | undefined>(undefined)
 const returnDate = ref(todayIso())
@@ -182,8 +193,55 @@ function resetEntriForm() {
 const documentModalRef = ref<{ clearDraft: () => void, forceClose: () => void } | null>(null)
 
 function openEntri() {
+  formMode.value = 'entri'
+  revisingReturnId.value = null
+  pendingReviseLines = null
   resetEntriForm()
   entriOpen.value = true
+}
+
+interface ReturnForRevise {
+  id: string
+  returnNumber: string
+  supplierId: string
+  returnDate: string
+  unitMode: UnitMode
+  settlementType: SettlementType
+  cashAccountId: string | null
+  notes: string | null
+  postingStatus: 'POSTED' | 'VOIDED'
+  lines: { productId: string, qtyInput: string, qtyBaseUnit: string, agreedUnitPrice: string, costBasisUnitCost: string }[]
+}
+async function openRevise(returnId: string, reason: string) {
+  resetEntriForm()
+  try {
+    const ret = await api.get<ReturnForRevise>(`/purchase-returns/${returnId}`)
+    if (ret.postingStatus === 'VOIDED') {
+      bannerError.value = 'Retur ini sudah VOID, tidak bisa diubah.'
+      return
+    }
+    formMode.value = 'ubah'
+    revisingReturnId.value = ret.id
+    revisingReturnNumber.value = ret.returnNumber
+    reviseReason.value = reason
+    returnDate.value = ret.returnDate.slice(0, 10)
+    unitMode.value = ret.unitMode
+    settlementType.value = ret.settlementType
+    cashAccountId.value = ret.cashAccountId ?? undefined
+    notes.value = ret.notes ?? ''
+    pendingReviseLines = ret.lines.map(l => ({
+      productId: l.productId,
+      qtyInput: Number(l.qtyInput),
+      qtyBaseUnit: Number(l.qtyBaseUnit),
+      agreedUnitPrice: Number(l.agreedUnitPrice),
+      costBasisUnitCost: Number(l.costBasisUnitCost)
+    }))
+    supplierId.value = ret.supplierId
+    entriSnapshot = JSON.stringify(draftData.value)
+    entriOpen.value = true
+  } catch (err) {
+    bannerError.value = getErrorMessage(err, 'Gagal memuat retur untuk diubah.')
+  }
 }
 function restoreDraft(d: unknown) {
   const draft = d as typeof draftData.value
@@ -196,7 +254,11 @@ function restoreDraft(d: unknown) {
 }
 function closeEntri() {
   entriOpen.value = false
-  if (route.path !== '/pembelian/retur') router.replace('/pembelian/retur')
+  if (formMode.value === 'ubah' && revisingReturnId.value) {
+    navigateTo(`/pembelian/retur/${revisingReturnId.value}`)
+    return
+  }
+  if (route.path !== '/pembelian/retur' || route.query.revise) router.replace('/pembelian/retur')
 }
 
 const supplierOptions = computed<SelectOption[]>(() =>
@@ -213,6 +275,31 @@ watch(supplierId, async (id) => {
   try {
     const rows = await findBadStockLots(id)
     candidates.value = rows.map(r => ({ ...r, checked: false, qtyInput: undefined, agreedUnitPrice: undefined }))
+    // Mode Ubah: barang yang dikeluarkan retur ini sendiri dikembalikan ke
+    // "Tersedia" (backend membalik stoknya dulu saat revisi), lalu baris
+    // retur dicentang + diisi. Produk yang stok BS-nya kini 0 tetap muncul.
+    if (pendingReviseLines) {
+      for (const pl of pendingReviseLines) {
+        let row = candidates.value.find(c => c.productId === pl.productId)
+        if (!row) {
+          row = {
+            productId: pl.productId,
+            displayName: productMap.value.get(pl.productId)?.displayName ?? pl.productId,
+            qtyAvailable: 0,
+            fifoNextUnitCost: pl.costBasisUnitCost,
+            checked: false,
+            qtyInput: undefined,
+            agreedUnitPrice: undefined
+          }
+          candidates.value.push(row)
+        }
+        row.qtyAvailable += pl.qtyBaseUnit
+        row.checked = true
+        row.qtyInput = pl.qtyInput
+        row.agreedUnitPrice = pl.agreedUnitPrice
+      }
+      pendingReviseLines = null
+    }
   } catch (err) {
     candidatesError.value = getErrorMessage(err, 'Gagal memuat daftar barang rusak.')
   } finally {
@@ -229,11 +316,40 @@ function setSettlementType(type: SettlementType) {
 // dari GET /purchase-returns/bad-stock) -- calculatePurchaseReturn (N8) tidak
 // disentuh, dipanggil apa adanya.
 const checkedRows = computed(() => candidates.value.filter(r => r.checked))
+
+// need_fixing.md #27: qtyAvailable & fifoNextUnitCost dari backend SELALU per
+// satuan DASAR, sedangkan di mode BESAR qty + Nilai Retur diketik per satuan
+// besar (backend resolveQtyBaseUnit: 1 produk = 1 satuan besar). Semua angka
+// layar dikonversi ke satuan yang SEDANG dipakai -- dulu estimasi harga pokok
+// & selisih jadi (isi)× terlalu kecil dan peringatan stok membandingkan DUS
+// dengan pcs. null = mode BESAR tapi produk tidak punya tepat satu satuan
+// besar (backend akan menolak).
+function modeFactor(row: CandidateRow): number | null {
+  if (unitMode.value !== 'BESAR') return 1
+  const conversions = productMap.value.get(row.productId)?.unitConversions ?? []
+  if (conversions.length !== 1) return null
+  const factor = Number(conversions[0]!.qtyInBaseUnit)
+  return factor > 0 ? factor : null
+}
+function modeUnitName(row: CandidateRow): string {
+  const product = productMap.value.get(row.productId)
+  if (unitMode.value === 'BESAR') return product?.unitConversions[0]?.unitName ?? ''
+  return product?.baseUnit ?? ''
+}
+function availableInMode(row: CandidateRow): number | null {
+  const factor = modeFactor(row)
+  return factor ? row.qtyAvailable / factor : null
+}
+function costInMode(row: CandidateRow): number | null {
+  const factor = modeFactor(row)
+  return factor ? row.fifoNextUnitCost * factor : null
+}
+
 const calc = computed(() => calculatePurchaseReturn(
   checkedRows.value.map(r => ({
     qtyInput: r.qtyInput ?? 0,
     agreedUnitPrice: r.agreedUnitPrice,
-    fifoNextUnitCost: r.fifoNextUnitCost
+    fifoNextUnitCost: costInMode(r) ?? 0
   }))
 ))
 const calcByProductId = computed(() => {
@@ -248,14 +364,32 @@ function calcForRow(row: CandidateRow) {
   return calcByProductId.value.get(row.productId)
 }
 function qtyExceedsAvailable(row: CandidateRow): boolean {
-  return (row.qtyInput ?? 0) > row.qtyAvailable
+  const factor = modeFactor(row)
+  if (!factor) return false
+  return (row.qtyInput ?? 0) * factor > row.qtyAvailable
 }
 
 const candidateColumns: Column<CandidateRow>[] = [
   { key: 'checked', label: '', slot: 'checkedCell', width: '2.5rem' },
   { key: 'displayName', label: 'Produk' },
-  { key: 'qtyAvailable', label: 'Tersedia', align: 'right', format: v => qtyFmt(v as number) },
-  { key: 'fifoNextUnitCost', label: 'Harga Pokok (Ref.)', align: 'right', format: v => rupiah(v as number, { bare: true }) },
+  {
+    key: 'qtyAvailable',
+    label: 'Tersedia',
+    align: 'right',
+    format: (_v, row) => {
+      const qty = availableInMode(row)
+      return qty === null ? '-' : `${qtyFmt(qty)} ${modeUnitName(row)}`.trim()
+    }
+  },
+  {
+    key: 'fifoNextUnitCost',
+    label: 'Harga Pokok (Ref.) / Satuan',
+    align: 'right',
+    format: (_v, row) => {
+      const cost = costInMode(row)
+      return cost === null ? '-' : rupiah(cost, { bare: true })
+    }
+  },
   { key: 'qtyInput', label: 'Qty Retur', slot: 'qtyCell' },
   { key: 'agreedUnitPrice', label: 'Nilai Retur / Satuan', slot: 'priceCell' },
   { key: 'estimatedDifference', label: 'Selisih (Estimasi)', align: 'right', slot: 'diffCell' }
@@ -304,6 +438,24 @@ async function submit() {
   }
   bannerError.value = ''
   submitting.value = true
+  if (formMode.value === 'ubah' && revisingReturnId.value) {
+    const id = revisingReturnId.value
+    try {
+      // Satu gerbang (UNLOCK_PRINT intent EDIT, hanya kalau PRINTED).
+      await withStepUp(headers =>
+        api.patch(`/purchase-returns/${id}/revise`, { ...buildPayload(), reason: reviseReason.value || undefined }, headers)
+      )
+      documentModalRef.value?.clearDraft()
+      entriOpen.value = false
+      await navigateTo(`/pembelian/retur/${id}`)
+    } catch (err2) {
+      if (err2 instanceof StepUpCancelledError) return
+      bannerError.value = getErrorMessage(err2, 'Gagal mengubah retur pembelian.')
+    } finally {
+      submitting.value = false
+    }
+    return
+  }
   try {
     result.value = await api.post<CreateResult>('/purchase-returns', buildPayload())
     documentModalRef.value?.clearDraft()
@@ -328,7 +480,11 @@ function todayIso(): string {
 
 onMounted(async () => {
   await loadAllOptions()
-  if (props.initialOpen === 'entri') openEntri()
+  if (typeof route.query.revise === 'string') {
+    await openRevise(route.query.revise, typeof route.query.reason === 'string' ? route.query.reason : '')
+  } else if (props.initialOpen === 'entri') {
+    openEntri()
+  }
 })
 </script>
 
@@ -427,12 +583,12 @@ onMounted(async () => {
     <DocumentModal
       ref="documentModalRef"
       :open="entriOpen"
-      title="Retur Pembelian"
-      mode="entri"
+      :title="formMode === 'ubah' ? `Retur Pembelian ${revisingReturnNumber}` : 'Retur Pembelian'"
+      :mode="formMode"
       :operator="operatorName"
       :dirty="entriDirty"
       :saving="submitting"
-      :draft-key="draftKey"
+      :draft-key="formMode === 'ubah' ? undefined : draftKey"
       :draft-data="draftData"
       width="min(1300px, 95vw)"
       @update:open="(v: boolean) => !v && closeEntri()"
@@ -446,7 +602,7 @@ onMounted(async () => {
           variant="subtle"
           icon="i-lucide-alert-triangle"
           :title="bannerError"
-          :close-button="{ icon: 'i-lucide-x', color: 'neutral', variant: 'link' }"
+          :close="{ icon: 'i-lucide-x', color: 'neutral', variant: 'link' }"
           @update:open="bannerError = ''"
         />
 
@@ -461,6 +617,7 @@ onMounted(async () => {
               value-key="value"
               :items="supplierOptions"
               placeholder="Pilih supplier..."
+              :disabled="formMode === 'ubah'"
               class="w-full"
             />
           </UFormField>
@@ -590,7 +747,13 @@ onMounted(async () => {
                   class="w-28"
                 />
                 <p
-                  v-if="qtyExceedsAvailable(row as unknown as CandidateRow)"
+                  v-if="modeFactor(row as unknown as CandidateRow) === null"
+                  class="text-xs text-error mt-1"
+                >
+                  Produk ini tidak punya satuan besar — pakai Satuan Kecil.
+                </p>
+                <p
+                  v-else-if="qtyExceedsAvailable(row as unknown as CandidateRow)"
                   class="text-xs text-warning mt-1"
                 >
                   Melebihi stok tersedia

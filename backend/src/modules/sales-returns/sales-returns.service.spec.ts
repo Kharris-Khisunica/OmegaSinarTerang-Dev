@@ -10,6 +10,11 @@ import { PeriodLockValidatorService } from '../../core/period-lock/period-lock-v
 import { PrintLockService } from '../../core/print-lock/print-lock.service';
 import { ArAccountResolverService } from '../../core/receivables/ar-account-resolver.service';
 import { StepUpService } from '../../core/step-up/step-up.service';
+import { DocumentReviseService } from '../../core/document-revise/document-revise.service';
+import { VoidEngineService } from '../../core/void/void.service';
+import { HttpException } from '@nestjs/common';
+import { StepUpRequiredBody } from '../authorization-requests/step-up-response';
+import { SalesReturnVoidHook } from './sales-return-void.hook';
 import { StockRecorderService } from '../../core/stock-recorder/stock-recorder.service';
 import { AuthenticatedUser } from '../auth/types/jwt-payload.interface';
 import { AuthorizationRequestsService } from '../authorization-requests/authorization-requests.service';
@@ -81,6 +86,8 @@ describe('SalesReturnsService', () => {
   const createdInvoiceIds: string[] = [];
   const createdReturnIds: string[] = [];
 
+  let authorizationRequestsServiceRef: AuthorizationRequestsService;
+  let supervisorUserId = '';
   const masterUser: AuthenticatedUser = {
     sub: '',
     username: 'master',
@@ -146,6 +153,20 @@ describe('SalesReturnsService', () => {
     );
     const stepUpService = new StepUpService(authorizationRequestsService);
     const printLockService = new PrintLockService(dataSource, stepUpService);
+    authorizationRequestsServiceRef = authorizationRequestsService;
+    const voidEngineService = new VoidEngineService(
+      journalPosterService,
+      stockRecorderService,
+    );
+    new SalesReturnVoidHook(
+      voidEngineService,
+      stockRecorderService,
+    ).onModuleInit();
+    const documentReviseService = new DocumentReviseService(
+      journalPosterService,
+      stockRecorderService,
+      periodLockValidatorService,
+    );
 
     service = new SalesReturnsService(
       dataSource,
@@ -157,6 +178,9 @@ describe('SalesReturnsService', () => {
       accountResolverService,
       arAccountResolverService,
       printLockService,
+      voidEngineService,
+      stepUpService,
+      documentReviseService,
     );
 
     const suffix = Date.now();
@@ -208,6 +232,23 @@ describe('SalesReturnsService', () => {
 
   afterAll(async () => {
     if (createdReturnIds.length > 0) {
+      // Jurnal pembalik VOID/revisi (reversed_entry_id -> entry SALES_RETURN)
+      // dihapus dulu — anak sebelum induk.
+      await dataSource.query(
+        `DELETE FROM journal_entry_lines WHERE journal_entry_id IN (
+           SELECT id FROM journal_entries WHERE reversed_entry_id IN (
+             SELECT id FROM journal_entries WHERE source_type = 'SALES_RETURN' AND source_id = ANY($1)))`,
+        [createdReturnIds],
+      );
+      await dataSource.query(
+        `DELETE FROM journal_entries WHERE reversed_entry_id IN (
+           SELECT id FROM journal_entries WHERE source_type = 'SALES_RETURN' AND source_id = ANY($1))`,
+        [createdReturnIds],
+      );
+      await dataSource.query(
+        `DELETE FROM authorization_requests WHERE requester_id = $1`,
+        [masterUserId],
+      );
       await dataSource.query(
         `DELETE FROM journal_entry_lines WHERE journal_entry_id IN (
            SELECT id FROM journal_entries WHERE source_type = 'SALES_RETURN' AND source_id = ANY($1)
@@ -271,7 +312,9 @@ describe('SalesReturnsService', () => {
     await dataSource.query('DELETE FROM audit_logs WHERE user_id = $1', [
       masterUserId,
     ]);
-    await dataSource.query('DELETE FROM users WHERE id = $1', [masterUserId]);
+    await dataSource.query('DELETE FROM users WHERE id = ANY($1)', [
+      [masterUserId, supervisorUserId].filter(Boolean),
+    ]);
     await dataSource.destroy();
   });
 
@@ -968,5 +1011,173 @@ describe('SalesReturnsService', () => {
     );
     createdReturnIds.push(result.salesReturn.id);
     expect(result.salesReturn.createdBy).toBe(operatorUser.sub);
+  });
+
+  describe('VOID & revisi-di-tempat (need_fixing.md #19)', () => {
+    async function makeReturn(qty: number) {
+      const customerId = await createTestCustomer();
+      const salesmanId = await createTestSalesman();
+      const productId = await createTestProduct('Produk VOID/Revisi RJ');
+      const { invoice, lines } = await seedInvoice({
+        customerId,
+        salesmanId,
+        lines: [
+          {
+            productId,
+            unitId,
+            qtyInput: 5,
+            qtyBaseUnit: 5,
+            unitPrice: 10000,
+            unitCostFifo: 5000,
+          },
+        ],
+      });
+      const result = await service.create(
+        {
+          salesInvoiceId: invoice.id,
+          returnDate: daysAgoIso(0),
+          settlementType: SalesReturnSettlementType.REDUCE_INVOICE,
+          lines: [{ salesInvoiceLineId: lines[0].id, qtyInput: qty }],
+        },
+        masterUser,
+      );
+      createdReturnIds.push(result.salesReturn.id);
+      return { invoice, lines, productId, salesReturn: result.salesReturn };
+    }
+
+    async function badStockQty(productId: string): Promise<number> {
+      const rows: { qty: string }[] = await dataSource.query(
+        `SELECT COALESCE(SUM(psb.qty_base_unit), 0) AS qty
+         FROM product_stock_balance psb
+         JOIN warehouses w ON w.id = psb.warehouse_id
+         WHERE psb.product_id = $1 AND w.warehouse_type = 'BAD_STOCK'`,
+        [productId],
+      );
+      return Number(rows[0].qty);
+    }
+
+    it('VOID oleh MASTER -> VOIDED, stok BS & jurnal dibalik, kuota retur faktur kembali penuh', async () => {
+      const { invoice, lines, productId, salesReturn } = await makeReturn(5);
+      expect(await badStockQty(productId)).toBe(5);
+
+      const voided = await service.voidReturn(
+        salesReturn.id,
+        { reasonCode: 'SALAH_INPUT', reasonNote: 'retur dobel' },
+        masterUser,
+        undefined,
+      );
+      expect(voided.postingStatus).toBe(SalesReturnPostingStatus.VOIDED);
+      expect(await badStockQty(productId)).toBe(0);
+
+      const reversal: unknown[] = await dataSource.query(
+        `SELECT id FROM journal_entries WHERE source_type = 'VOID_REVERSAL' AND reversed_entry_id IN (
+           SELECT id FROM journal_entries WHERE source_type = 'SALES_RETURN' AND source_id = $1)`,
+        [salesReturn.id],
+      );
+      expect(reversal).toHaveLength(1);
+
+      // Retur yang di-VOID tidak lagi memakan kuota qty/total faktur asal.
+      const again = await service.create(
+        {
+          salesInvoiceId: invoice.id,
+          returnDate: daysAgoIso(0),
+          settlementType: SalesReturnSettlementType.REDUCE_INVOICE,
+          lines: [{ salesInvoiceLineId: lines[0].id, qtyInput: 5 }],
+        },
+        masterUser,
+      );
+      createdReturnIds.push(again.salesReturn.id);
+    });
+
+    it('VOID oleh OPERATOR -> 412 VOID_DOCUMENT; disetujui -> VOIDED', async () => {
+      if (!supervisorUserId) {
+        const usersRepo = dataSource.getRepository(User);
+        const sup = await usersRepo.save(
+          usersRepo.create({
+            username: `test_sr_sup_${Date.now()}`,
+            passwordHash: await bcrypt.hash('x', 4),
+            fullName: 'Test SR Supervisor',
+            role: Role.SUPERVISOR,
+            isActive: true,
+          }),
+        );
+        supervisorUserId = sup.id;
+      }
+      const { salesReturn } = await makeReturn(2);
+      const dto = { reasonCode: 'SALAH_INPUT', reasonNote: 'operator batal' };
+      let body: StepUpRequiredBody | undefined;
+      try {
+        await service.voidReturn(salesReturn.id, dto, operatorUser, undefined);
+        throw new Error('Seharusnya 412.');
+      } catch (err) {
+        expect((err as HttpException).getStatus()).toBe(412);
+        body = (err as HttpException).getResponse() as StepUpRequiredBody;
+      }
+      await authorizationRequestsServiceRef.approve(
+        body.authorizationRequestId,
+        {
+          sub: supervisorUserId,
+          username: 'sup',
+          role: Role.SUPERVISOR,
+        },
+      );
+      const voided = await service.voidReturn(
+        salesReturn.id,
+        dto,
+        operatorUser,
+        undefined,
+        body.authorizationRequestId,
+      );
+      expect(voided.postingStatus).toBe(SalesReturnPostingStatus.VOIDED);
+    });
+
+    it('revisi qty 5 -> 3: nomor tetap, revision_number 1, stok BS & total ikut, jurnal aktif balance', async () => {
+      const { invoice, lines, productId, salesReturn } = await makeReturn(5);
+      const revised = await service.reviseReturn(
+        salesReturn.id,
+        {
+          salesInvoiceId: invoice.id,
+          returnDate: daysAgoIso(0),
+          settlementType: SalesReturnSettlementType.REDUCE_INVOICE,
+          lines: [{ salesInvoiceLineId: lines[0].id, qtyInput: 3 }],
+        },
+        masterUser,
+        undefined,
+      );
+      expect(revised.returnNumber).toBe(salesReturn.returnNumber);
+      expect(revised.revisionNumber).toBe(1);
+      expect(Number(revised.totalAmount)).toBe(30000);
+      expect(Number(revised.lines[0].qtyInput)).toBe(3);
+      expect(await badStockQty(productId)).toBe(3);
+
+      const active: { debit: string; credit: string }[] =
+        await dataSource.query(
+          `SELECT SUM(l.debit_amount) AS debit, SUM(l.credit_amount) AS credit
+         FROM journal_entries e JOIN journal_entry_lines l ON l.journal_entry_id = e.id
+         WHERE e.source_type = 'SALES_RETURN' AND e.source_id = $1
+           AND NOT EXISTS (SELECT 1 FROM journal_entries r WHERE r.reversed_entry_id = e.id)`,
+          [salesReturn.id],
+        );
+      expect(Number(active[0].debit)).toBe(Number(active[0].credit));
+      expect(Number(active[0].debit)).toBe(30000 + 15000);
+    });
+
+    it('revisi dengan faktur asal lain -> ditolak', async () => {
+      const { salesReturn, lines } = await makeReturn(1);
+      const other = await makeReturn(1);
+      await expect(
+        service.reviseReturn(
+          salesReturn.id,
+          {
+            salesInvoiceId: other.invoice.id,
+            returnDate: daysAgoIso(0),
+            settlementType: SalesReturnSettlementType.REDUCE_INVOICE,
+            lines: [{ salesInvoiceLineId: lines[0].id, qtyInput: 1 }],
+          },
+          masterUser,
+          undefined,
+        ),
+      ).rejects.toThrow(/tidak bisa diganti/i);
+    });
   });
 });

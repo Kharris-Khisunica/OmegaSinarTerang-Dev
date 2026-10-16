@@ -1,5 +1,12 @@
 # Frontend Engine — `<DataTable>` & `<CrudFormPage>`
 
+> **Dokumen ini menjelaskan *props*. `docs/PANDUAN_UI.md` menjelaskan *bentuk*** —
+> urutan tombol toolbar, nama kolom, istilah, kepadatan grid, pola modal berlapis, dan
+> template cetak, semuanya diturunkan dari screenshot sistem lama di `docs/referensi/`.
+> Baca keduanya: yang ini untuk tahu *cara memanggil*, yang itu untuk tahu *harus terlihat
+> seperti apa*. Beberapa prop di sini akan bertambah/berubah mengikuti `PANDUAN_UI.md` §8.7
+> (`dense`, `zebra`, `selectable`, `toolbar`, `emptyText`) — tambah prop, jangan fork komponen.
+
 Dibuat Hari 3. Fondasi seluruh halaman list & form create/edit di 30 hari ke depan.
 **Dilarang** menulis `<table>` atau `<form>` manual di halaman modul — tambah prop di
 kedua komponen ini kalau ada kebutuhan baru.

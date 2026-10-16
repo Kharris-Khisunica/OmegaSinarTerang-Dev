@@ -45,6 +45,8 @@ import { DeliveryOrdersModule } from './modules/delivery-orders/delivery-orders.
 import { PaymentsModule } from './modules/payments/payments.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { CashTransfersModule } from './modules/cash-transfers/cash-transfers.module';
+import { KasbonRepaymentsModule } from './modules/kasbon-repayments/kasbon-repayments.module';
+import { StockOpnamesModule } from './modules/stock-opnames/stock-opnames.module';
 import { WorkersModule } from './modules/workers/workers.module';
 
 @Module({
@@ -103,6 +105,8 @@ import { WorkersModule } from './modules/workers/workers.module';
     PaymentsModule,
     ReportsModule,
     CashTransfersModule,
+    KasbonRepaymentsModule,
+    StockOpnamesModule,
     WorkersModule,
   ],
   controllers: [AppController],

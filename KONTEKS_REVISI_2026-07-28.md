@@ -187,6 +187,61 @@ Konsekuensinya §9.2 plan (daftar tidak-boleh-dipotong) disusun ulang: pembenara
 jual-rugi, dan kunci cetak tetap wajib. Navigasi keyboard bebas-mouse total diturunkan ke
 "cukup baik". Menghemat ±1,25 hari.
 
+### 2.12 Modul Pembayaran / Kas & Bank (29 Agustus 2026) — **PR #8 tertutup**
+
+Diputuskan lewat sesi kerja terpisah (bukan sesi diskusi klien 28-29 Juli), berdasarkan
+screenshot `docs/referensi/penerimaan-kas/*` dan `docs/referensi/pengeluaran-kas/*` yang tidak
+tersedia saat plan v2 ditulis. **Belum dikonfirmasi ulang ke klien** — kalau nanti prakteknya
+ternyata beda, revisi di sini dulu sebelum menyentuh skema.
+
+**Temuan kunci dari screenshot:** satu batch penerimaan kas sistem lama (`PJK-26070025`) berisi
+7 baris faktur dari ~6 pelanggan **berbeda**, field header `Dari:` **kosong**. Ini membongkar
+asumsi "satu batch = satu pelanggan" yang jadi dasar keraguan plan v2 soal "pembayaran lintas
+faktur" — praktik nyatanya malah lintas *pelanggan*.
+
+**Keputusan:**
+
+1. **`payment_batches` tanpa `customer_id`/`supplier_id` wajib di header.** Satu batch (satu
+   pergerakan kas/bank) boleh melunasi faktur dari **banyak pelanggan atau supplier berbeda**
+   sekaligus. Party di-resolve **per baris** dari faktur yang dibayar, lewat fungsi resolver
+   akun piutang/hutang bersama yang sama dipakai 5 tempat lain (`CLAUDE.md` §3).
+2. **`payment_batch_methods` hanya 3 bucket: Tunai, Giro, Transfer.** Bucket ke-4 di sistem
+   lama (`Pending`, dalam grup `PELUNASAN:`) **sengaja tidak diimplementasikan** — keputusan
+   user, tidak perlu dikejar artinya.
+3. **`agent_id`/`vehicle_id` DIBUANG dari `payment_batches`.** Semula direncanakan (plan v2)
+   sebagai pengganti "rekap setoran agen" yang dipotong (§4.4). Ternyata rekap yang klien
+   maksud adalah **"berapa penjualan per sopir/agen"** (1 sopir selalu bersama 1 agen) — itu
+   **laporan penjualan** (Hari 30, sumber dari data faktur), bukan urusan modul Payment.
+   Hari 30 sendiri saat ini ⏸ **ditunda ke pasca-MVP** (`CLAUDE.md` §0) — jadi rekap sopir
+   belum ada sampai laporan itu dikerjakan, tapi mekanismenya sudah jelas dan **bukan**
+   tanggung jawab skema Payment.
+4. **Satu template modal untuk semua kas & bank, terima & keluar.** Field akun di header
+   (`[ PJK ] Kas Besar` di screenshot) adalah **selector** atas akun `is_cash_account = true`
+   mana pun (Kas Kecil/Besar/Toko, Bank BCA/BSI/Mandiri — sudah di-seed Hari 17A) — bukan
+   modal terpisah per jenis akun. `Kepada:` vs `Dari:` cuma label yang berbeda arah.
+5. **Baris = per nota**, jumlah boleh **kurang dari sisa faktur** (pembayaran sebagian —
+   tidak menghasilkan selisih; §2.18 `CLAUDE.md` baru berlaku saat faktur dinyatakan lunas).
+6. **Satu batch per hari itu pola pemakaian, bukan validasi wajib** — sistem tidak melarang
+   lebih dari satu batch sehari.
+
+**Menutup 3 pertanyaan 🛑 di `PROGRESS.md` Hari 26/27** ("setoran sopir", "pembayaran
+sebagian", "pembayaran lintas faktur") — ketiganya terjawab lewat keputusan di atas, skema
+`payment_batches` + `payment_batch_methods` + `payments` sudah boleh dibangun tanpa menunggu
+jawaban klien lebih lanjut.
+
+**Koreksi 26 Sep 2026 — poin 2 di atas DIGANTIKAN, `payment_batch_methods` DIHAPUS.**
+Metode pembayaran (akun kas/bank + nominal) pindah dari satu pool di level batch ke **per
+baris faktur** — setiap baris di grid Kas & Bank sekarang punya sub-tabel metodenya sendiri
+(boleh lebih dari satu akun untuk satu faktur, mis. sebagian kas sebagian transfer). Akun tetap
+bebas dari `is_cash_account` mana pun (bagian itu dari poin 2 sudah tidak akurat sejak awal —
+implementasi Hari 26 memang sudah pakai `cash_account_id` bebas, bukan literal 3 bucket
+Tunai/Giro/Transfer seperti tertulis di atas). `POST /payments/preview-allocation` (FIFO
+Step 1) **dihapus** — begitu tidak ada lagi satu "total amount" per pihak untuk di-FIFO-kan,
+endpoint itu tidak punya input lagi. Tabel baru `payment_methods` (FK ke `payments.id`).
+Poin 1/3/4/5/6 di atas TIDAK berubah. Detail penuh: memory `hari26-payment-module-design`
+addendum 26 Sep 2026, dan `PROGRESS.md` baris 26 Sep 2026. Masih **belum dikonfirmasi ulang ke
+klien**, pola sama keputusan asli di atas.
+
 ---
 
 ## 3. Delta Jadwal per Hari
@@ -238,7 +293,7 @@ itu dokumen mulai terbit dengan nomor sungguhan.
 |---|---|---|
 | ~~Faktur Pembelian~~ | 11 | ✅ **Tuntas 29 Juli** — tiga tanggal, `supplier_invoice_no`, bonus, ongkir ke opex, selalu ke STORE |
 | ~~Mutasi Gudang~~ | 10 | ✅ **Tuntas 29 Juli** — kode `GD`, ikut kunci cetak, `unit_cost` read-only |
-| **Pembayaran / Kas & Bank** | 23–24 | **Belum dibahas.** Alokasi ke faktur, multi-metode, setoran sopir. Plan menandainya sebagai bagian tersulit |
+| ~~Pembayaran / Kas & Bank~~ | 23–24 | ✅ **Desain tertutup 29 Agu 2026** (§2.12) — skema `payment_batches`/`payment_batch_methods`/`payments`, dari screenshot `penerimaan-kas`/`pengeluaran-kas`. **Belum dikonfirmasi ke klien**, implementasi menyusul di v3 Hari 26–27 |
 | **Biaya Operasional** | 14 | Ditunda klien. Termasuk gaji harian salesman dan **ongkos kirim pembelian** |
 | **Laporan** | 26–30 | Ditunda klien |
 | **Saldo Awal (bentuk)** | 9 | Ada di daftar tidak-boleh-dipotong, bentuknya belum dibahas |
@@ -249,12 +304,12 @@ itu dokumen mulai terbit dengan nomor sungguhan.
 |---|---|---|---|
 | 1 | ~~Tanggal faktur supplier vs tanggal terima dipisah?~~ **TERTUTUP 29 Juli** — sistem lama memang memisahkan `Tanggal`, `Tgl. Nota`, dan `Jth. Tempo`, dan nilainya bisa berbeda. Ketiganya disimpan | — | ✅ |
 | 2 | **Lot dari retur pelanggan punya `supplier_id` NULL.** Klien minta supplier asal dilacak, tapi barang yang dikembalikan pelanggan tidak punya jejak supplier yang bersih. Boleh diretur ke supplier mana pun, atau diblokir? | Hari 13 | **Tinggi** |
-| 3 | **Panel harga kosong untuk satuan yang belum pernah dipakai.** Panel disaring per satuan; kalau produk belum pernah dijual dalam renceng ke siapa pun, fallback terakhir adalah harga master — yang klien bilang tidak dipakai | Hari 17 | Sedang |
+| 3 | ~~Panel harga kosong untuk satuan yang belum pernah dipakai — fallback ke harga master atau kosongkan?~~ **TERTUTUP 20 Agustus 2026** — **kosongkan**. Operator tampil "Belum ada riwayat harga", lalu bertanya ke Master untuk harga kombinasi itu; Master boleh ditanya kapan saja, tidak ada alur approval khusus. Keputusan berlaku permanen, bukan sementara sampai fitur lain dibangun — lihat catatan implementasi di `PROGRESS.md` §2 Hari 20 dan §4 | Hari 20 | ✅ |
 | 4 | **Hari pertama panel harga kosong total.** Data Affari tidak bisa diekspor. Mitigasi: sistem lama read-only 3 bulan (plan §9.1); dengan ±61 produk riwayat terisi 1–2 minggu. Opsi: klien mengetik manual 10–20 pelanggan terbesar × produk rutin (±150–250 baris) sebelum go-live | Cut-over | Sedang |
 | 5 | **Ekspor Affari — dorong sekali lagi.** Cek menu `Laporan` (kemungkinan ada tombol ekspor Excel), tanya vendor, atau baca file database di PC klien | Cut-over | Sedang |
 | 6 | **`REC(s): 61` dan `260` — jumlah total atau tampilan terfilter?** Menentukan apakah migrasi manual setengah hari atau berminggu-minggu | Hari 10+ | Sedang |
 | 7 | **Format nota belum diterima klien.** Dijanjikan 27 Juli. Aturan cadangan plan: lewat Hari 12 → layout standar, revisi pasca-MVP. Hari 12 jatuh ±2 Agustus | Hari 19, 22 | Sedang |
-| 8 | **Modul Pembayaran / Kas & Bank belum dibahas sama sekali** — Hari 23–24 ditandai plan sebagai bagian tersulit. Belum ada estimasi | Hari 23–24 | **Tinggi** |
+| 8 | ~~Modul Pembayaran / Kas & Bank belum dibahas sama sekali~~ **TERTUTUP 29 Agu 2026** — desain skema selesai lewat analisis screenshot sistem lama, lihat §2.12. **Catatan:** ini keputusan kerja, belum konfirmasi klien | Hari 23–24 | ✅ |
 
 ### 4.3 Tugas klien yang belum dijadwalkan
 
@@ -274,13 +329,26 @@ dinyalakan di toko dan klien mulai mengisi, paralel. Klien setuju paralel, "tapi
 perlu **tenggat internal**: master produk & pelanggan selesai **±20 Agustus**, menyisakan
 10 hari untuk saldo awal dan gladi bersih.
 
-### 4.4 Kontrol yang dilepas — pastikan ada penggantinya di kertas
+### 4.4 Kontrol yang dilepas — pastikan ada penggantinya di kertas — ✅ **TERTUTUP 30 Agu 2026**
 
 **Rekap setoran agen dipotong.** Rekap itu berdiri persis di titik uang tunai berpindah
 tangan — sopir membawa pulang uang. "Manual bulan pertama" gampang berubah jadi tidak ada
 yang mengerjakan. Pastikan ada **nama dan waktunya**: siapa mencocokkan setoran sopir dengan
 faktur terkirim, kapan, siapa memeriksa. Menempelkannya ke ritual pengecekan sore supervisor
 itu gratis dan menutup lubangnya.
+
+**Jawaban klien (30 Agu 2026):** setiap **agen** bertanggung jawab langsung atas total uang
+hasil penjualan dari invoice yang ia bawa hari itu (1 agen selalu berpasangan 1 sopir) —
+kalau ada kekurangan/kesalahan, agen itu yang menanggung. Pencocokan dilakukan **setiap sore
+di hari yang sama**, bersamaan dengan proses pelunasan (modul Payment, Hari 26–27):
+total nilai invoice/surat jalan dibandingkan dengan jumlah uang yang diterima. Selisih jadi
+tanggung jawab agen bersangkutan. **Cukup kontrol di kertas — tidak ada perubahan
+skema/kode.** Mekanisme sistem yang sudah ada (Selisih Pembayaran otomatis terbentuk saat
+faktur dinyatakan lunas dengan uang kurang, ditandai di layar Pengecekan Invoice Harian
+Hari 22A bila > Rp 10.000) sudah cukup sebagai sinyal; atribusi ke agen tertentu diketahui
+manual oleh supervisor dari surat jalan (satu agen satu perjalanan), tidak dicatat di
+sistem. Kalau klien nanti minta ini tercatat di sistem, itu scope baru — bukan bagian
+Hari 28. Detail lengkap di `docs/PROMPTS_HARIAN.md` Hari 28.
 
 ---
 

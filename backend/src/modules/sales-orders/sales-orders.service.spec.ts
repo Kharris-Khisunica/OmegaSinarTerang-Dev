@@ -386,6 +386,48 @@ describe('SalesOrdersService', () => {
     ).rejects.toThrow(/sudah dikonversi/i);
   });
 
+  it('cancel() SO OPEN -> CANCELLED + alasan, lepas dari qty terikat; tidak bisa diedit/dibatalkan/dijadikan faktur lagi', async () => {
+    const customerId = await createTestCustomer();
+    const productId = await createTestProduct('Produk Cancel SO');
+    const order = await createSimpleOrder(customerId, productId);
+    expect(await productsService.getCommittedQty(productId)).toBe(36);
+
+    const cancelled = await service.cancel(
+      order.id,
+      { reason: 'Pelanggan batal pesan' },
+      masterUser,
+    );
+    expect(cancelled.status).toBe(SalesOrderStatus.CANCELLED);
+    expect(cancelled.cancelReason).toBe('Pelanggan batal pesan');
+    expect(cancelled.cancelledBy).toBe(masterUser.sub);
+    expect(cancelled.cancelledAt).not.toBeNull();
+    expect(await productsService.getCommittedQty(productId)).toBe(0);
+
+    await expect(
+      service.update(order.id, { notes: 'edit setelah batal' }),
+    ).rejects.toThrow(/sudah dibatalkan/i);
+    await expect(
+      service.cancel(order.id, { reason: 'lagi' }, masterUser),
+    ).rejects.toThrow(/sudah dibatalkan/i);
+    await expect(
+      dataSource.transaction((manager) =>
+        service.markConverted(order.id, manager),
+      ),
+    ).rejects.toThrow();
+  });
+
+  it('cancel() SO CONVERTED -> ditolak, pesan mengarahkan ke VOID faktur', async () => {
+    const customerId = await createTestCustomer();
+    const productId = await createTestProduct('Produk Cancel Converted');
+    const order = await createSimpleOrder(customerId, productId);
+    await dataSource.transaction((manager) =>
+      service.markConverted(order.id, manager),
+    );
+    await expect(
+      service.cancel(order.id, { reason: 'telat' }, masterUser),
+    ).rejects.toThrow(/VOID fakturnya/i);
+  });
+
   it('dua create() berurutan -> nomor SO berurutan tanpa lompat', async () => {
     const customerId = await createTestCustomer();
     const productId = await createTestProduct('Produk Berurutan');

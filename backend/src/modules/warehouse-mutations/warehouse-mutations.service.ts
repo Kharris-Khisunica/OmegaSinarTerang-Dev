@@ -239,7 +239,7 @@ export class WarehouseMutationsService {
     customerId: string,
   ): Promise<TitipanFakturOption[]> {
     return this.dataSource.manager.query(
-      `SELECT si.id, si.invoice_number AS "invoiceNumber", si.invoice_date AS "invoiceDate"
+      `SELECT si.id, si.invoice_number AS "invoiceNumber", si.invoice_date::text AS "invoiceDate"
          FROM sales_invoices si
          JOIN sales_invoice_lines sil ON sil.sales_invoice_id = si.id
          LEFT JOIN (

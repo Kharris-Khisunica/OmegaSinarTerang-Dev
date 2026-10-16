@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import type { Column, FilterDef, FilterOption } from '~/types/data-table'
 
-definePageMeta({ title: 'Jurnal' })
+// OPERATOR ditutup (need_fixing.md #17); SUPERVISOR lewat URL langsung, pola
+// sama Bagan Akun (navigasi Supervisor hanya 3 item, CLAUDE.md §5).
+definePageMeta({ title: 'Jurnal', roles: ['MASTER', 'SUPERVISOR'] })
 
 interface JournalRow extends Record<string, unknown> {
   id: string

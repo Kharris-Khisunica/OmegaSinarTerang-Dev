@@ -776,13 +776,16 @@ export class SalesInvoicesService {
     user: AuthenticatedUser,
     authorizationRequestId: string | undefined,
     sellBelowCostAuthorizationRequestId: string | undefined,
-  ): Promise<SalesInvoice> {
+  ): Promise<SalesInvoice & { stockWarnings: string[] }> {
     const existing = await this.findOne(id);
     if (existing.postingStatus === SalesInvoicePostingStatus.VOIDED) {
       throw new BadRequestException(
         'Faktur ini sudah VOID, tidak bisa direvisi.',
       );
     }
+    // Peringatan stok minus (§2.8) dari posting ulang — dikembalikan ke FE
+    // seperti create() (need_fixing.md #29 lanjutan, 6 Okt 2026).
+    const stockWarnings: string[] = [];
 
     this.assertSalesDiscountDropped(dto);
     this.validateDiscountAlternative(
@@ -987,6 +990,9 @@ export class SalesInvoicesService {
               },
               manager,
             );
+            if (result.stockWarning) {
+              stockWarnings.push(result.stockWarning);
+            }
             const unitCostFifo = result.totalCost / ctx.qtyBaseUnit;
             totalCogsCents += toCents(result.totalCost);
 
@@ -1127,7 +1133,7 @@ export class SalesInvoicesService {
       if (!updated) {
         throw new BadRequestException('Faktur penjualan tidak ditemukan.');
       }
-      return updated;
+      return Object.assign(updated, { stockWarnings });
     });
   }
 

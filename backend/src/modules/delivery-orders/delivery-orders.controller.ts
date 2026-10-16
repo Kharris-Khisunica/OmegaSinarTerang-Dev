@@ -16,6 +16,7 @@ import { AuthenticatedUser } from '../auth/types/jwt-payload.interface';
 import { CreateDeliveryOrderDto } from './dto/create-delivery-order.dto';
 import { DeliveryOrderQueryDto } from './dto/delivery-order-query.dto';
 import { UpdateDeliveryOrderStatusDto } from './dto/update-delivery-order-status.dto';
+import { VoidDeliveryOrderDto } from './dto/void-delivery-order.dto';
 import { DeliveryOrdersService } from './delivery-orders.service';
 
 interface RequestWithUser extends Request {
@@ -55,26 +56,43 @@ export class DeliveryOrdersController {
     return this.deliveryOrdersService.registerPrint(id);
   }
 
-  // Header dibaca manual (bukan lewat StepUpGuard/@RequiresStepUp) — syarat
-  // step-up di sini bergantung print_status dokumen, bukan sekadar
-  // role+endpoint (pola identik PurchaseInvoicesController.update()).
+  // Status kirim BEBAS kunci cetak (need_fixing.md #18) — tidak ada header
+  // step-up di sini lagi.
   @Roles(Role.MASTER, Role.OPERATOR)
   @Audit('EDIT', 'delivery_orders')
   @Patch(':id/status')
   updateStatus(
     @Param('id') id: string,
     @Body() dto: UpdateDeliveryOrderStatusDto,
+  ) {
+    return this.deliveryOrdersService.updateStatus(id, dto);
+  }
+
+  // DUA header independen, pola sama SalesInvoicesController.voidInvoice():
+  //   x-authorization-request-id       -> UNLOCK_PRINT (§2.16)
+  //   x-void-authorization-request-id  -> VOID_DOCUMENT (§2.13, OPERATOR)
+  @Roles(Role.MASTER, Role.OPERATOR)
+  @Audit('VOID', 'delivery_orders')
+  @Post(':id/void')
+  voidDeliveryOrder(
+    @Param('id') id: string,
+    @Body() dto: VoidDeliveryOrderDto,
     @Req() req: RequestWithUser,
   ) {
     const headerId = req.headers['x-authorization-request-id'];
     const authorizationRequestId = Array.isArray(headerId)
       ? headerId[0]
       : headerId;
-    return this.deliveryOrdersService.updateStatus(
+    const voidHeaderId = req.headers['x-void-authorization-request-id'];
+    const voidAuthorizationRequestId = Array.isArray(voidHeaderId)
+      ? voidHeaderId[0]
+      : voidHeaderId;
+    return this.deliveryOrdersService.voidDeliveryOrder(
       id,
       dto,
       req.user,
       authorizationRequestId,
+      voidAuthorizationRequestId,
     );
   }
 }

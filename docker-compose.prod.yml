@@ -1,0 +1,103 @@
+# Compose PRODUKSI — PC klien. Pakai: docker compose --env-file .env -f docker-compose.prod.yml up -d
+# Hanya reverse proxy yang dipublish ke host. Postgres & backend hanya di jaringan internal.
+name: omega
+
+x-common: &common
+  restart: unless-stopped
+  networks: [internal]
+  logging:
+    driver: json-file
+    options: { max-size: "10m", max-file: "3" }
+
+services:
+  postgres:
+    <<: *common
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${DB_USERNAME:?DB_USERNAME wajib diisi}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD wajib diisi}
+      POSTGRES_DB: ${DB_NAME:-omega}
+      TZ: Asia/Jakarta
+      PGTZ: Asia/Jakarta
+    command:
+      - postgres
+      - -c
+      - shared_buffers=256MB
+      - -c
+      - effective_cache_size=512MB
+      - -c
+      - max_connections=30
+      - -c
+      - timezone=Asia/Jakarta
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./deploy/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    mem_limit: 1g
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  backend:
+    <<: *common
+    image: omega-backend:${APP_VERSION:-1.0.0}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      TZ: Asia/Jakarta
+      NODE_OPTIONS: --max-old-space-size=512
+      PORT: 3000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME:-omega}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?JWT_ACCESS_SECRET wajib diisi}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?JWT_REFRESH_SECRET wajib diisi}
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost}
+      COMPANY_NAME: ${COMPANY_NAME:-Omega Sinar Terang}
+      # Hanya dipakai perintah seed:prod (docker compose exec backend ...)
+      SEED_MASTER_USERNAME: ${SEED_MASTER_USERNAME:-}
+      SEED_MASTER_PASSWORD: ${SEED_MASTER_PASSWORD:-}
+      SEED_MASTER_FULLNAME: ${SEED_MASTER_FULLNAME:-}
+      STORE_NAME: ${STORE_NAME:-}
+      STORE_CITY: ${STORE_CITY:-}
+      STORE_PHONE: ${STORE_PHONE:-}
+    mem_limit: 768m
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/health >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+  frontend:
+    <<: *common
+    image: omega-frontend:${APP_VERSION:-1.0.0}
+    mem_limit: 64m
+
+  proxy:
+    <<: *common
+    image: caddy:2-alpine
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_started
+    environment:
+      TZ: Asia/Jakarta
+    ports:
+      - "${HTTP_PORT:-80}:80"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+    mem_limit: 64m
+
+networks:
+  internal:
+
+volumes:
+  postgres_data:

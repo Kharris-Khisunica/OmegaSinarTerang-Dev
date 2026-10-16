@@ -146,7 +146,7 @@ fi
 # ---------------------------------------------------------------------------
 if [ -d "$FE_DIR" ]; then
   step "7/10 Build frontend" \
-    bash -c "cd $FE_DIR && npm run build"
+    bash -c "cd $FE_DIR && NODE_OPTIONS=--max-old-space-size=4096 npm run build"
 
   step "8/10 Lint frontend" \
     bash -c "cd $FE_DIR && npm run lint"

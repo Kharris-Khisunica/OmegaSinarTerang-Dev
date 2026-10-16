@@ -104,6 +104,7 @@ function newLine(): LineRow {
 }
 
 const api = useApi()
+const toast = useToast()
 const router = useRouter()
 const route = useRoute()
 // SO4: dibaca SEKARANG (setup, sinkron), BUKAN di dalam onMounted -- <DataTable>
@@ -631,6 +632,22 @@ const stockPanelRows = computed(() => {
   return [{ gudang: 'Toko', satuan: '', qty }]
 })
 
+// need_fixing.md #29: PERINGATAN qty > sisa stok, pola sama Order Penjualan
+// (SO3) -- BUKAN penolakan. CLAUDE.md §2.8 mengizinkan stok minus; Simpan
+// tidak pernah didisable oleh ini.
+const lineStockWarningText = computed(() => {
+  if (stockQtyBaseUnit.value === null || !lineDraft.value.productId || !lineDraft.value.unitId) return null
+  const factor = isiFactor(lineDraft.value)
+  if (!factor) return null
+  const qtyBaseUnitInput = (lineDraft.value.qtyInput ?? 0) * factor
+  if (qtyBaseUnitInput <= stockQtyBaseUnit.value) return null
+  const product = productMap.value.get(lineDraft.value.productId)
+  const baseUnitName = product?.baseUnit ?? ''
+  const conversions = (product?.unitConversions ?? []).map(c => ({ unitName: c.unitName, qtyInBaseUnit: Number(c.qtyInBaseUnit) }))
+  const sisa = computeQtyBreakdown(stockQtyBaseUnit.value, baseUnitName, conversions, { largestOnly: true })
+  return `Qty melebihi sisa stok (sisa ${sisa}). Boleh dilanjutkan — stok akan minus.`
+})
+
 function openLineEntri() {
   lineDraft.value = newLine()
   lineEditIndex.value = null
@@ -665,6 +682,17 @@ function onLineProductChange(rawProductId: string | number | boolean | undefined
   const dus = allowed.find(u => normalizeUnitName(u.name) === 'dus')
   lineDraft.value.unitId = dus?.id ?? allowed[0]?.id ?? undefined
   fetchStockBalance(productId)
+}
+// need_fixing.md #8 — hotkey grid baris (PANDUAN_UI.md §12): Delete minta
+// konfirmasi; Enter di field terakhir modal baris = simpan lalu buka baris
+// kosong berikutnya (hanya saat entri baris baru, bukan saat mengubah).
+function confirmRemoveSelectedLine() {
+  if (selectedLine.value && window.confirm('Hapus baris terpilih?')) removeSelectedLine()
+}
+function saveLineAndNew() {
+  const wasNewLine = lineEditIndex.value === null
+  saveLine()
+  if (wasNewLine && !lineOpen.value) openLineEntri()
 }
 function saveLine() {
   if (!lineDraft.value.productId || !lineDraft.value.unitId || !((lineDraft.value.qtyInput ?? 0) > 0)) return
@@ -810,6 +838,19 @@ async function performRevise(id: string): Promise<unknown> {
   return api.patch(`/sales-invoices/${id}/revise`, buildPayload(), approvedHeaders)
 }
 
+// need_fixing.md #29 — stockWarning backend (§2.8) ditampilkan, baik saat
+// simpan baru maupun revisi. Dokumen TETAP tersimpan; ini pemberitahuan.
+function notifyStockWarnings(warnings: string[] | undefined, title: string) {
+  if (!warnings?.length) return
+  toast.add({
+    title,
+    description: warnings.join(' • '),
+    color: 'warning',
+    icon: 'i-lucide-alert-triangle',
+    duration: 10000
+  })
+}
+
 async function submit() {
   const err = validate()
   if (err) {
@@ -820,7 +861,8 @@ async function submit() {
   submitting.value = true
   try {
     if (formMode.value === 'ubah' && editingInvoiceId.value) {
-      await performRevise(editingInvoiceId.value)
+      const revised = await performRevise(editingInvoiceId.value) as { stockWarnings?: string[] } | undefined
+      notifyStockWarnings(revised?.stockWarnings, 'Faktur direvisi — stok minus')
       documentModalRef.value?.clearDraft()
       entriOpen.value = false
       await navigateTo(`/penjualan/faktur/${editingInvoiceId.value}`)
@@ -833,7 +875,12 @@ async function submit() {
     // disetujui memanggil ulang callback ini SENDIRI dengan header
     // x-authorization-request-id -- pola identik gudang/mutasi/index.vue
     // untuk BS_TO_STORE, satu-satunya precedent lain di codebase.
-    await withStepUp(headers => api.post('/sales-invoices', buildPayload(), headers))
+    const created = await withStepUp(headers =>
+      api.post<{ stockWarnings?: string[] }>('/sales-invoices', buildPayload(), headers)
+    )
+    // need_fixing.md #29: stockWarning backend (§2.8) dulu dibuang diam-diam.
+    // Faktur TETAP tersimpan -- ini pemberitahuan, bukan error.
+    notifyStockWarnings(created?.stockWarnings, 'Faktur tersimpan — stok minus')
     documentModalRef.value?.clearDraft()
     entriOpen.value = false
     table.value?.reload()
@@ -1001,6 +1048,9 @@ onMounted(async () => {
       :draft-data="draftData"
       @update:open="(v: boolean) => !v && closeEntri()"
       @restore-draft="restoreDraft"
+      @new-line="openLineEntri"
+      @edit-line="openLineEditSelected"
+      @delete-line="confirmRemoveSelectedLine"
       @save="submit"
     >
       <template #header>
@@ -1036,15 +1086,14 @@ onMounted(async () => {
           variant="subtle"
           icon="i-lucide-alert-triangle"
           :title="bannerError"
-          :close-button="{ icon: 'i-lucide-x', color: 'neutral', variant: 'link' }"
+          :close="{ icon: 'i-lucide-x', color: 'neutral', variant: 'link' }"
           @update:open="bannerError = ''"
         />
         <!-- Tombol jalan keluar SEBAGAI ELEMEN TERPISAH, bukan slot #actions
-             UAlert -- diverifikasi manual (browser) slot itu TIDAK tampil di
-             sini (kemungkinan konflik prop `close-button` yang sebenarnya
-             tidak dikenali Alert.vue vs. `close`, atau kondisi orientation
-             lain) padahal errornya sendiri tampil benar. Elemen sendiri di
-             luar UAlert tidak bergantung pada perilaku slot itu sama sekali. -->
+             UAlert. Catatan 6 Okt 2026 (need_fixing.md #10): prop
+             `close-button` memang TIDAK dikenal Nuxt UI v4 (yang benar
+             `close`) — sudah diganti di semua halaman, tombol X kini tampil.
+             Elemen terpisah ini dibiarkan, tidak bergantung pada slot. -->
         <div
           v-if="banner_showVoidAction"
           class="flex justify-end -mt-2"
@@ -1129,13 +1178,14 @@ onMounted(async () => {
           <UFormField
             v-if="salesChannel === 'PENGIRIMAN'"
             label="Sales Order"
+            required
             hint="Wajib untuk saluran Pengiriman (ditegakkan backend). Pilih SO dulu untuk mengisi pelanggan otomatis, atau pilih pelanggan dulu untuk menyaring SO miliknya."
           >
             <USelect
               :model-value="salesOrderId"
               :items="salesOrderOptions"
               :loading="salesOrderLoading"
-              placeholder="Pilih Sales Order (opsional)..."
+              placeholder="Pilih Sales Order..."
               class="w-full"
               @update:model-value="onSalesOrderSelected"
             />
@@ -1261,6 +1311,7 @@ onMounted(async () => {
       :dirty="lineDirty"
       @update:open="(v: boolean) => (lineOpen = v)"
       @save="saveLine"
+      @enter-last="saveLineAndNew"
     >
       <template #form>
         <div class="flex flex-col gap-3">
@@ -1325,6 +1376,12 @@ onMounted(async () => {
               class="w-full"
               @update:model-value="lineDirty = true"
             />
+            <p
+              v-if="lineStockWarningText"
+              class="text-xs text-warning mt-1"
+            >
+              {{ lineStockWarningText }}
+            </p>
           </UFormField>
 
           <UFormField label="Jumlah">

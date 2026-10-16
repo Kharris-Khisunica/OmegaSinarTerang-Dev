@@ -11,6 +11,7 @@ export type StockSourceType =
   | 'SALES_RETURN'
   | 'WAREHOUSE_MUTATION'
   | 'STOCK_ADJUSTMENT'
+  | 'STOCK_OPNAME'
   | 'VOID_REVERSAL'
   | 'REVISION_REVERSAL';
 

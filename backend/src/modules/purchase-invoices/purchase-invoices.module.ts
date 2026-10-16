@@ -5,6 +5,7 @@ import { DocumentCounterModule } from '../../core/document-counter/document-coun
 import { DocumentReviseModule } from '../../core/document-revise/document-revise.module';
 import { JournalPosterModule } from '../../core/journal-poster/journal-poster.module';
 import { PrintLockModule } from '../../core/print-lock/print-lock.module';
+import { StepUpModule } from '../../core/step-up/step-up.module';
 import { StockRecorderModule } from '../../core/stock-recorder/stock-recorder.module';
 import { TaxRatesModule } from '../../core/tax-rates/tax-rates.module';
 import { VoidModule } from '../../core/void/void.module';
@@ -32,6 +33,7 @@ import { PurchaseInvoicesService } from './purchase-invoices.service';
     PrintLockModule,
     VoidModule,
     DocumentReviseModule,
+    StepUpModule,
   ],
   controllers: [PurchaseInvoicesController],
   providers: [PurchaseInvoicesService, PurchaseInvoiceVoidHook],

@@ -7,7 +7,9 @@
  *   2. Esc menutup satu lapis, konfirmasi kalau dirty.
  *   3. Guard beforeunload aktif selama open && dirty.
  *   4. Draf otomatis ke sessionStorage per draftKey, dipulihkan saat dibuka lagi,
- *      dihapus lewat clearDraft() setelah Simpan berhasil.
+ *      dihapus lewat clearDraft() setelah Simpan berhasil — dan dihapus OTOMATIS
+ *      di requestClose() begitu penutupan dikonfirmasi ("buang perubahan"), supaya
+ *      draf yang sudah dibuang tidak terpulihkan saat modal dibuka lagi.
  *
  * `dirty` sengaja BUKAN v-model — hanya pemanggil (yang memegang data form) yang
  * tahu isDirty(). `width` default cocok dengan literal default PANDUAN_UI.md §9
@@ -29,7 +31,7 @@ const props = withDefaults(defineProps<{
   draftData?: unknown
   confirmCloseMessage?: string
 }>(), {
-  hint: 'Tekan Ctrl+S untuk simpan',
+  hint: undefined,
   saving: false,
   width: 'min(1100px, 92vw)',
   confirmCloseMessage: 'Ada perubahan yang belum disimpan. Tutup dan buang perubahan?'
@@ -40,14 +42,23 @@ const emit = defineEmits<{
   'save': []
   'close': []
   'restore-draft': [data: unknown]
+  'new-line': []
+  'edit-line': []
+  'delete-line': []
 }>()
 
 const slots = useSlots()
+
+let draftDebounce: ReturnType<typeof setTimeout> | undefined
 
 const modalTitle = computed(() => (props.mode === 'entri' ? `Entri ${props.title}` : `Ubah ${props.title}`))
 
 function requestClose() {
   if (props.dirty && !window.confirm(props.confirmCloseMessage)) return
+  // Sudah dikonfirmasi buang (atau memang tidak dirty) — draf ikut dibuang di
+  // sini, bukan diserahkan ke tiap halaman pemanggil (dulu hanya Faktur
+  // Penjualan yang ingat memanggil clearDraft(); 6 halaman lain lupa).
+  clearDraft()
   emit('update:open', false)
   emit('close')
 }
@@ -58,13 +69,25 @@ function forceClose() {
 }
 
 function clearDraft() {
+  // Batalkan simpan-draf yang masih menunggu debounce — kalau tidak, ketikan
+  // <400 ms sebelum tutup menulis ulang draf SESUDAH dihapus.
+  if (draftDebounce) clearTimeout(draftDebounce)
   if (props.draftKey) sessionStorage.removeItem(props.draftKey)
 }
 
+// need_fixing.md #8 — Insert/F2/Delete untuk grid baris (§12); pemanggil
+// menyambungkan @new-line/@edit-line/@delete-line. Hotkey modal dokumen
+// DIAM selama ada modal baris terbuka di atasnya (Esc = satu lapis).
+const { register, anyLineOpen } = useModalStack()
+register('document', computed(() => props.open))
+
 useDocumentHotkeys('document', {
   onSave: () => emit('save'),
-  onEsc: requestClose
-}, { active: computed(() => props.open) })
+  onEsc: requestClose,
+  onNewLine: () => emit('new-line'),
+  onEditSelected: () => emit('edit-line'),
+  onDeleteSelected: () => emit('delete-line')
+}, { active: computed(() => props.open && !anyLineOpen.value) })
 
 // Pengaman #4 — restore: dipulihkan setiap modal (jenis dokumen yang sama) dibuka.
 watch(() => [props.open, props.draftKey] as const, ([isOpen, key]) => {
@@ -79,7 +102,6 @@ watch(() => [props.open, props.draftKey] as const, ([isOpen, key]) => {
 })
 
 // Pengaman #4 — simpan: debounce manual (bukan @vueuse/core, belum jadi dependency).
-let draftDebounce: ReturnType<typeof setTimeout> | undefined
 watch(() => props.draftData, () => {
   if (!props.open || !props.dirty || !props.draftKey) return
   const key = props.draftKey
@@ -98,6 +120,18 @@ function onBeforeUnload(e: BeforeUnloadEvent) {
 }
 onMounted(() => window.addEventListener('beforeunload', onBeforeUnload))
 onUnmounted(() => window.removeEventListener('beforeunload', onBeforeUnload))
+
+// Hint hotkey kaki modal (§12) — Insert/F2/Delete hanya disebut kalau
+// halaman pemanggil memang menyambungkan grid barisnya.
+const instance = getCurrentInstance()
+const documentHints = computed(() => {
+  const vnodeProps = instance?.vnode.props ?? {}
+  const hints = [{ keys: 'Ctrl + S', action: 'Simpan' }, { keys: 'Esc', action: 'Keluar' }]
+  if (vnodeProps.onNewLine) hints.unshift({ keys: 'Insert', action: 'Baris baru' })
+  if (vnodeProps.onEditLine) hints.splice(1, 0, { keys: 'F2', action: 'Ubah baris' })
+  if (vnodeProps.onDeleteLine) hints.splice(2, 0, { keys: 'Delete', action: 'Hapus baris' })
+  return hints
+})
 
 defineExpose({ clearDraft, forceClose })
 </script>
@@ -120,12 +154,18 @@ defineExpose({ clearDraft, forceClose })
             Operator : {{ operator }}
           </p>
         </div>
+        <!-- Prop `hint` (teks bebas) menang kalau pemanggil mengisinya; kalau
+             tidak, daftar hotkey sungguhan modal ini (need_fixing.md #8). -->
         <p
           v-if="hint"
           class="text-xs text-muted whitespace-nowrap"
         >
           {{ hint }}
         </p>
+        <HotkeyHint
+          v-else
+          :hints="documentHints"
+        />
       </div>
 
       <div class="p-4 flex flex-col gap-4 max-h-[75vh] overflow-y-auto">
@@ -142,6 +182,7 @@ defineExpose({ clearDraft, forceClose })
         >
           <slot name="totals" />
         </div>
+
         <div class="flex gap-2 ml-auto">
           <UButton
             icon="i-lucide-save"

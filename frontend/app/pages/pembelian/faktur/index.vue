@@ -398,6 +398,17 @@ function onLineProductChange(rawProductId: string | number | boolean | undefined
   lineDraft.value.unitId = dus?.id ?? allowed[0]?.id ?? undefined
   fetchStockBalance(productId)
 }
+// need_fixing.md #8 — hotkey grid baris (PANDUAN_UI.md §12): Delete minta
+// konfirmasi; Enter di field terakhir modal baris = simpan lalu buka baris
+// kosong berikutnya (hanya saat entri baris baru, bukan saat mengubah).
+function confirmRemoveSelectedLine() {
+  if (selectedLine.value && window.confirm('Hapus baris terpilih?')) removeSelectedLine()
+}
+function saveLineAndNew() {
+  const wasNewLine = lineEditIndex.value === null
+  saveLine()
+  if (wasNewLine && !lineOpen.value) openLineEntri()
+}
 function saveLine() {
   if (!lineDraft.value.productId || !lineDraft.value.unitId || !((lineDraft.value.qtyInput ?? 0) > 0)) return
   if (lineEditIndex.value === null) lines.value.push({ ...lineDraft.value })
@@ -695,6 +706,9 @@ onMounted(async () => {
       :draft-data="draftData"
       @update:open="(v: boolean) => !v && closeEntri()"
       @restore-draft="restoreDraft"
+      @new-line="openLineEntri"
+      @edit-line="openLineEditSelected"
+      @delete-line="confirmRemoveSelectedLine"
       @save="submit"
     >
       <template #header>
@@ -727,7 +741,7 @@ onMounted(async () => {
           variant="subtle"
           icon="i-lucide-alert-triangle"
           :title="bannerError"
-          :close-button="{ icon: 'i-lucide-x', color: 'neutral', variant: 'link' }"
+          :close="{ icon: 'i-lucide-x', color: 'neutral', variant: 'link' }"
           @update:open="bannerError = ''"
         />
         <!-- Tombol jalan keluar SEBAGAI ELEMEN TERPISAH, bukan slot #actions
@@ -934,6 +948,7 @@ onMounted(async () => {
       :dirty="lineDirty"
       @update:open="(v: boolean) => (lineOpen = v)"
       @save="saveLine"
+      @enter-last="saveLineAndNew"
     >
       <template #form>
         <UFormField

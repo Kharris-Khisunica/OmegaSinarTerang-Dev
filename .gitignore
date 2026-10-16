@@ -4,3 +4,18 @@
 !.env.example
 
 .DS_Store
+
+# Foto asli screenshot sistem lama (4624x3472, ~200 MB) — terlalu berat untuk git.
+# Yang di-commit adalah versi 1600px di docs/referensi/ (8,9 MB), sudah terbaca penuh
+# sampai teks hint dan angka grid. Aslinya tetap ada di disk kalau perlu di-zoom.
+docs/referensi-asli/
+
+# Baseline sementara Hari 16B "Jalur B" (salinan + HASH.txt untuk membuktikan
+# D-N7/D-N8). Dibuat sebelum retrofit, dihapus setelah selesai — jangan sampai
+# ikut ter-commit dan disangka berkas sungguhan.
+.baseline-16b/
+
+# Deployment produksi
+deploy/dist/
+backups/
+.env.production

@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kartu Ringkas Operator</title>
+<style>
+  @page { size: A4; margin: 9mm 10mm 9mm 10mm; }
+  * { box-sizing: border-box; }
+  html, body { background: #fff; color: #1f2933; }
+  body { font-family: "Segoe UI", "Noto Sans", Arial, sans-serif; font-size: 8.7pt; line-height: 1.3; margin: 0; }
+  h1 { font-size: 16pt; margin: 0 0 1mm; }
+  .sub { color: #52606d; margin-bottom: 3mm; font-size: 9pt; }
+  h2 { font-size: 11pt; margin: 3mm 0 1.2mm; padding: 1mm 2mm; border-left: 4pt solid #1f2933; background: #f2f4f7; break-after: avoid; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 6mm; }
+  .box { break-inside: avoid; }
+  ol, ul { margin: 0 0 1.5mm; padding-left: 5mm; }
+  li { margin-bottom: .6mm; }
+  .ui { font-weight: 700; }
+  table { width: 100%; border-collapse: collapse; font-size: 9pt; margin-bottom: 2mm; }
+  th, td { border: .75pt solid #9aa5b1; padding: 1mm 1.6mm; text-align: left; vertical-align: top; }
+  th { background: #f2f4f7; }
+  tr { break-inside: avoid; }
+  .kbd { display: inline-block; font-family: Consolas, monospace; font-weight: 700; font-size: 8.5pt; border: 1pt solid #1f2933; border-bottom-width: 2pt; border-radius: 2pt; padding: 0 3pt; }
+  .warn { border: 1pt solid #1f2933; border-left-width: 4pt; padding: 1.5mm 2.5mm; background: #fff8e6; break-inside: avoid; margin-bottom: 2mm; }
+  .warn b:first-child { text-transform: uppercase; font-size: 8.5pt; letter-spacing: .04em; }
+  @media screen { body { max-width: 200mm; margin: 0 auto; padding: 8mm; } }
+</style>
+</head>
+<body>
+<h1>Kartu Ringkas Operator — OmegaSinarTerang</h1>
+<div class="sub">Tempel di dekat komputer kasir. Versi aplikasi v1.0 · Oktober 2026 (revisi 2) · Panduan lengkap: <i>Panduan Pengguna OmegaSinarTerang</i>.</div>
+
+<div class="cols">
+<div>
+  <div class="box">
+  <h2>Pola dasar</h2>
+  <ul>
+    <li>Menu → <span class="ui">Entri</span> → isi kepala → <span class="ui">Entri</span> (baris) → <span class="ui">Simpan</span> baris → <span class="ui">Simpan</span> dokumen.</li>
+    <li>Klik baris di daftar (tanda ▶) → <span class="ui">View Detail</span> untuk Cetak / Ubah / VOID.</li>
+    <li>Qty = angka + <span class="ui">Satuan</span> (otomatis DUS). <span class="ui">Isi</span> = isi per satuan.</li>
+    <li><span class="ui">SISA STOK</span> “13 dus +” = 13 dus lebih sedikit. Stok boleh minus.</li>
+  </ul>
+  </div>
+
+  <div class="box">
+  <h2>Pesanan dikirim</h2>
+  <ol>
+    <li><span class="ui">Order Penjualan</span> → <span class="ui">Entri</span>: Pelanggan, <span class="ui">Salesman (PJ)</span>, barang → <span class="ui">Simpan</span>.</li>
+    <li>Klik order → <span class="ui">Jadikan Faktur</span> → cek harga &amp; <span class="ui">Termin (hari)</span> → <span class="ui">Simpan</span>.</li>
+    <li>Faktur → <span class="ui">Cetak</span> → <span class="ui">Cetak</span>.</li>
+    <li>Pilih faktur → <span class="ui">Buat Surat Jalan</span>: Tanggal Kirim, Salesman, Kendaraan → cetak dari menu <span class="ui">Surat Jalan</span>.</li>
+    <li>Besoknya: <span class="ui">Surat Jalan</span> → saring <span class="ui">Belum Terkirim</span> → <span class="ui">Ubah Status Kirim</span> (tanpa izin).</li>
+    <li>Order tidak jadi: detail order → <span class="ui">Batalkan SO</span> + alasan.</li>
+  </ol>
+  </div>
+
+  <div class="box">
+  <h2>Pembeli di toko</h2>
+  <ol>
+    <li><span class="ui">Faktur Penjualan</span> → <span class="ui">Entri</span> (Saluran <span class="ui">Toko</span>).</li>
+    <li>Pelanggan (atau <span class="ui">Baru</span>), Salesman, Termin.</li>
+    <li>Baris: Produk, Satuan, <span class="ui">Harga @</span> (lihat <span class="ui">RIWAYAT HARGA</span>), Qty.</li>
+    <li><span class="ui">Simpan</span> → cetak nota.</li>
+  </ol>
+  </div>
+
+  <div class="box">
+  <h2>Barang datang dari supplier</h2>
+  <ol>
+    <li><span class="ui">Faktur Pembelian</span> → <span class="ui">Entri</span>: Supplier (pilih dari kode), No. Faktur Supplier (boleh kosong).</li>
+    <li><span class="ui">Tgl Terima Barang</span> = tanggal barang masuk; <span class="ui">Tgl Faktur Supplier</span> = tanggal di nota; Termin.</li>
+    <li>Baris barang; bonus pakai tombol <span class="ui">Bonus</span> (harga 0).</li>
+    <li>Diskon supplier → kotak <span class="ui">Diskon Faktur</span> (rupiah) → <span class="ui">Simpan</span>.</li>
+  </ol>
+  </div>
+
+  <div class="box">
+  <h2>Pembayaran</h2>
+  <ol>
+    <li><span class="ui">Penerimaan Kas</span> (dari pelanggan) / <span class="ui">Pengeluaran Kas</span> (ke supplier) → <span class="ui">Entri</span>.</li>
+    <li><span class="ui">Entri</span> baris → klik faktur → pilih akun kas/bank + nominal.</li>
+    <li>Lunas dengan selisih kecil? centang <span class="ui">Tandai Lunas</span>.</li>
+    <li><span class="ui">Simpan</span> → <span class="ui">Konfirmasi Pembayaran</span>.</li>
+  </ol>
+  </div>
+
+  <div class="box">
+  <h2>Biaya &amp; kas</h2>
+  <ul>
+    <li><span class="ui">Biaya Operasional</span> → <span class="ui">Entri</span> → baris tab <span class="ui">Biaya</span> atau <span class="ui">Kasbon</span>. Boleh mundur 7 hari.</li>
+    <li>Isi ulang Kas Kecil Rp 1.000.000 / setor Kas Toko ke Kas Besar: <span class="ui">Pindah Buku Kas</span>.</li>
+    <li>Karyawan setor kasbon: <span class="ui">Pelunasan Kasbon</span> → klik nama pekerja → Nominal Setoran.</li>
+  </ul>
+  </div>
+</div>
+
+<div>
+  <div class="box">
+  <h2>Retur, rusak, titipan</h2>
+  <ul>
+    <li><b>Barang rusak di toko:</b> <span class="ui">Mutasi Gudang</span> → Transfer, Toko → Barang Rusak. Qty + satuan.</li>
+    <li><b>Retur dari pelanggan:</b> <span class="ui">Retur Penjualan</span> → ketik <span class="ui">Faktur Asal</span> + Tab → centang, Qty Retur → Kurangi Piutang / Tunai. Barang masuk Barang Rusak. Salah? Detail → Ubah / VOID.</li>
+    <li><b>Retur ke supplier:</b> <span class="ui">Retur Pembelian</span> → Supplier → centang barang → <span class="ui">Nilai Retur / Satuan</span> sesuai kesepakatan.</li>
+    <li><b>Tukar barang:</b> Retur Pembelian + Faktur Pembelian baru.</li>
+    <li><b>Titipan:</b> <span class="ui">Mutasi Gudang</span> → <span class="ui">Titipan Pelanggan</span> → Pelanggan → Faktur → pilih baris faktur → Qty + satuan.</li>
+  </ul>
+  </div>
+
+  <div class="box">
+  <h2>Tombol keyboard</h2>
+  <table>
+    <tr><td style="width:34%"><span class="kbd">Insert</span></td><td>Baris baru</td></tr>
+    <tr><td><span class="kbd">F2</span> / <span class="kbd">Delete</span></td><td>Ubah / hapus baris terpilih</td></tr>
+    <tr><td><span class="kbd">Enter</span></td><td>Kotak berikutnya; di kotak terakhir simpan baris + baris baru</td></tr>
+    <tr><td><span class="kbd">Ctrl</span>+<span class="kbd">S</span></td><td>Simpan jendela yang terbuka</td></tr>
+    <tr><td><span class="kbd">Esc</span></td><td>Tutup satu jendela</td></tr>
+    <tr><td><span class="kbd">/</span></td><td>Ke kotak Cari di halaman daftar</td></tr>
+    <tr><td><span class="kbd">Tab</span></td><td>Cari faktur di kotak Faktur Asal</td></tr>
+  </table>
+  <div class="warn"><b>Catatan:</b> Insert/F2/Delete berlaku di Faktur Penjualan &amp; Pembelian, Order, Mutasi, Biaya Operasional. Ctrl+H/Ctrl+D sudah tidak dipakai.</div>
+  </div>
+
+  <div class="box">
+  <h2>Kalau salah input</h2>
+  <table>
+    <tr><th style="width:36%">Keadaan</th><th>Lakukan</th></tr>
+    <tr><td>Belum disimpan</td><td>Perbaiki langsung / <span class="ui">Keluar</span>.</td></tr>
+    <tr><td>Tersimpan, belum dicetak, ≤ 2 hari</td><td>Detail → <span class="ui">Ubah</span> → <span class="ui">Simpan</span> (nomor tetap, “Revisi N”).</td></tr>
+    <tr><td>Sudah dicetak, ≤ 2 hari</td><td>Detail → <span class="ui">Batal Cetak</span> → <span class="ui">Diperbaiki</span> + Alasan → <span class="ui">Lanjutkan</span> → perbaiki → <span class="ui">Simpan</span> → tunggu Supervisor → cetak ulang.</td></tr>
+    <tr><td>Lewat 2 hari</td><td><span class="ui">VOID</span> (Kode Alasan + Catatan Alasan) → buat faktur baru. Sistem tidak macet — memang begitu aturannya.</td></tr>
+    <tr><td>Ditandai <span class="ui">Bermasalah</span></td><td>Baris merah di daftar. Baca catatan merah di Detail → perbaiki → kabari Supervisor.</td></tr>
+  </table>
+  </div>
+
+  <div class="box">
+  <h2>Menunggu Persetujuan</h2>
+  <ul>
+    <li>Muncul untuk: VOID dokumen apa pun (Operator), Batal Cetak, harga di bawah harga pokok, kas besar keluar, Barang Rusak → Toko.</li>
+    <li>Biarkan jendela terbuka, kabari Supervisor. Disetujui → tersimpan sendiri.</li>
+    <li>Berlaku 15 menit. Ditolak / habis → perbaiki, ulangi.</li>
+  </ul>
+  </div>
+</div>
+</div>
+</body>
+</html>

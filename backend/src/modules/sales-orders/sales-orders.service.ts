@@ -15,6 +15,7 @@ import { Customer } from '../customers/entities/customer.entity';
 import { Product } from '../products/entities/product.entity';
 import { Salesman } from '../salesmen/entities/salesman.entity';
 import { Unit } from '../units/entities/unit.entity';
+import { CancelSalesOrderDto } from './dto/cancel-sales-order.dto';
 import { CreateSalesOrderDto } from './dto/create-sales-order.dto';
 import { CreateSalesOrderLineDto } from './dto/create-sales-order-line.dto';
 import { SalesOrderQueryDto } from './dto/sales-order-query.dto';
@@ -172,6 +173,11 @@ export class SalesOrdersService {
         'Sales Order ini sudah dikonversi menjadi faktur, tidak bisa diedit lagi.',
       );
     }
+    if (existing.status === SalesOrderStatus.CANCELLED) {
+      throw new BadRequestException(
+        'Sales Order ini sudah dibatalkan, tidak bisa diedit lagi.',
+      );
+    }
 
     return this.dataSource.transaction(async (manager) => {
       const orderDate = dto.orderDate
@@ -206,6 +212,47 @@ export class SalesOrdersService {
       }
       return updated;
     });
+  }
+
+  /**
+   * Batalkan SO yang tidak jadi (need_fixing.md #20). Hanya dari OPEN —
+   * UPDATE ber-WHERE status='OPEN' (pola markConverted()) supaya tidak
+   * balapan dengan "Jadikan Faktur" yang sedang berjalan. Tanpa step-up:
+   * SO tidak mengikat uang/stok (CLAUDE.md §2.16), jejaknya di audit_logs.
+   */
+  async cancel(
+    id: string,
+    dto: CancelSalesOrderDto,
+    user: AuthenticatedUser,
+  ): Promise<SalesOrder> {
+    const existing = await this.findOne(id);
+    if (existing.status !== SalesOrderStatus.OPEN) {
+      throw new BadRequestException(
+        existing.status === SalesOrderStatus.CONVERTED
+          ? 'Sales Order ini sudah dijadikan faktur, tidak bisa dibatalkan — batalkan lewat VOID fakturnya.'
+          : 'Sales Order ini sudah dibatalkan sebelumnya.',
+      );
+    }
+    const result = await this.salesOrdersRepository
+      .createQueryBuilder()
+      .update(SalesOrder)
+      .set({
+        status: SalesOrderStatus.CANCELLED,
+        cancelledAt: () => 'now()',
+        cancelledBy: user.sub,
+        cancelReason: dto.reason.trim(),
+      })
+      .where('id = :id AND status = :status', {
+        id,
+        status: SalesOrderStatus.OPEN,
+      })
+      .execute();
+    if (!result.affected) {
+      throw new BadRequestException(
+        'Sales Order ini baru saja berubah status (dijadikan faktur/dibatalkan) — muat ulang.',
+      );
+    }
+    return this.findOne(id);
   }
 
   /**

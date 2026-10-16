@@ -76,16 +76,23 @@ export function useSalesReturnLookups() {
     return api.get<CashAccountOption[]>('/chart-of-accounts/cash-accounts')
   }
 
-  async function loadReturnableInvoice(invoiceId: string): Promise<ReturnableInvoice> {
+  /**
+   * `excludeReturnId` — mode revisi (need_fixing.md #19): retur yang sedang
+   * direvisi TIDAK dihitung sebagai "sudah diretur" (qty-nya boleh diubah
+   * sampai sisa penuh). Retur VOIDED juga tidak dihitung (dulu ikut
+   * terhitung — kuota faktur tampak terpakai padahal returnya batal).
+   */
+  async function loadReturnableInvoice(invoiceId: string, excludeReturnId?: string): Promise<ReturnableInvoice> {
     const invoice = await api.get<RawInvoice>(`/sales-invoices/${invoiceId}`)
 
     const alreadyReturnedByLine = new Map<string, number>()
     if (invoice.postingStatus !== 'VOIDED') {
-      const existingReturns = await api.get<{ data: { id: string }[] }>('/sales-returns', {
+      const existingReturns = await api.get<{ data: { id: string, postingStatus: string }[] }>('/sales-returns', {
         salesInvoiceId: invoiceId,
         limit: 200
       })
       for (const ret of existingReturns.data) {
+        if (ret.postingStatus === 'VOIDED' || ret.id === excludeReturnId) continue
         const detail = await api.get<{ lines: RawReturnLine[] }>(`/sales-returns/${ret.id}`)
         for (const line of detail.lines) {
           alreadyReturnedByLine.set(

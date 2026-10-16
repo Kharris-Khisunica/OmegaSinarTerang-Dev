@@ -482,7 +482,7 @@ function resetForm() {
       variant="subtle"
       icon="i-lucide-alert-triangle"
       :title="confirmError"
-      :close-button="{ icon: 'i-lucide-x', color: 'neutral', variant: 'link' }"
+      :close="{ icon: 'i-lucide-x', color: 'neutral', variant: 'link' }"
       @update:open="confirmError = ''"
     />
     <p
@@ -557,7 +557,7 @@ function resetForm() {
           variant="subtle"
           icon="i-lucide-alert-triangle"
           :title="lineError"
-          :close-button="{ icon: 'i-lucide-x', color: 'neutral', variant: 'link' }"
+          :close="{ icon: 'i-lucide-x', color: 'neutral', variant: 'link' }"
           @update:open="lineError = ''"
         />
 

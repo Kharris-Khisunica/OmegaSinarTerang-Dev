@@ -27,6 +27,8 @@ const props = defineProps<{
   initialEditId?: string | number
   /** Dipakai di teks konfirmasi tombol Hapus, mis. "merek ini". */
   entityLabelSingular: string
+  /** Aksi baris tambahan khusus entity (mis. "Reset Password" di layar Pengguna). */
+  extraRowActions?: RowAction<T>[]
 }>()
 
 const api = useApi()
@@ -77,7 +79,14 @@ function openUbahSelected() {
 }
 
 async function toggleActive(row: T, next: boolean) {
-  await api.patch(`${props.endpoint}/${row.id}`, { isActive: next })
+  try {
+    await api.patch(`${props.endpoint}/${row.id}`, { isActive: next })
+  } catch (err) {
+    // Penolakan backend (mis. menonaktifkan akun sendiri di layar Pengguna)
+    // dulu tidak tampil sama sekali.
+    toast.add({ title: getErrorMessage(err, 'Gagal mengubah status.'), color: 'error' })
+    return
+  }
   toast.add({ title: next ? `${props.title} diaktifkan` : `${props.title} dinonaktifkan`, color: 'success' })
   table.value?.reload()
 }
@@ -90,7 +99,12 @@ async function onHapusClick() {
   const row = localSelectedRow.value
   if (!row || !row.isActive) return
   if (!window.confirm(`Hapus ${props.entityLabelSingular}?`)) return
-  await api.patch(`${props.endpoint}/${row.id}`, { isActive: false })
+  try {
+    await api.patch(`${props.endpoint}/${row.id}`, { isActive: false })
+  } catch (err) {
+    toast.add({ title: getErrorMessage(err, 'Gagal menghapus.'), color: 'error' })
+    return
+  }
   toast.add({ title: `${props.title} dihapus`, color: 'success' })
   localSelectedRow.value = null
   table.value?.clearSelection()
@@ -112,7 +126,8 @@ const rowActions = computed<RowAction<T>[]>(() => [
     roles: ['MASTER', 'OPERATOR'],
     show: row => !row.isActive,
     onClick: row => toggleActive(row, true)
-  }
+  },
+  ...(props.extraRowActions ?? [])
 ])
 </script>
 

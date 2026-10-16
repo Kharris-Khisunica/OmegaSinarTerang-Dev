@@ -32,6 +32,7 @@ import { DeliveryOrderLine } from './entities/delivery-order-line.entity';
 import {
   DeliveryOrder,
   DeliveryOrderDeliveryStatus,
+  DeliveryOrderPostingStatus,
   DeliveryOrderPrintStatus,
 } from './entities/delivery-order.entity';
 
@@ -133,6 +134,7 @@ describe('DeliveryOrdersService', () => {
       dataSource.getRepository(Vehicle),
       documentCounterService,
       printLockService,
+      stepUpService,
     );
 
     const suffix = Date.now();
@@ -578,7 +580,7 @@ describe('DeliveryOrdersService', () => {
     expect(second.printCount).toBe(2);
   });
 
-  describe('updateStatus() — kunci cetak (Hari 25)', () => {
+  describe('updateStatus() bebas kunci cetak + VOID SJ (need_fixing.md #18)', () => {
     async function createSimpleDeliveryOrder(): Promise<DeliveryOrder> {
       const customerId = await createTestCustomer();
       const salesmanId = await createTestSalesman();
@@ -602,38 +604,12 @@ describe('DeliveryOrdersService', () => {
       return result.deliveryOrder;
     }
 
-    async function unlockAndRetry<T>(
-      call: (authorizationRequestId?: string) => Promise<T>,
-    ): Promise<T> {
-      let stepUpBody: StepUpRequiredBody | undefined;
-      try {
-        await call(undefined);
-        throw new Error('Seharusnya melempar 412 sebelum approval.');
-      } catch (err) {
-        expect(err).toBeInstanceOf(HttpException);
-        const httpErr = err as HttpException;
-        expect(httpErr.getStatus()).toBe(412);
-        stepUpBody = httpErr.getResponse() as StepUpRequiredBody;
-      }
-      expect(stepUpBody?.requiresAuthorization).toBe(true);
-      const authorizationRequestId = stepUpBody.authorizationRequestId;
-      createdRequestIds.push(authorizationRequestId);
-      await authorizationRequestsService.approve(
-        authorizationRequestId,
-        supervisorUser,
-      );
-      return call(authorizationRequestId);
-    }
-
     it('status berubah sebelum dicetak: langsung sukses, tidak membuat authorization_request', async () => {
       const deliveryOrder = await createSimpleDeliveryOrder();
 
-      const updated = await service.updateStatus(
-        deliveryOrder.id,
-        { deliveryStatus: DeliveryOrderDeliveryStatus.POSTPONED },
-        masterUser,
-        undefined,
-      );
+      const updated = await service.updateStatus(deliveryOrder.id, {
+        deliveryStatus: DeliveryOrderDeliveryStatus.POSTPONED,
+      });
       expect(updated.deliveryStatus).toBe(
         DeliveryOrderDeliveryStatus.POSTPONED,
       );
@@ -646,58 +622,156 @@ describe('DeliveryOrdersService', () => {
       expect(requests).toHaveLength(0);
     });
 
-    it('edit status setelah dicetak tanpa batal cetak -> 412; approve + retry -> sukses, printStatus PRINT_CANCELLED, revisionNumber naik', async () => {
+    it('edit status setelah dicetak -> langsung sukses TANPA approval; printStatus tetap PRINTED, revisionNumber tidak naik', async () => {
       const deliveryOrder = await createSimpleDeliveryOrder();
       await service.registerPrint(deliveryOrder.id);
 
-      const updated = await unlockAndRetry((authorizationRequestId) =>
-        service.updateStatus(
-          deliveryOrder.id,
-          {
-            deliveryStatus: DeliveryOrderDeliveryStatus.RETURNED,
-            reason: 'Toko tutup, barang dibawa balik sopir',
-          },
-          operatorUser,
-          authorizationRequestId,
-        ),
-      );
-
+      const updated = await service.updateStatus(deliveryOrder.id, {
+        deliveryStatus: DeliveryOrderDeliveryStatus.RETURNED,
+      });
       expect(updated.deliveryStatus).toBe(DeliveryOrderDeliveryStatus.RETURNED);
-      expect(updated.printStatus).toBe(
-        DeliveryOrderPrintStatus.PRINT_CANCELLED,
+      expect(updated.printStatus).toBe(DeliveryOrderPrintStatus.PRINTED);
+      expect(updated.revisionNumber).toBe(0);
+
+      const requests: unknown[] = await dataSource.query(
+        `SELECT id FROM authorization_requests WHERE payload->>'sourceId' = $1`,
+        [deliveryOrder.id],
       );
-      expect(updated.revisionNumber).toBe(1);
+      expect(requests).toHaveLength(0);
     });
 
-    it('edit status tanpa alasan pada SJ yang sudah dicetak -> ditolak (alasan wajib)', async () => {
+    async function approveStepUp(
+      promise: Promise<unknown>,
+      expectedActionType: string,
+    ): Promise<string> {
+      let body: StepUpRequiredBody | undefined;
+      try {
+        await promise;
+        throw new Error('Seharusnya melempar 412.');
+      } catch (err) {
+        expect(err).toBeInstanceOf(HttpException);
+        expect((err as HttpException).getStatus()).toBe(412);
+        body = (err as HttpException).getResponse() as StepUpRequiredBody;
+      }
+      const requestId = body.authorizationRequestId;
+      createdRequestIds.push(requestId);
+      const rows: { action_type: string }[] = await dataSource.query(
+        `SELECT action_type FROM authorization_requests WHERE id = $1`,
+        [requestId],
+      );
+      expect(rows[0]?.action_type).toBe(expectedActionType);
+      await authorizationRequestsService.approve(requestId, supervisorUser);
+      return requestId;
+    }
+
+    const voidDto = {
+      reasonCode: 'SALAH_INPUT',
+      reasonNote: 'SJ salah kendaraan',
+    };
+
+    it('VOID SJ oleh MASTER belum dicetak -> langsung VOIDED; faktur asal boleh dibuatkan SJ baru', async () => {
       const deliveryOrder = await createSimpleDeliveryOrder();
-      await service.registerPrint(deliveryOrder.id);
+      const voided = await service.voidDeliveryOrder(
+        deliveryOrder.id,
+        voidDto,
+        masterUser,
+        undefined,
+      );
+      expect(voided.postingStatus).toBe(DeliveryOrderPostingStatus.VOIDED);
+      expect(voided.voidReasonCode).toBe('SALAH_INPUT');
+
+      const again = await service.create(
+        {
+          salesInvoiceId: deliveryOrder.salesInvoiceId,
+          deliveryDate: daysAgoIso(0),
+          salesmanId: driverSalesmanId,
+          vehicleId,
+        },
+        masterUser,
+      );
+      createdDeliveryOrderIds.push(again.deliveryOrder.id);
+      expect(again.deliveryOrder.postingStatus).toBe(
+        DeliveryOrderPostingStatus.POSTED,
+      );
 
       await expect(
-        service.updateStatus(
+        service.updateStatus(deliveryOrder.id, {
+          deliveryStatus: DeliveryOrderDeliveryStatus.DELIVERED,
+        }),
+      ).rejects.toThrow(/sudah VOID/i);
+      await expect(
+        service.voidDeliveryOrder(
           deliveryOrder.id,
-          { deliveryStatus: DeliveryOrderDeliveryStatus.DELIVERED },
+          voidDto,
           masterUser,
           undefined,
         ),
-      ).rejects.toThrow(/alasan wajib diisi/i);
+      ).rejects.toThrow(/sudah pernah di-VOID/i);
+    });
+
+    it('VOID SJ oleh OPERATOR belum dicetak -> 412 VOID_DOCUMENT; approve + retry -> VOIDED', async () => {
+      const deliveryOrder = await createSimpleDeliveryOrder();
+      const voidRequestId = await approveStepUp(
+        service.voidDeliveryOrder(
+          deliveryOrder.id,
+          voidDto,
+          operatorUser,
+          undefined,
+        ),
+        'VOID_DOCUMENT',
+      );
+      const voided = await service.voidDeliveryOrder(
+        deliveryOrder.id,
+        voidDto,
+        operatorUser,
+        undefined,
+        voidRequestId,
+      );
+      expect(voided.postingStatus).toBe(DeliveryOrderPostingStatus.VOIDED);
+    });
+
+    it('VOID SJ oleh OPERATOR sudah dicetak -> 412 UNLOCK_PRINT, lalu 412 VOID_DOCUMENT, lalu VOIDED (PRINT_CANCELLED)', async () => {
+      const deliveryOrder = await createSimpleDeliveryOrder();
+      await service.registerPrint(deliveryOrder.id);
+
+      const printRequestId = await approveStepUp(
+        service.voidDeliveryOrder(
+          deliveryOrder.id,
+          voidDto,
+          operatorUser,
+          undefined,
+        ),
+        'UNLOCK_PRINT',
+      );
+      const voidRequestId = await approveStepUp(
+        service.voidDeliveryOrder(
+          deliveryOrder.id,
+          voidDto,
+          operatorUser,
+          printRequestId,
+        ),
+        'VOID_DOCUMENT',
+      );
+      const voided = await service.voidDeliveryOrder(
+        deliveryOrder.id,
+        voidDto,
+        operatorUser,
+        printRequestId,
+        voidRequestId,
+      );
+      expect(voided.postingStatus).toBe(DeliveryOrderPostingStatus.VOIDED);
+      expect(voided.printStatus).toBe(DeliveryOrderPrintStatus.PRINT_CANCELLED);
     });
 
     it('daftar "belum terkirim" (?deliveryStatus=POSTPONED) menampilkan SJ ber-status POSTPONED, tidak menampilkan yang lain', async () => {
       const postponed = await createSimpleDeliveryOrder();
-      await service.updateStatus(
-        postponed.id,
-        { deliveryStatus: DeliveryOrderDeliveryStatus.POSTPONED },
-        masterUser,
-        undefined,
-      );
+      await service.updateStatus(postponed.id, {
+        deliveryStatus: DeliveryOrderDeliveryStatus.POSTPONED,
+      });
       const delivered = await createSimpleDeliveryOrder();
-      await service.updateStatus(
-        delivered.id,
-        { deliveryStatus: DeliveryOrderDeliveryStatus.DELIVERED },
-        masterUser,
-        undefined,
-      );
+      await service.updateStatus(delivered.id, {
+        deliveryStatus: DeliveryOrderDeliveryStatus.DELIVERED,
+      });
 
       const result = await service.findAll({
         deliveryStatus: DeliveryOrderDeliveryStatus.POSTPONED,

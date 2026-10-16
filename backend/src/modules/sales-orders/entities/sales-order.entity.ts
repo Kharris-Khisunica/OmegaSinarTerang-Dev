@@ -11,6 +11,9 @@ import { SalesOrderLine } from './sales-order-line.entity';
 export enum SalesOrderStatus {
   OPEN = 'OPEN',
   CONVERTED = 'CONVERTED',
+  // need_fixing.md #20 — SO yang tidak jadi. Bukan VOID (SO tidak mengikat
+  // uang/stok), cukup status + alasan.
+  CANCELLED = 'CANCELLED',
 }
 
 // CLAUDE.md §2.16/§3 "Sales Order": SO tidak mengikat uang atau stok, jadi
@@ -56,6 +59,15 @@ export class SalesOrder {
 
   @Column({ name: 'converted_at', type: 'timestamptz', nullable: true })
   convertedAt: Date | null;
+
+  @Column({ name: 'cancelled_at', type: 'timestamptz', nullable: true })
+  cancelledAt: Date | null;
+
+  @Column({ name: 'cancelled_by', type: 'uuid', nullable: true })
+  cancelledBy: string | null;
+
+  @Column({ name: 'cancel_reason', type: 'text', nullable: true })
+  cancelReason: string | null;
 
   @Column({ name: 'created_by', type: 'uuid' })
   createdBy: string;

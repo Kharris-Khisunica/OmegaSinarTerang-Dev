@@ -45,6 +45,9 @@ import {
 } from './entities/operational-expense-line.entity';
 import { OperationalExpenseVoidHook } from './operational-expense-void.hook';
 import { OperationalExpensesService } from './operational-expenses.service';
+import { KasbonRepaymentVoidHook } from '../kasbon-repayments/kasbon-repayment-void.hook';
+import { KasbonRepaymentsService } from '../kasbon-repayments/kasbon-repayments.service';
+import { KasbonRepayment } from '../kasbon-repayments/entities/kasbon-repayment.entity';
 
 /**
  * Integration test terhadap Postgres asli (Hari 17), pola sama
@@ -58,6 +61,9 @@ describe('OperationalExpensesService', () => {
   let journalPosterService: JournalPosterService;
   let authorizationRequestsService: AuthorizationRequestsService;
   let service: OperationalExpensesService;
+  let kasbonService: KasbonRepaymentsService;
+  const createdRepaymentIds: string[] = [];
+  const createdWorkerIds: string[] = [];
 
   let masterUserId: string;
   let operatorUserId: string;
@@ -118,6 +124,7 @@ describe('OperationalExpensesService', () => {
         OperationalExpenseLine,
         Worker,
         Vehicle,
+        KasbonRepayment,
       ],
     });
     await dataSource.initialize();
@@ -161,6 +168,15 @@ describe('OperationalExpensesService', () => {
       accountResolverService,
       stepUpService,
       voidEngineService,
+    );
+    new KasbonRepaymentVoidHook(voidEngineService).onModuleInit();
+    kasbonService = new KasbonRepaymentsService(
+      dataSource,
+      accountResolverService,
+      documentCounterService,
+      journalPosterService,
+      voidEngineService,
+      stepUpService,
     );
 
     const suffix = Date.now();
@@ -310,6 +326,30 @@ describe('OperationalExpensesService', () => {
         [createdRequestIds],
       );
     }
+    if (createdRepaymentIds.length > 0) {
+      await dataSource.query(
+        `DELETE FROM journal_entry_lines WHERE journal_entry_id IN (
+           SELECT id FROM journal_entries WHERE reversed_entry_id IN (
+             SELECT id FROM journal_entries WHERE source_type = 'KASBON_REPAYMENT' AND source_id = ANY($1))
+           UNION
+           SELECT id FROM journal_entries WHERE source_type = 'KASBON_REPAYMENT' AND source_id = ANY($1)
+         )`,
+        [createdRepaymentIds],
+      );
+      await dataSource.query(
+        `DELETE FROM journal_entries WHERE reversed_entry_id IN (
+           SELECT id FROM journal_entries WHERE source_type = 'KASBON_REPAYMENT' AND source_id = ANY($1))`,
+        [createdRepaymentIds],
+      );
+      await dataSource.query(
+        `DELETE FROM journal_entries WHERE source_type = 'KASBON_REPAYMENT' AND source_id = ANY($1)`,
+        [createdRepaymentIds],
+      );
+      await dataSource.query(
+        `DELETE FROM kasbon_repayments WHERE id = ANY($1)`,
+        [createdRepaymentIds],
+      );
+    }
     if (createdLineIds.length > 0) {
       // VOID menulis reversal ber-reversed_entry_id menunjuk entry asli
       // (self-FK) — anak dulu, baru induk (pola sama purchase-invoices spec).
@@ -347,6 +387,11 @@ describe('OperationalExpensesService', () => {
         `DELETE FROM operational_expense_documents WHERE id = ANY($1)`,
         [createdDocumentIds],
       );
+    }
+    if (createdWorkerIds.length > 0) {
+      await dataSource.query(`DELETE FROM workers WHERE id = ANY($1)`, [
+        createdWorkerIds,
+      ]);
     }
     if (createdAccountIds.length > 0) {
       await dataSource.query(
@@ -475,6 +520,51 @@ describe('OperationalExpensesService', () => {
     trackResult(result);
 
     expect(Number(result.line.amount)).toBe(2000000);
+  });
+
+  it('VOID baris oleh OPERATOR -> 412 VOID_DOCUMENT (summary memuat nomor bukti + nominal); approve + retry -> VOIDED', async () => {
+    const result = await service.createLine(
+      {
+        expenseDate: isoTodayMinus(2),
+        cashAccountId: unflaggedCashAccountId,
+        expenseAccountId,
+        amount: 42000,
+        description: 'Baris VOID operator',
+      },
+      operatorUser,
+      undefined,
+    );
+    trackResult(result);
+    const dto = { reasonCode: 'SALAH_KETIK', reasonNote: 'Salah nominal' };
+
+    let stepUpBody: StepUpRequiredBody | undefined;
+    try {
+      await service.voidLine(result.line.id, dto, operatorUser);
+      throw new Error('Seharusnya melempar 412 sebelum approval.');
+    } catch (err) {
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(412);
+      stepUpBody = (err as HttpException).getResponse() as StepUpRequiredBody;
+    }
+    const requestId = stepUpBody.authorizationRequestId;
+    createdRequestIds.push(requestId);
+    const pending = await dataSource
+      .getRepository(AuthorizationRequest)
+      .findOneOrFail({ where: { id: requestId } });
+    expect(pending.actionType).toBe('VOID_DOCUMENT');
+    expect(pending.contextSummary).toContain(result.document.documentNumber);
+    expect(pending.contextSummary).toContain('42.000');
+
+    await authorizationRequestsService.approve(requestId, supervisorUser);
+    const voided = await service.voidLine(
+      result.line.id,
+      dto,
+      operatorUser,
+      requestId,
+    );
+    expect(voided.postingStatus).toBe(
+      OperationalExpenseLinePostingStatus.VOIDED,
+    );
   });
 
   it('VOID satu baris -> jurnal pembalik bertanggal HARI INI (bukan expenseDate asli), baris asli tetap ada, posting_status jadi VOIDED; baris lain di header sama tidak ikut ter-VOID', async () => {
@@ -942,5 +1032,156 @@ describe('OperationalExpensesService', () => {
     const account = await service.findEmployeeReceivableAccount();
     expect(account?.id).toBe(employeeReceivableAccountId);
     expect(account?.isEmployeeReceivableAccount).toBe(true);
+  });
+
+  describe('Pelunasan Kasbon (need_fixing.md #26)', () => {
+    async function createTestWorker(): Promise<string> {
+      const code = `UJI-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      const rows: { id: string }[] = await dataSource.query(
+        `INSERT INTO workers (code, name, is_active) VALUES ($1, $2, true) RETURNING id`,
+        [code, `Pekerja ${code}`],
+      );
+      createdWorkerIds.push(rows[0].id);
+      return rows[0].id;
+    }
+
+    async function giveKasbon(worker: string, amount: number) {
+      const result = await service.createLine(
+        {
+          expenseDate: isoTodayMinus(2),
+          cashAccountId: unflaggedCashAccountId,
+          expenseAccountId: employeeReceivableAccountId,
+          amount,
+          description: 'Kasbon uji',
+          workerId: worker,
+        },
+        masterUser,
+        undefined,
+      );
+      trackResult(result);
+      return result;
+    }
+
+    it('Kasbon tanpa pekerja -> ditolak', async () => {
+      await expect(
+        service.createLine(
+          {
+            expenseDate: isoTodayMinus(2),
+            cashAccountId: unflaggedCashAccountId,
+            expenseAccountId: employeeReceivableAccountId,
+            amount: 10000,
+          },
+          masterUser,
+          undefined,
+        ),
+      ).rejects.toThrow(/wajib memilih pekerja/i);
+    });
+
+    it('setor sebagian -> jurnal Kas(D)/Piutang Karyawan(K) balance, sisa berkurang; setor melebihi sisa -> ditolak', async () => {
+      const worker = await createTestWorker();
+      await giveKasbon(worker, 300000);
+
+      const [before] = await kasbonService.getBalances(worker);
+      expect(before.outstanding).toBe(300000);
+
+      const { repayment, journalEntry } = await kasbonService.create(
+        {
+          repaymentDate: isoTodayMinus(0),
+          workerId: worker,
+          cashAccountId: unflaggedCashAccountId,
+          amount: 100000,
+        },
+        operatorUser,
+      );
+      createdRepaymentIds.push(repayment.id);
+      expect(repayment.documentNumber).toMatch(/^PK\//);
+
+      const debit = journalEntry.lines.find(
+        (l) => l.accountId === unflaggedCashAccountId,
+      );
+      const credit = journalEntry.lines.find(
+        (l) => l.accountId === employeeReceivableAccountId,
+      );
+      expect(Number(debit?.debitAmount)).toBe(100000);
+      expect(Number(credit?.creditAmount)).toBe(100000);
+
+      const [after] = await kasbonService.getBalances(worker);
+      expect(after.totalRepaid).toBe(100000);
+      expect(after.outstanding).toBe(200000);
+
+      await expect(
+        kasbonService.create(
+          {
+            repaymentDate: isoTodayMinus(0),
+            workerId: worker,
+            cashAccountId: unflaggedCashAccountId,
+            amount: 200001,
+          },
+          operatorUser,
+        ),
+      ).rejects.toThrow(/melebihi sisa kasbon/i);
+    });
+
+    it('VOID baris kasbon yang sudah dilunasi sebagian -> ditolak; VOID pelunasan (OPERATOR, 412 lalu disetujui) -> baris kasbon boleh di-VOID', async () => {
+      const worker = await createTestWorker();
+      const kasbon = await giveKasbon(worker, 50000);
+      const { repayment } = await kasbonService.create(
+        {
+          repaymentDate: isoTodayMinus(0),
+          workerId: worker,
+          cashAccountId: unflaggedCashAccountId,
+          amount: 20000,
+        },
+        masterUser,
+      );
+      createdRepaymentIds.push(repayment.id);
+
+      await expect(
+        service.voidLine(
+          kasbon.line.id,
+          { reasonCode: 'SALAH_INPUT', reasonNote: 'uji' },
+          masterUser,
+        ),
+      ).rejects.toThrow(/VOID dulu Pelunasan Kasbon/i);
+
+      const dto = { reasonCode: 'SALAH_INPUT', reasonNote: 'setoran salah' };
+      let body: StepUpRequiredBody | undefined;
+      try {
+        await kasbonService.voidRepayment(
+          repayment.id,
+          dto,
+          operatorUser,
+          undefined,
+        );
+        throw new Error('Seharusnya 412.');
+      } catch (err) {
+        expect((err as HttpException).getStatus()).toBe(412);
+        body = (err as HttpException).getResponse() as StepUpRequiredBody;
+      }
+      createdRequestIds.push(body.authorizationRequestId);
+      await authorizationRequestsService.approve(
+        body.authorizationRequestId,
+        supervisorUser,
+      );
+      const voided = await kasbonService.voidRepayment(
+        repayment.id,
+        dto,
+        operatorUser,
+        body.authorizationRequestId,
+      );
+      expect(voided.postingStatus).toBe('VOIDED');
+
+      const [balance] = await kasbonService.getBalances(worker);
+      expect(balance.outstanding).toBe(50000);
+
+      const voidedLine = await service.voidLine(
+        kasbon.line.id,
+        { reasonCode: 'SALAH_INPUT', reasonNote: 'uji' },
+        masterUser,
+      );
+      expect(voidedLine.postingStatus).toBe(
+        OperationalExpenseLinePostingStatus.VOIDED,
+      );
+    });
   });
 });

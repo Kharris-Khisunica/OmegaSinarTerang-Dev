@@ -78,6 +78,7 @@ const { format: rupiah } = useRupiah()
 const { format: qtyFmt } = useQty()
 const { loadCustomerMap, loadProductMap, loadUnitMap } = useSalesInvoiceLookups()
 const { loadCashAccountOptions, loadReturnableInvoice } = useSalesReturnLookups()
+const { withStepUp } = useStepUp()
 
 const operatorName = computed(() => user.value?.fullName ?? '')
 
@@ -174,6 +175,15 @@ function goToDetailSelected() {
 // checkbox+qty per baris. Pola gerbang sama N1 Retur Pembelian, hanya
 // sumbernya faktur, bukan supplier.
 const entriOpen = ref(false)
+// Mode Ubah = revisi-di-tempat (need_fixing.md #19, §2.16a) — dibuka dari
+// halaman detail lewat ?revise=<id>[&reason=...] (reason = alasan Batal
+// Cetak kalau retur sudah PRINTED). Faktur asal DIKUNCI (backend menolak
+// ganti faktur); retur ini sendiri tidak dihitung "sudah diretur".
+const formMode = ref<'entri' | 'ubah'>('entri')
+const revisingReturnId = ref<string | null>(null)
+const revisingReturnNumber = ref('')
+const reviseReason = ref('')
+let pendingReviseLines: { salesInvoiceLineId: string, qtyInput: number }[] | null = null
 
 const lookupFieldRef = ref<{ setDisplay: (code: string, name: string) => void } | null>(null)
 const invoiceId = ref<string | null>(null)
@@ -212,8 +222,47 @@ function resetEntriForm() {
 const documentModalRef = ref<{ clearDraft: () => void, forceClose: () => void } | null>(null)
 
 function openEntri() {
+  formMode.value = 'entri'
+  revisingReturnId.value = null
+  pendingReviseLines = null
   resetEntriForm()
   entriOpen.value = true
+}
+
+interface ReturnForRevise {
+  id: string
+  returnNumber: string
+  salesInvoiceId: string
+  returnDate: string
+  settlementType: SettlementType
+  cashAccountId: string | null
+  notes: string | null
+  postingStatus: 'POSTED' | 'VOIDED'
+  lines: { salesInvoiceLineId: string, qtyInput: string }[]
+}
+async function openRevise(returnId: string, reason: string) {
+  resetEntriForm()
+  try {
+    const ret = await api.get<ReturnForRevise>(`/sales-returns/${returnId}`)
+    if (ret.postingStatus === 'VOIDED') {
+      bannerError.value = 'Retur ini sudah VOID, tidak bisa diubah.'
+      return
+    }
+    formMode.value = 'ubah'
+    revisingReturnId.value = ret.id
+    revisingReturnNumber.value = ret.returnNumber
+    reviseReason.value = reason
+    returnDate.value = ret.returnDate.slice(0, 10)
+    settlementType.value = ret.settlementType
+    cashAccountId.value = ret.cashAccountId ?? undefined
+    notes.value = ret.notes ?? ''
+    pendingReviseLines = ret.lines.map(l => ({ salesInvoiceLineId: l.salesInvoiceLineId, qtyInput: Number(l.qtyInput) }))
+    invoiceId.value = ret.salesInvoiceId
+    entriSnapshot = JSON.stringify(draftData.value)
+    entriOpen.value = true
+  } catch (err) {
+    bannerError.value = getErrorMessage(err, 'Gagal memuat retur untuk diubah.')
+  }
 }
 function restoreDraft(d: unknown) {
   const draft = d as typeof draftData.value
@@ -225,7 +274,11 @@ function restoreDraft(d: unknown) {
 }
 function closeEntri() {
   entriOpen.value = false
-  if (route.path !== '/penjualan/retur') router.replace('/penjualan/retur')
+  if (formMode.value === 'ubah' && revisingReturnId.value) {
+    navigateTo(`/penjualan/retur/${revisingReturnId.value}`)
+    return
+  }
+  if (route.path !== '/penjualan/retur' || route.query.revise) router.replace('/penjualan/retur')
 }
 
 function setSettlementType(type: SettlementType) {
@@ -243,7 +296,7 @@ watch(invoiceId, async (id) => {
   if (!id) return
   loadingInvoice.value = true
   try {
-    const detail = await loadReturnableInvoice(id)
+    const detail = await loadReturnableInvoice(id, revisingReturnId.value ?? undefined)
     if (detail.postingStatus === 'VOIDED') {
       invoiceError.value = 'Faktur ini sudah dibatalkan (VOID), tidak bisa diretur.'
       return
@@ -265,6 +318,17 @@ watch(invoiceId, async (id) => {
       checked: false,
       qtyReturn: undefined
     }))
+    // Mode Ubah: centang + isi qty baris retur yang sedang direvisi.
+    if (pendingReviseLines) {
+      for (const pl of pendingReviseLines) {
+        const row = candidates.value.find(c => c.lineId === pl.salesInvoiceLineId)
+        if (row) {
+          row.checked = true
+          row.qtyReturn = pl.qtyInput
+        }
+      }
+      pendingReviseLines = null
+    }
   } catch (err) {
     invoiceError.value = getErrorMessage(err, 'Gagal memuat faktur penjualan.')
   } finally {
@@ -359,6 +423,25 @@ async function submit() {
   }
   bannerError.value = ''
   submitting.value = true
+  if (formMode.value === 'ubah' && revisingReturnId.value) {
+    const id = revisingReturnId.value
+    try {
+      // Satu gerbang (UNLOCK_PRINT intent EDIT, hanya kalau PRINTED) —
+      // withStepUp() generik cukup.
+      await withStepUp(headers =>
+        api.patch(`/sales-returns/${id}/revise`, { ...buildPayload(), reason: reviseReason.value || undefined }, headers)
+      )
+      documentModalRef.value?.clearDraft()
+      entriOpen.value = false
+      await navigateTo(`/penjualan/retur/${id}`)
+    } catch (err2) {
+      if (err2 instanceof StepUpCancelledError) return
+      bannerError.value = getErrorMessage(err2, 'Gagal mengubah retur penjualan.')
+    } finally {
+      submitting.value = false
+    }
+    return
+  }
   try {
     result.value = await api.post<CreateResult>('/sales-returns', buildPayload())
     documentModalRef.value?.clearDraft()
@@ -375,7 +458,11 @@ async function submit() {
 
 onMounted(async () => {
   await loadAllOptions()
-  if (props.initialOpen === 'entri') openEntri()
+  if (typeof route.query.revise === 'string') {
+    await openRevise(route.query.revise, typeof route.query.reason === 'string' ? route.query.reason : '')
+  } else if (props.initialOpen === 'entri') {
+    openEntri()
+  }
 })
 </script>
 
@@ -469,12 +556,12 @@ onMounted(async () => {
     <DocumentModal
       ref="documentModalRef"
       :open="entriOpen"
-      title="Retur Penjualan"
-      mode="entri"
+      :title="formMode === 'ubah' ? `Retur Penjualan ${revisingReturnNumber}` : 'Retur Penjualan'"
+      :mode="formMode"
       :operator="operatorName"
       :dirty="entriDirty"
       :saving="submitting"
-      :draft-key="draftKey"
+      :draft-key="formMode === 'ubah' ? undefined : draftKey"
       :draft-data="draftData"
       width="min(1300px, 95vw)"
       @update:open="(v: boolean) => !v && closeEntri()"
@@ -488,7 +575,7 @@ onMounted(async () => {
           variant="subtle"
           icon="i-lucide-alert-triangle"
           :title="bannerError"
-          :close-button="{ icon: 'i-lucide-x', color: 'neutral', variant: 'link' }"
+          :close="{ icon: 'i-lucide-x', color: 'neutral', variant: 'link' }"
           @update:open="bannerError = ''"
         />
         <UAlert
@@ -515,6 +602,7 @@ onMounted(async () => {
               code-field="invoiceNumber"
               placeholder="Cari No. Faktur..."
               search-placeholder="Cari nomor faktur..."
+              :disabled="formMode === 'ubah'"
             >
               <template #detail>
                 <div

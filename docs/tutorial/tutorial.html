@@ -1,0 +1,1075 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Panduan Pengguna OmegaSinarTerang</title>
+<style>
+  :root {
+    --ink: #1f2933;
+    --muted: #52606d;
+    --line: #9aa5b1;
+    --soft: #f2f4f7;
+    --accent: #0b6e4f;
+  }
+  @page { size: A4; margin: 22mm 18mm 20mm 18mm; }
+  * { box-sizing: border-box; }
+  html, body { background: #fff; color: var(--ink); }
+  body {
+    font-family: "Segoe UI", "Noto Sans", Arial, sans-serif;
+    font-size: 11pt;
+    line-height: 1.5;
+    margin: 0;
+  }
+  h1, h2, h3, h4 { line-height: 1.25; color: #111; }
+  h2.bab {
+    break-before: page;
+    font-size: 20pt;
+    margin: 0 0 6mm;
+    padding-bottom: 2mm;
+    border-bottom: 2.5pt solid var(--ink);
+  }
+  h3 { font-size: 13.5pt; margin: 7mm 0 2mm; break-after: avoid; }
+  h4 { font-size: 11.5pt; margin: 5mm 0 1.5mm; break-after: avoid; }
+  p { margin: 0 0 2.5mm; }
+  ul, ol { margin: 0 0 3mm; padding-left: 7mm; }
+  li { margin-bottom: 1mm; }
+  .ui { font-weight: 700; }
+  .kbd {
+    display: inline-block; font-family: Consolas, monospace; font-size: 9.5pt; font-weight: 700;
+    border: 1pt solid var(--ink); border-bottom-width: 2pt; border-radius: 3pt; padding: 0 4pt;
+  }
+  code, .mono { font-family: Consolas, "Courier New", monospace; font-size: 10pt; }
+  table { width: 100%; border-collapse: collapse; margin: 2mm 0 4mm; font-size: 10pt; }
+  th, td { border: 0.75pt solid var(--line); padding: 1.6mm 2.2mm; text-align: left; vertical-align: top; }
+  th { background: var(--soft); font-weight: 700; }
+  tr { break-inside: avoid; }
+  thead { display: table-header-group; }
+  figure { margin: 3mm 0 5mm; break-inside: avoid; }
+  figure img { width: 100%; border: 0.75pt solid var(--line); display: block; }
+  figure.half img { width: 78%; margin: 0 auto; }
+  figcaption { font-size: 9pt; color: var(--muted); margin-top: 1.5mm; text-align: center; }
+  body { counter-reset: gambar; }
+  figcaption::before { counter-increment: gambar; content: "Gambar " counter(gambar) " — "; font-weight: 700; }
+  .callout {
+    break-inside: avoid; margin: 3mm 0 4mm; padding: 2.5mm 3.5mm 2.5mm 4mm;
+    border: 1pt solid var(--ink); border-left-width: 4pt; background: #fff;
+  }
+  .callout > .judul { font-weight: 800; text-transform: uppercase; letter-spacing: .04em; font-size: 9pt; display: block; margin-bottom: 1mm; }
+  .callout.perhatikan { border-left-style: solid; background: #fff8e6; }
+  .callout.perhatikan > .judul::before { content: "⚠ "; }
+  .callout.tips { border-left-style: double; border-left-width: 5pt; background: #eef7f2; }
+  .callout.tips > .judul::before { content: "✓ "; }
+  .callout.sup { border-style: dashed; border-left-style: solid; background: #eef2fb; }
+  .callout.sup > .judul::before { content: "◆ "; }
+  .callout p:last-child, .callout ul:last-child, .callout ol:last-child { margin-bottom: 0; }
+  .hasil { border-top: 0.75pt dotted var(--line); padding-top: 1.5mm; margin-top: 2mm; }
+  .hasil::before { content: "Hasil: "; font-weight: 700; }
+  .tujuan { font-style: italic; color: var(--muted); }
+  .pm { font-size: 1px; color: #fff; }
+  /* Sampul */
+  .cover { height: 250mm; display: flex; flex-direction: column; justify-content: center; text-align: center; break-after: page; }
+  .cover .t1 { font-size: 13pt; letter-spacing: .25em; text-transform: uppercase; color: var(--muted); }
+  .cover .t2 { font-size: 34pt; font-weight: 800; margin: 6mm 0 2mm; }
+  .cover .t3 { font-size: 15pt; margin-bottom: 18mm; }
+  .cover .meta { font-size: 11pt; color: var(--muted); line-height: 1.8; }
+  .cover .garis { width: 60mm; height: 2.5pt; background: var(--ink); margin: 0 auto 10mm; }
+  /* Daftar isi */
+  .toc h2 { font-size: 20pt; border-bottom: 2.5pt solid var(--ink); padding-bottom: 2mm; margin: 0 0 4mm; }
+  .toc ol { list-style: none; padding: 0; margin: 0; }
+  .toc li { margin: 0; break-inside: avoid; }
+  .toc a { color: inherit; text-decoration: none; display: flex; gap: 2mm; }
+  .toc a .t { flex: 0 1 auto; }
+  .toc a .dots { flex: 1 1 auto; border-bottom: 1pt dotted var(--line); margin-bottom: 1.3mm; }
+  .toc a .p { flex: 0 0 auto; min-width: 8mm; text-align: right; }
+  .toc .lv2 > a { font-weight: 700; margin-top: 2.2mm; }
+  .toc .lv3 > a { padding-left: 7mm; font-size: 10pt; }
+  .keep { break-inside: avoid; }
+  .placeholder { border: 1.5pt dashed var(--ink); padding: 6mm; text-align: center; font-weight: 700; margin: 3mm 0; }
+  @media screen { body { max-width: 190mm; margin: 0 auto; padding: 10mm; } }
+</style>
+</head>
+<body>
+
+<!-- ============================ SAMPUL ============================ -->
+<section class="cover">
+  <div class="t1">Panduan Pengguna</div>
+  <div class="t2">OmegaSinarTerang</div>
+  <div class="t3">Aplikasi Operasional Grosir — Penjualan, Pembelian, Gudang, Kas &amp; Laporan</div>
+  <div class="garis"></div>
+  <div class="meta">
+    Untuk: Operator · Supervisor · Master<br>
+    Versi aplikasi: <b>v1.0</b> (build 7115b60 + perbaikan 6 Oktober 2026)<br>
+    Tanggal panduan: 6 Oktober 2026 — revisi 2
+  </div>
+</section>
+
+<!-- ============================ DAFTAR ISI ============================ -->
+<nav class="toc" id="toc">
+  <h2>Daftar Isi</h2>
+  <ol id="toc-list"><!-- diisi otomatis saat membuat PDF --></ol>
+</nav>
+
+<!-- ============================ BAB 1 ============================ -->
+<h2 class="bab" id="bab1">1. Pengenalan</h2>
+
+<h3 id="s1-1">1.1 Untuk siapa panduan ini</h3>
+<p>Panduan ini untuk tim toko yang memakai aplikasi <b>OmegaSinarTerang</b> setiap hari. Anda sudah mengenal usaha Anda dan sudah terbiasa dengan sistem lama (Affari). Panduan ini menjelaskan di mana letak setiap pekerjaan di aplikasi baru, tombol mana yang ditekan, dan apa yang terjadi sesudahnya.</p>
+<p>Anda tidak perlu paham akuntansi. Jurnal, buku besar, dan harga pokok dihitung otomatis oleh aplikasi di belakang layar setiap kali Anda menyimpan transaksi.</p>
+<p>Cara membaca panduan ini:</p>
+<ul>
+  <li>Tulisan <b>tebal</b> adalah tulisan yang persis sama dengan yang terlihat di layar (menu, tombol, nama kolom), misalnya klik <span class="ui">Entri</span>, isi <span class="ui">Termin (hari)</span>.</li>
+  <li>Kotak <b>Perhatikan</b> berisi aturan yang sering membuat orang tersandung.</li>
+  <li>Kotak <b>Tips</b> berisi cara kerja yang lebih cepat.</li>
+  <li>Kotak <b>Hanya Supervisor/Master</b> menandai bagian yang tidak bisa dilakukan Operator.</li>
+  <li>Gambar di panduan ini memakai <b>data contoh</b> (pelanggan, supplier, dan harga rekaan), bukan data toko sebenarnya.</li>
+</ul>
+
+<h3 id="s1-2">1.2 Tiga peran dan tanggung jawabnya</h3>
+<p>Setiap orang masuk dengan akun sendiri. Menu yang tampil di sisi kiri layar menyesuaikan perannya.</p>
+<table>
+  <thead><tr><th style="width:18%">Peran</th><th>Tugas utama</th></tr></thead>
+  <tbody>
+    <tr><td class="ui">Operator</td><td>Memasukkan semua transaksi harian: order, faktur penjualan &amp; pembelian, surat jalan, retur, mutasi gudang, penerimaan &amp; pengeluaran kas, biaya operasional. Mencetak nota. Memperbaiki faktur yang ditandai bermasalah.</td></tr>
+    <tr><td class="ui">Supervisor</td><td>Sore hari mengecek faktur dan bukti kas yang dibuat hari itu (<span class="ui">Pengecekan Invoice</span>). Menyetujui atau menolak permintaan dari Operator (<span class="ui">Antrian Persetujuan</span>). Mencatat hitungan stok opname. Membaca laporan. Supervisor <b>tidak pernah mengubah</b> faktur.</td></tr>
+    <tr><td class="ui">Master</td><td>Pemilik/administrator. Bisa melakukan semua yang dilakukan Operator dan Supervisor, ditambah Bagan Akun, Jurnal, Saldo Awal, Pengaturan, Pengguna (akun &amp; password), dan memposting stok opname.</td></tr>
+  </tbody>
+</table>
+
+<h4>Menu yang terlihat per peran</h4>
+<table>
+  <thead><tr><th style="width:22%">Grup menu</th><th>Isi</th><th style="width:11%">Operator</th><th style="width:12%">Supervisor</th><th style="width:10%">Master</th></tr></thead>
+  <tbody>
+    <tr><td>(tanpa judul)</td><td class="ui">Dashboard</td><td>✓</td><td>—</td><td>✓</td></tr>
+    <tr><td class="ui">MASTER DATA</td><td><span class="ui">Produk</span>, <span class="ui">Merek</span>, <span class="ui">Satuan</span>, <span class="ui">Pelanggan</span>, <span class="ui">Supplier</span>, <span class="ui">Salesman</span>, <span class="ui">Gudang</span>, <span class="ui">Kendaraan</span>, <span class="ui">Pekerja</span></td><td>✓</td><td>—</td><td>✓</td></tr>
+    <tr><td class="ui">TRANSAKSI</td><td><span class="ui">Order Penjualan</span>, <span class="ui">Faktur Penjualan</span>, <span class="ui">Retur Penjualan</span>, <span class="ui">Surat Jalan</span>, <span class="ui">Mutasi Gudang</span>, <span class="ui">Faktur Pembelian</span>, <span class="ui">Retur Pembelian</span></td><td>✓</td><td>—</td><td>✓</td></tr>
+    <tr><td class="ui">KAS &amp; BANK</td><td><span class="ui">Penerimaan Kas</span>, <span class="ui">Pengeluaran Kas</span>, <span class="ui">Biaya Operasional</span>, <span class="ui">Pindah Buku Kas</span>, <span class="ui">Pelunasan Kasbon</span></td><td>✓</td><td>—</td><td>✓</td></tr>
+    <tr><td class="ui">AKUNTANSI</td><td><span class="ui">Bagan Akun</span>, <span class="ui">Jurnal</span>, <span class="ui">Saldo Awal</span></td><td>—</td><td>—</td><td>✓</td></tr>
+    <tr><td class="ui">PENGECEKAN</td><td><span class="ui">Pengecekan Invoice</span>, <span class="ui">Antrian Persetujuan</span></td><td>—</td><td>✓</td><td>✓</td></tr>
+    <tr><td class="ui">LAPORAN</td><td><span class="ui">Laporan</span></td><td>✓ (kecuali Stok Opname)</td><td>✓</td><td>✓</td></tr>
+    <tr><td class="ui">PENGATURAN</td><td><span class="ui">Pengaturan</span>, <span class="ui">Pengguna</span></td><td>—</td><td>—</td><td>✓</td></tr>
+  </tbody>
+</table>
+
+<h3 id="s1-3">1.3 Gambaran alur kerja toko</h3>
+<ul>
+  <li><b>Pagi–siang (Operator):</b> mencatat pesanan, menerbitkan faktur, mencetak nota, membuat surat jalan, mencatat barang datang dari supplier, mencatat pembayaran dan biaya.</li>
+  <li><b>Kapan saja (Supervisor):</b> menjawab permintaan persetujuan yang masuk ke <span class="ui">Antrian Persetujuan</span>.</li>
+  <li><b>Sore (Supervisor):</b> mengecek semua faktur dan bukti kas hari itu di <span class="ui">Pengecekan Invoice</span>. Yang salah ditandai <span class="ui">Bermasalah</span>, lalu Operator yang memperbaikinya.</li>
+  <li><b>Berkala (Master):</b> membaca laporan, mengatur akun dan pengaturan toko.</li>
+</ul>
+
+<!-- ============================ BAB 2 ============================ -->
+<h2 class="bab" id="bab2">2. Memulai</h2>
+
+<h3 id="s2-1">2.1 Masuk (login) dan keluar</h3>
+<p class="tujuan">Tujuan: masuk ke aplikasi dengan akun Anda sendiri.</p>
+<ol>
+  <li>Buka aplikasi di browser. Halaman <span class="ui">Masuk ke akun Anda</span> muncul.</li>
+  <li>Isi <span class="ui">Username</span> dan <span class="ui">Password</span>.</li>
+  <li>Klik <span class="ui">Masuk</span>.</li>
+</ol>
+<figure class="half"><img src="img/login.png" alt=""><figcaption>Halaman login.</figcaption></figure>
+<p class="hasil">Operator dan Master langsung masuk ke <span class="ui">Dashboard</span>. Supervisor langsung masuk ke halaman <span class="ui">Pengecekan Invoice Harian</span> (Supervisor tidak punya Dashboard).</p>
+<p>Untuk <b>keluar</b>: klik nama Anda di pojok kanan atas, lalu pilih <span class="ui">Keluar</span>.</p>
+<div class="callout perhatikan"><span class="judul">Perhatikan</span>
+<p>Satu komputer dipakai bergantian. Selalu <b>keluar</b> sebelum orang lain memakai komputer, supaya transaksi tercatat atas nama orang yang benar. Kalau muncul <span class="ui">Username atau password salah.</span>, periksa huruf besar/kecil. Lupa password? Minta Master me-reset-nya di <span class="ui">Pengaturan</span> → <span class="ui">Pengguna</span> (lihat 7.3).</p>
+</div>
+
+<h3 id="s2-2">2.2 Tampilan layar</h3>
+<figure><img src="img/dashboard.png" alt=""><figcaption>Tampilan setelah login sebagai Operator: menu di kiri, isi halaman di kanan.</figcaption></figure>
+<ul>
+  <li><b>Menu kiri (sidebar)</b> — dikelompokkan per grup (<span class="ui">MASTER DATA</span>, <span class="ui">TRANSAKSI</span>, dan seterusnya). Klik judul grup untuk melipat/membuka. Aplikasi mengingat grup mana yang Anda lipat, per akun.</li>
+  <li><b>Pojok kanan atas</b> — nama dan peran Anda; klik untuk <span class="ui">Keluar</span>.</li>
+  <li><b>Baris paling bawah</b> — versi aplikasi, siapa yang sedang login, jumlah data di tabel, dan jam.</li>
+  <li><b>Tombol matahari/bulan</b> di kiri bawah — mengganti tampilan terang/gelap.</li>
+</ul>
+<h4>Kartu Dashboard</h4>
+<table>
+  <thead><tr><th style="width:30%">Kartu</th><th>Isinya</th></tr></thead>
+  <tbody>
+    <tr><td class="ui">Penjualan Hari Ini</td><td>Total rupiah dan jumlah faktur penjualan hari ini.</td></tr>
+    <tr><td class="ui">Piutang Jatuh Tempo</td><td>Nilai dan jumlah faktur yang sudah lewat jatuh tempo, ditambah total seluruh piutang.</td></tr>
+    <tr><td class="ui">Stok Minus</td><td>Jumlah produk yang stoknya minus di gudang Toko (<i>Tidak ada</i> bila aman).</td></tr>
+    <tr><td class="ui">Persetujuan Menunggu</td><td>Jumlah permintaan yang menunggu (hanya tampil angkanya untuk Master).</td></tr>
+  </tbody>
+</table>
+<p>Klik <span class="ui">Refresh</span> di kanan atas untuk memperbarui angka. Klik kartunya untuk membuka laporan terkait.</p>
+
+<h3 id="s2-3">2.3 Pola halaman daftar</h3>
+<p>Hampir semua menu dibuka dalam bentuk <b>daftar</b> (tabel). Polanya selalu sama:</p>
+<figure><img src="img/faktur-penjualan-list.png" alt=""><figcaption>Halaman daftar Faktur Penjualan. Baris berwarna merah muda adalah faktur yang ditandai Bermasalah.</figcaption></figure>
+<table>
+  <thead><tr><th style="width:25%">Bagian</th><th>Gunanya</th></tr></thead>
+  <tbody>
+    <tr><td>Baris tombol (toolbar)</td><td><span class="ui">Entri</span> membuat dokumen baru. <span class="ui">Refresh</span> memuat ulang. <span class="ui">View Detail</span>, <span class="ui">Cetak</span>, <span class="ui">Batal Cetak</span>, <span class="ui">Pengecekan</span> membuka halaman detail dokumen yang sedang dipilih. Tombol yang tersedia berbeda-beda per menu.</td></tr>
+    <tr><td>Kotak <span class="ui">Cari…</span></td><td>Ketik nomor dokumen (atau nama, untuk master data). Hasil menyaring sendiri.</td></tr>
+    <tr><td>Saringan (filter)</td><td>Kotak pilihan di samping Cari, misalnya <span class="ui">Pengecekan</span> atau <span class="ui">Status Kirim</span>. Klik tanda × di sampingnya untuk menghapus saringan.</td></tr>
+    <tr><td>Judul kolom</td><td>Klik untuk mengurutkan; klik lagi untuk membalik urutan.</td></tr>
+    <tr><td>Memilih baris</td><td>Klik satu baris. Tanda ▶ muncul di kiri baris yang terpilih. Tombol seperti <span class="ui">View Detail</span> baru aktif setelah ada baris terpilih.</td></tr>
+    <tr><td>Bawah tabel</td><td>Jumlah data dan nomor halaman.</td></tr>
+  </tbody>
+</table>
+<p>Di menu <span class="ui">MASTER DATA</span>, setiap baris juga punya tombol titik tiga (⋮) berisi <span class="ui">Ubah</span>, <span class="ui">Nonaktifkan</span>, atau <span class="ui">Aktifkan</span>.</p>
+
+<h3 id="s2-4">2.4 Pola layar entri (dua lapis)</h3>
+<p>Dokumen yang punya banyak baris barang (faktur, order, retur, mutasi) diisi lewat dua jendela bertumpuk:</p>
+<ol>
+  <li><b>Jendela dokumen</b> — judulnya <span class="ui">Entri …</span> (dokumen baru) atau <span class="ui">Ubah …</span> (memperbaiki). Di bawah judul tertulis <span class="ui">Operator : nama Anda</span>. Isinya: kepala dokumen (pelanggan, tanggal, dll.), tabel baris barang, dan total di bawah.</li>
+  <li><b>Jendela baris</b> — muncul di atasnya saat Anda klik <span class="ui">Entri</span> (baris baru) atau <span class="ui">Ubah</span> (baris terpilih) di atas tabel baris. Kiri: isian barang. Kanan: informasi pendukung seperti <span class="ui">SISA STOK</span> dan <span class="ui">RIWAYAT HARGA</span>.</li>
+</ol>
+<p>Setiap jendela punya tombol <span class="ui">Simpan</span> dan <span class="ui">Keluar</span>. Menyimpan baris hanya memasukkan baris ke tabel; dokumen baru benar-benar tersimpan setelah Anda klik <span class="ui">Simpan</span> di jendela dokumen.</p>
+<div class="callout perhatikan"><span class="judul">Perhatikan</span>
+<ul>
+  <li>Klik di luar jendela <b>tidak</b> menutupnya — ini disengaja supaya isian tidak hilang karena salah klik.</li>
+  <li>Kalau Anda menutup jendela yang sudah diisi, muncul pertanyaan <span class="ui">Ada perubahan yang belum disimpan. Tutup dan buang perubahan?</span> Pilih <b>OK</b> hanya kalau Anda memang ingin membuang isian.</li>
+  <li>Untuk menghapus baris di tabel baris, klik barisnya lalu klik <span class="ui">Hapus</span> (merah) di atas tabel, atau tekan <span class="kbd">Delete</span> lalu jawab <span class="ui">Hapus baris terpilih?</span>.</li>
+  <li>Di kanan atas jendela dokumen dan di kiri bawah jendela baris selalu tertulis tombol keyboard yang berlaku di jendela itu.</li>
+</ul>
+</div>
+
+<h3 id="s2-5">2.5 Isian yang tersimpan sementara (draf)</h3>
+<p>Selama jendela dokumen terbuka dan sudah ada yang diketik, aplikasi menyimpan isian Anda sebagai <b>draf</b> di browser. Kalau halaman tidak sengaja ter-refresh, buka lagi menu yang sama dan klik <span class="ui">Entri</span>: isian terakhir muncul kembali.</p>
+<ul>
+  <li>Draf hanya ada di <b>tab browser yang sama</b>. Kalau tab atau browser ditutup, draf hilang.</li>
+  <li>Baris yang masih terbuka di jendela baris (belum di-<span class="ui">Simpan</span> ke tabel) tidak ikut tersimpan sebagai draf.</li>
+  <li>Kalau Anda mencoba menutup/me-refresh tab saat ada isian yang belum disimpan, browser akan bertanya dulu.</li>
+  <li>Draf otomatis dihapus setelah dokumen berhasil disimpan, atau saat Anda menutup jendela dan memilih membuang perubahan.</li>
+</ul>
+
+<h3 id="s2-6">2.6 Tombol pintas keyboard</h3>
+<table>
+  <thead><tr><th style="width:22%">Tombol</th><th>Fungsi</th><th style="width:32%">Berlaku di</th></tr></thead>
+  <tbody>
+    <tr><td><span class="kbd">/</span></td><td>Pindah ke kotak <span class="ui">Cari…</span></td><td>Halaman daftar (saat tidak ada jendela terbuka)</td></tr>
+    <tr><td><span class="kbd">Insert</span></td><td>Buka jendela baris baru</td><td rowspan="3">Jendela dokumen Faktur Penjualan, Order Penjualan, Faktur Pembelian, Mutasi Gudang, Biaya Operasional</td></tr>
+    <tr><td><span class="kbd">F2</span></td><td>Ubah baris yang sedang dipilih</td></tr>
+    <tr><td><span class="kbd">Delete</span></td><td>Hapus baris yang dipilih (ada konfirmasi)</td></tr>
+    <tr><td><span class="kbd">Enter</span></td><td>Pindah ke kotak berikutnya. Di kotak terakhir: simpan baris — pada lima layar di atas sekaligus membuka baris baru.</td><td>Jendela baris; tabel konversi satuan (form Produk) dan tabel Saldo Awal</td></tr>
+    <tr><td><span class="kbd">Ctrl</span> + <span class="kbd">S</span></td><td>Simpan</td><td>Jendela dokumen, jendela baris, form master data</td></tr>
+    <tr><td><span class="kbd">Esc</span></td><td>Tutup satu jendela (paling atas). Kalau ada isian belum disimpan, Anda ditanya dulu.</td><td>Semua jendela</td></tr>
+    <tr><td><span class="kbd">Tab</span></td><td>Mencari faktur dari nomor yang baru diketik</td><td>Kotak <span class="ui">Faktur Asal</span> di Retur Penjualan</td></tr>
+  </tbody>
+</table>
+<p>Tombol keyboard hanya bekerja di jendela paling atas: saat jendela baris terbuka, Insert/F2/Delete milik jendela dokumen di bawahnya diam.</p>
+<div class="callout tips"><span class="judul">Tips — mengetik tanpa mouse</span>
+<p><span class="kbd">Insert</span> → ketik produk → <span class="kbd">Enter</span> → satuan → <span class="kbd">Enter</span> → harga → <span class="kbd">Enter</span> → qty → <span class="kbd">Enter</span> (baris tersimpan, baris baru terbuka) … <span class="kbd">Esc</span> setelah baris terakhir → <span class="kbd">Ctrl</span>+<span class="kbd">S</span> untuk menyimpan dokumen.</p>
+</div>
+<div class="callout perhatikan"><span class="judul">Perhatikan</span>
+<p>Pintasan lama <span class="kbd">Ctrl</span>+<span class="kbd">H</span> dan <span class="kbd">Ctrl</span>+<span class="kbd">D</span> dari sistem lama sudah <b>tidak dipakai</b>: kolom harga langsung bisa diketik dan diskon penjualan sudah ditiadakan.</p>
+</div>
+
+<h3 id="s2-7">2.7 Mengetik angka, qty, dan satuan</h3>
+<ul>
+  <li>Angka uang dan qty otomatis diberi <b>titik ribuan</b> saat Anda mengetik (ketik <code>1500000</code>, tampil <code>1.500.000</code>).</li>
+  <li>Qty diisi dengan <b>satu angka + satu pilihan satuan</b>. Satuan otomatis terpilih <span class="ui">DUS</span> kalau produk itu punya satuan dus; ganti di kotak <span class="ui">Satuan</span> bila perlu. Satu baris hanya satu satuan.</li>
+  <li>Kotak <span class="ui">Isi</span> (abu-abu, tidak bisa diketik) menunjukkan berapa satuan terkecil dalam satu satuan yang dipilih. Contoh: Satuan <span class="ui">RENCENG</span>, Isi <b>10</b> = 1 renceng berisi 10 sachet.</li>
+  <li><span class="ui">SISA STOK</span> di jendela baris menunjukkan stok gudang Toko dalam <b>satuan terbesar</b>, dibulatkan ke bawah. Tanda <b>+</b> berarti masih ada sisa pecahan. Contoh: <b>13 dus +</b> = 13 dus lebih sedikit.</li>
+</ul>
+
+<!-- ============================ BAB 3 ============================ -->
+<h2 class="bab" id="bab3">3. Konsep Penting</h2>
+<p>Bab ini pendek tapi paling penting. Bacalah sebelum memakai menu transaksi.</p>
+
+<h3 id="s3-1">3.1 Nomor dokumen</h3>
+<p>Nomor dokumen dibuat otomatis oleh aplikasi dengan bentuk <code>KODE/RM01-YYMMXXXX</code>. Contoh: <code>JL/RM01-26100001</code> = faktur penjualan, toko RM01, tahun 26, bulan 10 (Oktober), urutan ke-0001.</p>
+<table>
+  <thead><tr><th style="width:12%">Kode</th><th>Dokumen</th><th style="width:12%">Kode</th><th>Dokumen</th></tr></thead>
+  <tbody>
+    <tr><td class="mono">SO</td><td>Order Penjualan (Sales Order)</td><td class="mono">RB</td><td>Retur Pembelian</td></tr>
+    <tr><td class="mono">JL</td><td>Faktur Penjualan</td><td class="mono">GD</td><td>Mutasi Gudang</td></tr>
+    <tr><td class="mono">SJ</td><td>Surat Jalan</td><td class="mono">PAY</td><td>Penerimaan/Pengeluaran Kas</td></tr>
+    <tr><td class="mono">RJ</td><td>Retur Penjualan</td><td class="mono">KK</td><td>Biaya Operasional (Bukti Kas Keluar)</td></tr>
+    <tr><td class="mono">B1</td><td>Faktur Pembelian</td><td class="mono">PB</td><td>Pindah Buku Kas</td></tr>
+    <tr><td class="mono">PK</td><td>Pelunasan Kasbon</td><td class="mono">OP</td><td>Stok Opname</td></tr>
+  </tbody>
+</table>
+<ul>
+  <li>Urutan nomor <b>mulai dari 0001 lagi setiap awal bulan</b>.</li>
+  <li>Nomor <b>tidak pernah hilang dan tidak pernah dihapus</b>. Dokumen yang batal tetap ada dengan status <span class="ui">Dibatalkan</span> (VOID), lengkap dengan alasannya. Laporan <span class="ui">Kontinuitas Nomor Dokumen</span> menampilkan setiap nomor dari 0001 sampai terakhir.</li>
+</ul>
+
+<h3 id="s3-2">3.2 Tiga status pada setiap dokumen</h3>
+<p>Di halaman detail dokumen, Anda akan melihat sampai tiga “lencana” status. Ketiganya berdiri sendiri-sendiri:</p>
+<table>
+  <thead><tr><th style="width:18%">Status</th><th style="width:30%">Nilai yang mungkin</th><th>Artinya</th></tr></thead>
+  <tbody>
+    <tr><td><b>Posting</b></td><td><span class="ui">Terposting</span> → <span class="ui">Dibatalkan</span></td><td>Terposting = dokumen berlaku. Dibatalkan = sudah di-VOID; angkanya sudah dibalik oleh sistem, dokumen tetap tersimpan untuk arsip.</td></tr>
+    <tr><td><b>Cetak</b></td><td><span class="ui">Belum Dicetak</span> → <span class="ui">Sudah Dicetak</span> → <span class="ui">Cetak Dibatalkan</span></td><td>Sudah Dicetak = nota sudah keluar ke pelanggan/sopir, dokumen <b>terkunci</b>. Cetak Dibatalkan = kunci sudah dibuka (lewat Batal Cetak yang disetujui).</td></tr>
+    <tr><td><b>Pengecekan</b></td><td><span class="ui">Belum Dicek</span> → <span class="ui">Disetujui</span> / <span class="ui">Bermasalah</span></td><td>Hasil pengecekan Supervisor. Bermasalah = ada yang perlu diperbaiki Operator; catatannya tampil merah di halaman detail.</td></tr>
+  </tbody>
+</table>
+<p>Di daftar, status cetak sering ditampilkan sebagai kotak centang di kolom <span class="ui">P</span>, dan status pengecekan di kolom <span class="ui">Pengecekan</span> (centang = Disetujui, tanda segitiga merah = Bermasalah; arahkan mouse ke tanda itu untuk membaca catatan Supervisor).</p>
+
+<h3 id="s3-3">3.3 Kunci cetak</h3>
+<p>Begitu nota dicetak dan diserahkan, isinya tidak boleh berubah diam-diam. Karena itu:</p>
+<ul>
+  <li><b>Mencetak ulang</b> salinan yang sama <b>selalu boleh</b>, tanpa izin. Setiap cetak ulang dicatat (siapa dan kapan).</li>
+  <li>Dokumen yang sudah <span class="ui">Dibatalkan</span> tetap bisa dicetak untuk arsip; tombolnya bernama <span class="ui">Cetak Arsip</span>.</li>
+  <li>Setelah dicetak, tombol <span class="ui">Ubah</span> dan <span class="ui">VOID</span> <b>menghilang</b>. Sebagai gantinya muncul tombol <span class="ui">Batal Cetak</span>.</li>
+  <li><span class="ui">Batal Cetak</span> mewajibkan Anda menyatakan niat di depan — <span class="ui">Diperbaiki</span> atau <span class="ui">Dibatalkan/VOID</span> — dan mengisi <span class="ui">Alasan</span>. Permintaan ini butuh persetujuan Supervisor/Master. Persetujuan untuk “Diperbaiki” tidak bisa dipakai untuk VOID, dan sebaliknya.</li>
+</ul>
+<p>Langkah lengkapnya ada di 5.8.</p>
+
+<h3 id="s3-4">3.4 Persetujuan Supervisor</h3>
+<p>Beberapa tindakan tidak bisa langsung jalan; aplikasi meminta persetujuan dulu:</p>
+<table>
+  <thead><tr><th style="width:36%">Tindakan</th><th style="width:30%">Kapan muncul</th><th>Label di Antrian Persetujuan</th></tr></thead>
+  <tbody>
+    <tr><td>Membatalkan (VOID) dokumen</td><td>Operator mem-VOID dokumen apa pun: faktur, retur, surat jalan, pembayaran, baris biaya operasional, pindah buku kas, pelunasan kasbon</td><td class="ui">VOID Dokumen</td></tr>
+    <tr><td>Membuka kunci cetak</td><td>Dokumen sudah dicetak lalu Anda klik <span class="ui">Batal Cetak</span> (semua peran, termasuk Master)</td><td class="ui">Batal Cetak</td></tr>
+    <tr><td>Menjual di bawah harga pokok</td><td>Ada baris faktur yang harganya di bawah harga pokok (satu permintaan per faktur)</td><td class="ui">Jual di Bawah Harga Pokok</td></tr>
+    <tr><td>Pengeluaran kas besar</td><td>Uang keluar dari Kas Besar atau rekening bank melewati batas yang diatur Master</td><td class="ui">Pengeluaran Kas</td></tr>
+    <tr><td>Barang Rusak kembali ke Toko</td><td>Mutasi dari gudang Barang Rusak ke gudang Toko (barang jadi bisa dijual lagi)</td><td class="ui">Mutasi Bad Stock ke Toko</td></tr>
+  </tbody>
+</table>
+<p>Yang terjadi di layar Operator:</p>
+<ol>
+  <li>Setelah Anda klik <span class="ui">Simpan</span> (atau tombol VOID), muncul jendela <span class="ui">Menunggu Persetujuan</span> berisi ringkasan permintaan dan hitung mundur <span class="ui">Kedaluwarsa dalam 14:58</span>.</li>
+  <li>Biarkan jendela itu terbuka. Beri tahu Supervisor (lisan/telepon). Supervisor menyetujui dari komputernya sendiri — <b>Supervisor tidak perlu mengetik password di komputer Operator</b>.</li>
+  <li>Begitu disetujui, jendela berubah menjadi <span class="ui">Disetujui — melanjutkan aksi...</span> dan transaksi tersimpan otomatis. Anda tidak perlu mengulang.</li>
+</ol>
+<figure class="half"><img src="img/menunggu-persetujuan.png" alt=""><figcaption>Jendela Menunggu Persetujuan di komputer Operator. Layar memeriksa status setiap 5 detik.</figcaption></figure>
+<div class="callout perhatikan"><span class="judul">Perhatikan</span>
+<ul>
+  <li>Permintaan berlaku <b>15 menit</b>. Lewat dari itu muncul <span class="ui">Waktu Habis</span>; ulangi tindakan dari awal.</li>
+  <li>Kalau ditolak, muncul <span class="ui">Ditolak</span> beserta alasan dari Supervisor. Klik <span class="ui">Tutup</span>, perbaiki, lalu ulangi.</li>
+  <li><span class="ui">Batalkan</span> menutup jendela tanpa menjalankan transaksi.</li>
+  <li>Jangan mengubah isi transaksi setelah meminta persetujuan. Kalau isinya berubah, persetujuan lama tidak berlaku dan muncul pesan bahwa isi permintaan berubah sejak disetujui.</li>
+  <li>Hanya satu permintaan bisa ditunggu dalam satu waktu. Selesaikan yang sedang berjalan dulu.</li>
+</ul>
+</div>
+
+<h3 id="s3-5">3.5 VOID atau Revisi?</h3>
+<p>Ada dua cara memperbaiki faktur yang salah:</p>
+<table>
+  <thead><tr><th style="width:18%"></th><th>Revisi (tombol <span class="ui">Ubah</span>)</th><th>VOID + faktur baru</th></tr></thead>
+  <tbody>
+    <tr><td>Nomor faktur</td><td>Tetap sama; di bawah nomor muncul <span class="ui">Revisi 1</span>, <span class="ui">Revisi 2</span>, dst.</td><td>Faktur lama berstatus <span class="ui">Dibatalkan</span>; faktur baru mendapat nomor baru.</td></tr>
+    <tr><td>Kapan bisa</td><td>Faktur Penjualan, Faktur Pembelian, Retur Penjualan, dan Retur Pembelian yang <b>tanggalnya masih di dalam batas mundur tanggal</b> (standar: 2 hari), dengan syarat: faktur penjualan belum punya Surat Jalan/Retur; barang faktur pembelian belum terjual; barang retur penjualan belum keluar dari gudang Barang Rusak. Pelanggan/faktur asal retur dan supplier retur tidak bisa diganti.</td><td>Kapan saja.</td></tr>
+    <tr><td>Cocok untuk</td><td>Salah harga, salah pelanggan, salah qty yang ketahuan cepat.</td><td>Kesalahan yang ketahuan setelah lewat batas, atau dokumen yang memang batal.</td></tr>
+  </tbody>
+</table>
+<div class="callout perhatikan"><span class="judul">Perhatikan — sistem tidak macet</span>
+<p>Kalau Anda mencoba merevisi faktur yang sudah lewat batas, muncul pesan <span class="ui">Faktur berumur lebih dari 2 hari tidak bisa direvisi. Gunakan VOID lalu terbitkan faktur baru.</span> Ini <b>bukan kerusakan</b>. Klik tombol <span class="ui">Batalkan (VOID)</span> yang muncul di bawah pesan itu, lalu buat faktur baru dengan isi yang benar.</p>
+</div>
+
+<h3 id="s3-6">3.6 Batas mundur tanggal</h3>
+<ul>
+  <li>Tanggal transaksi boleh diisi <b>mundur paling lama 2 hari</b> dari hari ini (angka ini diatur Master di <span class="ui">Pengaturan</span> → <span class="ui">Maksimum Mundur Tanggal Transaksi</span>).</li>
+  <li>Khusus <span class="ui">Biaya Operasional</span> dan <span class="ui">Pindah Buku Kas</span>: boleh mundur <b>7 hari</b> (bukti akhir pekan biasanya baru diketik Senin/Selasa).</li>
+  <li>Tanggal di masa depan selalu ditolak.</li>
+  <li>Pesan yang muncul bila melanggar: <span class="ui">Tanggal transaksi maksimal mundur 2 hari dari hari ini.</span> atau <span class="ui">Tanggal transaksi tidak boleh di masa depan.</span> (angka harinya mengikuti Pengaturan).</li>
+</ul>
+
+<h3 id="s3-7">3.7 Stok boleh minus</h3>
+<p>Aplikasi <b>tidak menolak</b> penjualan walau stok di sistem tidak cukup — barang fisik kadang sudah ada sebelum faktur pembeliannya diketik. Jendela baris Order Penjualan dan Faktur Penjualan menampilkan peringatan kuning <span class="ui">Qty melebihi sisa stok (sisa …). Boleh dilanjutkan</span>; transaksi tetap bisa disimpan. Setelah faktur tersimpan, muncul pemberitahuan <span class="ui">Faktur tersimpan — stok minus</span> berisi produk yang stoknya jadi minus. Pastikan faktur pembelian yang tertinggal segera dimasukkan.</p>
+
+<h3 id="s3-8">3.8 Satuan dan Isi</h3>
+<p>Setiap produk punya satu <b>satuan dasar</b> (satuan terkecil, misalnya sachet atau botol) dan boleh punya satuan yang lebih besar (renceng, dus). Stok disimpan dalam satuan dasar dan ditampilkan dalam pecahan, misalnya “12 dus 15 renceng”. Kata seperti “gr”, “ml”, atau “liter” di nama produk hanya bagian dari nama, bukan satuan hitung.</p>
+<p>Di semua layar — termasuk <span class="ui">Mutasi Gudang</span> dan <span class="ui">Saldo Awal</span> — qty diisi dengan angka + pilihan satuan. Pilihan satuan menampilkan isinya, misalnya <code>dus (isi 60)</code>; aplikasi sendiri yang mengubahnya ke satuan dasar.</p>
+
+<!-- ============================ BAB 4 ============================ -->
+<h2 class="bab" id="bab4">4. Master Data</h2>
+<p>Menu <span class="ui">MASTER DATA</span> dipakai Operator dan Master. Semua halamannya punya tombol yang sama: <span class="ui">Entri</span>, <span class="ui">Ubah</span>, <span class="ui">Refresh</span>, <span class="ui">Hapus</span>. Form isian membuka sebagai jendela dengan tombol <span class="ui">Simpan</span> dan (untuk data baru) <span class="ui">Simpan &amp; Tambah Lagi</span>.</p>
+<div class="callout perhatikan"><span class="judul">Perhatikan — “Hapus” sebenarnya menonaktifkan</span>
+<p>Data master tidak pernah benar-benar dihapus, karena sudah tercetak di nota lama. <span class="ui">Hapus</span> dan <span class="ui">Nonaktifkan</span> sama-sama membuat data berstatus <span class="ui">Nonaktif</span>: tidak muncul lagi di pilihan transaksi baru, tapi tetap ada di dokumen lama. Data nonaktif bisa diaktifkan lagi lewat menu ⋮ → <span class="ui">Aktifkan</span>.</p>
+</div>
+<p>Kolom <span class="ui">Kode</span> di Merek, Satuan, Salesman, Kendaraan, dan Produk diisi otomatis saat disimpan. Kalau ingin mengetik sendiri, nyalakan sakelar <span class="ui">Isi kode manual</span>.</p>
+
+<h3 id="s4-1">4.1 Produk</h3>
+<p class="tujuan">Tujuan: mendaftarkan barang baru beserta satuan jual/belinya.</p>
+<ol>
+  <li>Buka <span class="ui">Produk</span> → klik <span class="ui">Entri</span>.</li>
+  <li>Pilih <span class="ui">Merek</span>, isi <span class="ui">Kemasan</span> (Sachet, Botol, …), <span class="ui">Keterangan</span> (Putih, Original, … boleh kosong), <span class="ui">Ukuran</span> (37) dan pilih <span class="ui">Satuan Ukuran</span> (gr).</li>
+  <li>Lihat kotak besar <span class="ui">Pratinjau Nama Produk</span> — itulah nama yang tercetak di nota. Pastikan sudah benar.</li>
+  <li><span class="ui">Kode Produk</span>: biarkan kosong untuk dibuat otomatis (10 digit YYMMDDXXXX), atau nyalakan <span class="ui">Isi kode manual</span>.</li>
+  <li>Nyalakan <span class="ui">Barang Kena Pajak (PPN dari supplier dihitung)</span> kalau produk ini kena PPN saat dibeli dari supplier PKP.</li>
+  <li>Isi <span class="ui">Satuan Dasar (terkecil)</span>, misalnya <code>sachet</code>.</li>
+  <li>Di tabel <span class="ui">Konversi Satuan Jual/Beli</span>, isi dari satuan <b>terbesar ke terkecil</b>. Contoh: baris 1 <code>dus</code> Isi <code>6</code> (renceng); baris 2 <code>renceng</code> Isi <code>10</code> (sachet). Klik <span class="ui">Tambah baris</span> untuk menambah.</li>
+  <li>Klik <span class="ui">Simpan</span>.</li>
+</ol>
+<figure><img src="img/produk-form.png" alt=""><figcaption>Form produk dengan pratinjau nama dan tabel konversi satuan.</figcaption></figure>
+<div class="callout perhatikan"><span class="judul">Perhatikan</span>
+<ul>
+  <li>Nama satuan di tabel konversi harus sama dengan nama di menu <span class="ui">Satuan</span> (huruf besar/kecil tidak masalah). Kalau satuan belum terdaftar di menu Satuan, satuan itu tidak bisa dipilih di transaksi.</li>
+  <li><span class="ui">Kode Produk</span> <b>terkunci</b> setelah produk dipakai di transaksi pertama — kode itu sudah tercetak di nota.</li>
+</ul>
+</div>
+
+<h3 id="s4-2">4.2 Merek, Satuan, Salesman, Kendaraan</h3>
+<p>Keempatnya cukup diisi nama (Kode otomatis). Pilih <span class="ui">Aktif</span> untuk yang masih dipakai.</p>
+<ul>
+  <li><span class="ui">Merek</span> — dipakai menyusun nama produk dan sebagai pengganti kategori.</li>
+  <li><span class="ui">Satuan</span> — satuan jual/beli (DUS, RENCENG, SACHET, BOTOL, PCS…).</li>
+  <li><span class="ui">Salesman</span> — dipilih per faktur dan menjadi penanggung jawab (PJ) Order Penjualan. Salesman yang sama juga dipilih sebagai pengantar di Surat Jalan.</li>
+  <li><span class="ui">Kendaraan</span> — dipakai Surat Jalan dan baris BBM/servis di Biaya Operasional. Contoh nama: <code>D 1234 AB - PICK UP</code>.</li>
+</ul>
+
+<h3 id="s4-3">4.3 Pelanggan</h3>
+<p>Isi <span class="ui">Nama Pelanggan</span>, <span class="ui">Kode</span> (kosongkan untuk otomatis, atau klik <span class="ui">Bangkitkan</span>), <span class="ui">No. Telepon</span>, <span class="ui">PKP (Pengusaha Kena Pajak)</span>, <span class="ui">Alamat Lengkap</span>, <span class="ui">Kecamatan</span>, <span class="ui">Kota</span>, <span class="ui">Provinsi</span>. Termin pembayaran <b>tidak</b> disimpan di sini — termin diisi per faktur.</p>
+<figure><img src="img/pelanggan-form-master.png" alt=""><figcaption>Form pelanggan saat dibuka Master — ada kotak Akun Piutang di bagian bawah.</figcaption></figure>
+<div class="callout sup"><span class="judul">Hanya Master</span>
+<p>Kotak <span class="ui">Akun Piutang</span> hanya terlihat oleh Master. Kosongkan untuk memakai akun piutang usaha standar. Kotak ini terkunci selama pelanggan masih punya saldo piutang.</p>
+</div>
+<p>Pelanggan baru juga bisa ditambahkan langsung dari layar Faktur Penjualan dengan tombol <span class="ui">Baru</span> di samping kotak Pelanggan (lihat 5.2).</p>
+
+<h3 id="s4-4">4.4 Supplier</h3>
+<p>Isi <span class="ui">Nama Supplier</span>, <span class="ui">No. Telepon</span>, <span class="ui">PKP (Pengusaha Kena Pajak)</span>, <span class="ui">Alamat</span>. <span class="ui">Kode</span> (SUP-001, dst.) dibuat otomatis dan tidak bisa diubah. Status PKP menentukan apakah PPN masukan dihitung di faktur pembelian.</p>
+<figure><img src="img/supplier-operator.png" alt=""><figcaption>Tampilan Supplier untuk Operator: nama dan telepon sengaja disamarkan.</figcaption></figure>
+<div class="callout perhatikan"><span class="judul">Perhatikan</span>
+<p>Untuk Operator, nama, telepon, dan alamat supplier ditampilkan tersamar (misalnya <code>PT S***</code>). Ini disengaja. Pilih supplier berdasarkan <b>Kode</b>-nya (SUP-001, SUP-002, …). Master melihat nama lengkap.</p>
+</div>
+
+<h3 id="s4-5">4.5 Gudang</h3>
+<p>Ada tiga tipe gudang:</p>
+<table>
+  <thead><tr><th style="width:30%">Tipe Gudang</th><th>Artinya</th></tr></thead>
+  <tbody>
+    <tr><td class="ui">Gudang Toko</td><td>Stok normal yang dijual. Semua faktur pembelian masuk ke sini.</td></tr>
+    <tr><td class="ui">Barang Rusak</td><td>Barang rusak/tidak layak jual dan barang retur dari pelanggan. Tidak dijual lagi, tapi bisa diretur ke supplier.</td></tr>
+    <tr><td class="ui">Barang Titipan Pelanggan</td><td>Barang yang sudah dibeli dan dibayar pelanggan tetapi belum diambil (lihat 5.8).</td></tr>
+  </tbody>
+</table>
+<p>Nyalakan <span class="ui">Gudang Default (untuk tipe ini)</span> pada satu gudang per tipe. Biasanya data gudang hanya diatur sekali saat aplikasi mulai dipakai.</p>
+<div class="callout perhatikan"><span class="judul">Perhatikan</span>
+<p>Kalau muncul pesan <span class="ui">Gudang STORE aktif tidak ditemukan</span> saat menyimpan faktur, berarti gudang Toko tidak aktif atau terhapus. Minta Master memeriksa menu Gudang.</p>
+</div>
+
+<h3 id="s4-6">4.6 Pekerja</h3>
+<p>Daftar karyawan tetap (tukang angkut, dll.) yang dipilih di baris <b>Upah Tukang Angkut</b> dan <b>Kasbon</b> pada Biaya Operasional, serta di Pelunasan Kasbon. Isi <span class="ui">Nama Pekerja</span>; <span class="ui">Kode</span> otomatis. Pekerja yang sudah berhenti cukup dinonaktifkan.</p>
+<figure class="half"><img src="img/pekerja-list.png" alt=""><figcaption>Master Data › Pekerja.</figcaption></figure>
+
+<!-- ============================ BAB 5 ============================ -->
+<h2 class="bab" id="bab5">5. Alur Harian Operator</h2>
+<p>Bab ini disusun per <b>kejadian</b> di toko, bukan per menu.</p>
+
+<h3 id="s5-1">5.1 Pesanan yang dikirim (Order → Faktur → Surat Jalan)</h3>
+<p class="tujuan">Tujuan: mencatat pesanan pelanggan yang akan diantar sopir/salesman, sampai nota dan surat jalan tercetak.</p>
+<p>Untuk saluran <b>Pengiriman</b>, Order Penjualan (SO) <b>wajib</b> ada lebih dulu.</p>
+
+<h4>Langkah A — Buat Order Penjualan</h4>
+<ol>
+  <li>Buka <span class="ui">Order Penjualan</span> → <span class="ui">Entri</span>. Jendela <span class="ui">Entri Sales Order</span> terbuka.</li>
+  <li>Pilih <span class="ui">Pelanggan</span> dan <span class="ui">Salesman (PJ)</span> — penanggung jawab order ini. Isi <span class="ui">Tanggal Order</span> dan <span class="ui">Catatan</span> bila perlu.</li>
+  <li>Klik <span class="ui">Entri</span> di atas tabel baris. Pilih <span class="ui">Produk</span>, <span class="ui">Satuan</span>, isi <span class="ui">Qty</span>, dan (boleh kosong) <span class="ui">Harga @</span>. Di kanan terlihat <span class="ui">SISA STOK</span> dan <span class="ui">TERIKAT SO</span> (qty produk ini yang sedang dipesan di order lain yang masih terbuka). Klik <span class="ui">Simpan</span>.</li>
+  <li>Ulangi untuk produk lain, lalu klik <span class="ui">Simpan</span> di jendela dokumen.</li>
+</ol>
+<figure><img src="img/order-penjualan-baris.png" alt=""><figcaption>Baris Sales Order: SISA STOK dan TERIKAT SO tampil terpisah.</figcaption></figure>
+<div class="callout perhatikan"><span class="judul">Perhatikan</span>
+<ul>
+  <li>Order <b>tidak menahan stok</b>. TERIKAT SO hanya informasi; stok baru berkurang saat faktur dibuat.</li>
+  <li>Pelanggan tidak bisa diganti setelah order tersimpan. Salesman (PJ), tanggal, catatan, dan baris masih bisa diubah selama status order <span class="ui">Terbuka</span>.</li>
+</ul>
+</div>
+<h4>Order tidak jadi — Batalkan SO</h4>
+<ol>
+  <li>Di daftar <span class="ui">Order Penjualan</span>, klik order yang masih <span class="ui">Terbuka</span> → panel detail → klik <span class="ui">Batalkan SO</span>.</li>
+  <li>Isi <span class="ui">Alasan</span> (wajib, mis. “Pelanggan batal pesan”) → klik <span class="ui">Batalkan SO</span>. Klik <span class="ui">Kembali</span> bila tidak jadi.</li>
+</ol>
+<p class="hasil">Status order menjadi <span class="ui">Dibatalkan</span>. Order itu tidak bisa diubah atau dijadikan faktur lagi, dan tidak muncul lagi di pilihan Sales Order.</p>
+<figure class="half"><img src="img/order-batal-dialog.png" alt=""><figcaption>Membatalkan Sales Order dengan alasan.</figcaption></figure>
+
+<h4>Langkah B — Jadikan Faktur</h4>
+<ol>
+  <li>Di daftar <span class="ui">Order Penjualan</span>, klik baris order. Panel <span class="ui">Detail Sales Order</span> terbuka di kanan.</li>
+  <li>Klik <span class="ui">Jadikan Faktur</span>.</li>
+</ol>
+<figure><img src="img/order-penjualan-detail.png" alt=""><figcaption>Detail Sales Order dengan tombol Ubah, Jadikan Faktur, dan Batalkan SO.</figcaption></figure>
+<p>Jendela <span class="ui">Entri Faktur Penjualan</span> terbuka dengan <span class="ui">Saluran</span> = <span class="ui">Pengiriman</span>, pelanggan, Sales Order, salesman, dan semua baris sudah terisi dari order.</p>
+<figure><img src="img/faktur-penjualan-entri.png" alt=""><figcaption>Faktur hasil “Jadikan Faktur”. Kotak Salesman terkunci mengikuti PJ Sales Order.</figcaption></figure>
+<ol start="3">
+  <li>Periksa <span class="ui">Tgl Faktur</span> dan isi <span class="ui">Termin (hari)</span>. <span class="ui">Jatuh Tempo</span> terhitung otomatis.</li>
+  <li>Periksa setiap baris; ubah harga/qty bila perlu (pilih baris → <span class="ui">Ubah</span>). Penjelasan jendela baris ada di 5.2.</li>
+  <li>Klik <span class="ui">Simpan</span>. Order otomatis berubah status menjadi <span class="ui">Sudah Dikonversi</span>.</li>
+</ol>
+<div class="callout tips"><span class="judul">Tips</span>
+<p>Faktur Pengiriman juga bisa dibuat dari menu <span class="ui">Faktur Penjualan</span> → <span class="ui">Entri</span> → pilih <span class="ui">Pengiriman</span> → pilih <span class="ui">Sales Order</span> dari daftar. Pelanggan dan baris terisi otomatis. Atau pilih pelanggan dulu untuk menyaring order miliknya saja.</p>
+</div>
+
+<h4>Langkah C — Cetak nota</h4>
+<ol>
+  <li>Di daftar <span class="ui">Faktur Penjualan</span>, pilih faktur → klik <span class="ui">Cetak</span> (atau <span class="ui">View Detail</span>). Halaman detail terbuka.</li>
+  <li>Klik <span class="ui">Cetak</span>. Halaman pratinjau nota (A5, dua nota per lembar A4) terbuka.</li>
+  <li>Klik <span class="ui">Cetak</span> di atas pratinjau, lalu pilih printer di jendela cetak browser.</li>
+</ol>
+<figure><img src="img/cetak-nota-penjualan.png" alt=""><figcaption>Pratinjau nota penjualan sebelum dicetak.</figcaption></figure>
+<p class="hasil">Status cetak berubah menjadi <span class="ui">Sudah Dicetak</span>, dan faktur terkunci. Nota memuat maksimal 14 baris per halaman; lebih dari itu berlanjut ke halaman berikutnya.</p>
+
+<h4>Langkah D — Buat Surat Jalan</h4>
+<ol>
+  <li>Di daftar <span class="ui">Faktur Penjualan</span>, pilih faktur bersaluran Pengiriman → klik <span class="ui">Buat Surat Jalan</span>. (Atau dari halaman detail faktur, klik <span class="ui">Buat Surat Jalan</span>.)</li>
+  <li>Isi <span class="ui">Tanggal Kirim</span>, pilih <span class="ui">Salesman</span> (yang mengantar &amp; menagih) dan <span class="ui">Kendaraan</span>. <span class="ui">Catatan</span> boleh kosong.</li>
+  <li>Klik <span class="ui">Buat Surat Jalan</span>. Muncul pemberitahuan <span class="ui">Surat jalan terbentuk</span> dengan nomornya.</li>
+  <li>Buka menu <span class="ui">Surat Jalan</span>, pilih surat jalan → <span class="ui">Cetak</span> → <span class="ui">Cetak</span>.</li>
+</ol>
+<figure><img src="img/faktur-penjualan-detail-dicetak.png" alt=""><figcaption>Detail faktur yang sudah dicetak: ada tombol Buat Surat Jalan dan Batal Cetak; Ubah dan VOID sudah tidak ada.</figcaption></figure>
+<div class="callout perhatikan"><span class="judul">Perhatikan</span>
+<ul>
+  <li>Surat jalan hanya bisa dibuat <b>dari faktur Pengiriman</b>; menu Surat Jalan sendiri tidak punya tombol Entri. Faktur Toko tidak butuh surat jalan.</li>
+  <li>Satu faktur hanya bisa punya satu surat jalan aktif. Tombol <span class="ui">Buat Surat Jalan</span> di daftar menjadi abu-abu kalau surat jalan sudah ada.</li>
+  <li>Seluruh baris faktur otomatis disalin. Surat jalan <b>tidak mencantumkan harga</b>.</li>
+</ul>
+</div>
+
+<h4>Langkah E — Perbarui status pengiriman</h4>
+<p>Status kirim: <span class="ui">Menunggu Kirim</span> (awal) · <span class="ui">Terkirim</span> · <span class="ui">Belum Terkirim</span> · <span class="ui">Dibawa Balik</span>.</p>
+<ol>
+  <li>Buka <span class="ui">Surat Jalan</span>. Gunakan saringan <span class="ui">Status Kirim</span> → <span class="ui">Belum Terkirim</span> untuk melihat kiriman yang tertunda (daftar inilah yang dicek keesokan harinya).</li>
+  <li>Pilih surat jalan → <span class="ui">View Detail</span>.</li>
+  <li>Klik <span class="ui">Ubah Status Kirim</span>. Jendela <span class="ui">Ubah Status Pengiriman</span> muncul. Pilih status, isi <span class="ui">Keterangan</span> bila perlu, klik <span class="ui">Simpan</span>.</li>
+</ol>
+<figure><img src="img/surat-jalan-detail.png" alt=""><figcaption>Detail Surat Jalan: Ubah Status Kirim, Cetak, VOID.</figcaption></figure>
+<figure><img src="img/surat-jalan-list.png" alt=""><figcaption>Daftar Surat Jalan dengan kolom Status Kirim.</figcaption></figure>
+<figure><img src="img/surat-jalan-status.png" alt=""><figcaption>Jendela Ubah Status Pengiriman.</figcaption></figure>
+<div class="callout perhatikan"><span class="judul">Perhatikan</span>
+<ul>
+  <li>Status kirim <b>boleh diubah kapan saja</b>, walaupun surat jalan sudah dicetak — tidak perlu Batal Cetak dan tidak perlu persetujuan.</li>
+  <li>Surat jalan yang salah bisa di-<span class="ui">VOID</span> (isi <span class="ui">Kode Alasan</span> dan <span class="ui">Catatan Alasan</span>). Kalau sudah dicetak, VOID lewat <span class="ui">Batal Cetak</span> — untuk surat jalan pilihannya hanya <span class="ui">Dibatalkan/VOID</span>. Operator butuh persetujuan.</li>
+  <li>Setelah surat jalan di-VOID, faktur asalnya boleh dibuatkan surat jalan baru. Surat jalan yang sudah VOID tidak bisa diubah status kirimnya.</li>
+</ul>
+</div>
+
+<h3 id="s5-2">5.2 Pembeli datang ke toko (saluran Toko)</h3>
+<p class="tujuan">Tujuan: membuat faktur untuk pembeli yang langsung membawa barang. Tidak perlu Order dan Surat Jalan.</p>
+<ol>
+  <li>Buka <span class="ui">Faktur Penjualan</span> → <span class="ui">Entri</span>. <span class="ui">Saluran</span> otomatis <span class="ui">Toko</span>.</li>
+  <li>Pilih <span class="ui">Pelanggan</span> (ketik sebagian nama untuk mencari). Pelanggan baru? Klik <span class="ui">Baru</span> di sampingnya, isi form, <span class="ui">Simpan</span> — pelanggan langsung terpilih.</li>
+  <li>Pilih <span class="ui">Salesman</span>, periksa <span class="ui">Tgl Faktur</span>, isi <span class="ui">Termin (hari)</span> (0 bila tunai).</li>
+  <li>Klik <span class="ui">Entri</span> di atas tabel baris. Jendela <span class="ui">Entri Baris Faktur Penjualan</span> terbuka:
+    <ul>
+      <li><span class="ui">Produk</span> — ketik sebagian nama, pilih.</li>
+      <li><span class="ui">Satuan</span> — otomatis DUS; ganti bila perlu. <span class="ui">Isi</span> tampil di sebelahnya.</li>
+      <li><span class="ui">Harga @</span> — ketik harga per satuan. Lihat panel <span class="ui">RIWAYAT HARGA</span> di kanan sebagai acuan.</li>
+      <li><span class="ui">Qty</span> — jumlah. <span class="ui">H.Netto</span> dan <span class="ui">Jumlah</span> terhitung sendiri.</li>
+    </ul>
+  </li>
+  <li>Klik <span class="ui">Simpan</span> (baris). Ulangi untuk barang lain.</li>
+  <li>Periksa total di bawah (<span class="ui">Item</span>, <span class="ui">Qty</span>, <span class="ui">Subtotal</span>, <span class="ui">PPN Keluaran</span>, <span class="ui">Total</span>), lalu klik <span class="ui">Simpan</span>.</li>
+  <li>Cetak nota seperti Langkah C di 5.1 dan serahkan ke pembeli.</li>
+</ol>
+<figure><img src="img/faktur-penjualan-baris.png" alt=""><figcaption>Jendela baris faktur penjualan: kiri isian, kanan SISA STOK dan RIWAYAT HARGA untuk pelanggan ini.</figcaption></figure>
+<h4>Membaca panel RIWAYAT HARGA</h4>
+<ul>
+  <li>Menampilkan <b>10 transaksi terakhir</b> untuk <b>pelanggan + produk + satuan</b> yang sedang dipilih (kolom <span class="ui">Tanggal</span>, <span class="ui">Qty</span>, <span class="ui">Satuan</span>, <span class="ui">@Harga</span>). Faktur yang sudah dibatalkan tidak ikut.</li>
+  <li>Ganti satuan → riwayat ikut berganti (harga per renceng berbeda dengan per dus).</li>
+  <li>Kalau pelanggan ini belum pernah membeli produk itu, panel menampilkan harga terakhir produk + satuan yang sama ke pelanggan mana pun.</li>
+  <li><span class="ui">Belum ada riwayat harga.</span> berarti produk itu belum pernah dijual dalam satuan tersebut.</li>
+  <li>Panel ini hanya acuan; klik barisnya tidak mengisi harga. Harga tetap diketik sendiri.</li>
+</ul>
+<div class="callout perhatikan"><span class="judul">Perhatikan</span>
+<ul>
+  <li>Diskon penjualan sudah ditiadakan. Ketik langsung <b>harga bersih</b> di <span class="ui">Harga @</span>.</li>
+  <li>Kalau ada baris yang harganya di bawah harga pokok, saat <span class="ui">Simpan</span> muncul jendela <span class="ui">Menunggu Persetujuan</span> (satu permintaan untuk seluruh faktur). Batas harga pokok sengaja tidak ditampilkan. Kalau memang salah ketik, klik <span class="ui">Batalkan</span>, perbaiki harga, simpan lagi.</li>
+  <li>PPN Keluaran saat ini selalu Rp 0 karena toko belum berstatus PKP.</li>
+  <li>Faktur tetap tersimpan walau stok di sistem kurang (lihat 3.7).</li>
+</ul>
+</div>
+
+<h3 id="s5-3">5.3 Barang datang dari supplier</h3>
+<p class="tujuan">Tujuan: mencatat faktur pembelian sehingga stok bertambah dan hutang ke supplier tercatat.</p>
+<ol>
+  <li>Buka <span class="ui">Faktur Pembelian</span> → <span class="ui">Entri</span>.</li>
+  <li>Pilih <span class="ui">Supplier</span>. Di bawahnya tertulis apakah supplier PKP (PPN masukan dihitung untuk produk BKP) atau Non-PKP.</li>
+  <li>Isi <span class="ui">No. Faktur Supplier</span> (boleh kosong kalau supplier tidak memberi nota bernomor).</li>
+  <li>Isi tiga tanggal:
+    <table>
+      <thead><tr><th style="width:30%">Kotak</th><th>Isi dengan</th></tr></thead>
+      <tbody>
+        <tr><td class="ui">Tgl Terima Barang</td><td>Tanggal barang benar-benar masuk gudang. Menentukan urutan barang mana yang dianggap keluar lebih dulu.</td></tr>
+        <tr><td class="ui">Tgl Faktur Supplier</td><td>Tanggal yang tertulis di nota supplier. Dasar hitung jatuh tempo dan tarif PPN.</td></tr>
+        <tr><td class="ui">Termin (hari)</td><td>Lama tempo bayar; <span class="ui">Jatuh Tempo</span> = Tgl Faktur Supplier + termin, terhitung otomatis.</td></tr>
+      </tbody>
+    </table>
+  </li>
+  <li>Klik <span class="ui">Entri</span> di atas tabel baris. Isi <span class="ui">Produk</span>, <span class="ui">Satuan</span>, <span class="ui">Qty</span>, <span class="ui">Harga @</span>. Di kanan ada <span class="ui">SISA STOK</span> dan <span class="ui">PREVIEW KALKULASI BARIS</span> (<span class="ui">Subtotal Baris</span>, <span class="ui">PPN Baris</span>). Klik <span class="ui">Simpan</span>.</li>
+  <li><b>Barang bonus</b>: klik tombol <span class="ui">Bonus</span> (kuning) di atas tabel baris, pilih produk dan qty. Harga otomatis terkunci 0. (Atau centang <span class="ui">Barang bonus (harga terkunci 0)</span> di jendela baris.) Bonus dicatat sebagai baris tersendiri, selalu produk yang sama dengan yang dibeli.</li>
+  <li><b>Diskon dari supplier</b>: ketik nilai rupiahnya di kotak <span class="ui">Diskon Faktur</span> di bawah tabel. Diskon hanya dalam rupiah, untuk seluruh faktur.</li>
+  <li>Periksa <span class="ui">Total Sblm Disc</span>, <span class="ui">Diskon Faktur</span>, <span class="ui">Total</span>, lalu klik <span class="ui">Simpan</span>.</li>
+</ol>
+<figure><img src="img/faktur-pembelian-entri.png" alt=""><figcaption>Faktur pembelian dengan baris bonus (kolom Bonus tercentang) dan Diskon Faktur.</figcaption></figure>
+<p class="hasil">Jendela <span class="ui">Faktur Tersimpan</span> menampilkan nomor faktur, total, dan <span class="ui">Harga Pokok / Satuan Dasar</span> setiap baris. Klik <span class="ui">Lihat Detail</span> atau <span class="ui">Keluar</span>. Barang otomatis masuk ke gudang Toko.</p>
+<div class="callout perhatikan"><span class="judul">Perhatikan</span>
+<ul>
+  <li>Semua barang pembelian <b>selalu masuk ke gudang Toko</b>. Barang yang ternyata rusak dipindahkan sesudahnya lewat Mutasi Gudang (5.5).</li>
+  <li>Diskon faktur <b>tidak</b> mengurangi harga pokok barang; dicatat sebagai pendapatan diskon pembelian. Ini disengaja.</li>
+  <li>Diskon per baris sudah ditiadakan.</li>
+  <li>Ongkos kirim dan ongkos bongkar dari supplier <b>tidak</b> dimasukkan ke faktur pembelian; catat di Biaya Operasional (5.7).</li>
+  <li>Kalau supplier PKP tetapi tarif PPN belum diatur untuk tanggal itu, muncul peringatan kuning. Hubungi Master/developer.</li>
+</ul>
+</div>
+<p>Halaman detail faktur pembelian (pilih faktur → <span class="ui">View Detail</span>) memperlihatkan baris, <span class="ui">Subtotal</span>, <span class="ui">Diskon Faktur</span>, <span class="ui">PPN Masukan</span>, <span class="ui">TOTAL</span>, serta tombol <span class="ui">Cetak</span>, <span class="ui">Ubah</span>, <span class="ui">VOID</span>.</p>
+<figure><img src="img/faktur-pembelian-detail.png" alt=""><figcaption>Detail faktur pembelian.</figcaption></figure>
+<p><b>Mencetak nota pembelian:</b> di detail faktur klik <span class="ui">Cetak</span> → halaman pratinjau nota terbuka → klik <span class="ui">Cetak</span>. Nota A5 memuat tiga kolom tanda tangan: <span class="ui">Dibuat Oleh</span>, <span class="ui">Diterima Oleh</span>, <span class="ui">Diketahui Oleh</span>. Setelah dicetak, faktur terkunci seperti dokumen lain.</p>
+<figure><img src="img/cetak-nota-pembelian.png" alt=""><figcaption>Pratinjau nota pembelian.</figcaption></figure>
+<p>VOID faktur pembelian oleh Operator butuh persetujuan Supervisor, sama seperti faktur penjualan.</p>
+
+<h3 id="s5-4">5.4 Pelanggan membayar / kita membayar supplier</h3>
+<p class="tujuan">Tujuan: mencatat uang masuk dari pelanggan (<span class="ui">Penerimaan Kas</span>) atau uang keluar ke supplier (<span class="ui">Pengeluaran Kas</span>). Keduanya bekerja dengan cara yang sama.</p>
+<ol>
+  <li>Buka <span class="ui">Penerimaan Kas</span> (atau <span class="ui">Pengeluaran Kas</span>) → <span class="ui">Entri</span>.</li>
+  <li>Isi <span class="ui">Tanggal</span> dan <span class="ui">Catatan</span> (opsional).</li>
+  <li>Klik <span class="ui">Entri</span> di atas tabel <span class="ui">Baris Faktur</span>. Daftar faktur yang belum lunas muncul. Saring dengan memilih <span class="ui">Pelanggan (opsional, penyaring)</span> atau ketik nomor faktur lalu <span class="ui">Cari</span>.</li>
+  <li>Klik satu faktur. Bagian <span class="ui">Metode Pembayaran</span> muncul dengan nominal awal = <span class="ui">Sisa Faktur</span>.</li>
+  <li>Pilih akun kas/bank tempat uang diterima (misalnya <span class="ui">Kas Toko</span>, <span class="ui">Bank BCA</span>) dan sesuaikan nominal. Kalau dibayar sebagian tunai sebagian transfer, klik <span class="ui">Tambah Metode</span>.</li>
+  <li>Centang <span class="ui">Tandai Lunas</span> kalau faktur ini dianggap selesai (lihat penjelasan selisih di bawah).</li>
+  <li>Klik <span class="ui">Simpan</span>. Ulangi untuk faktur lain — boleh faktur dari pelanggan berbeda dalam satu entri.</li>
+  <li>Klik <span class="ui">Konfirmasi Pembayaran</span>.</li>
+</ol>
+<figure><img src="img/penerimaan-metode.png" alt=""><figcaption>Satu baris faktur dengan metode pembayaran Kas Toko dan centang Tandai Lunas.</figcaption></figure>
+<p class="hasil">Halaman detail pembayaran terbuka (nomor <code>PAY/…</code>), berisi <span class="ui">Metode Pembayaran</span> dan <span class="ui">Faktur Dilunasi</span>. Dari sana Anda bisa <span class="ui">Cetak</span> kwitansi.</p>
+<h4>Selisih pembayaran</h4>
+<p>Selisih hanya dicatat kalau Anda mencentang <span class="ui">Tandai Lunas</span> dan nominal tidak persis sama dengan sisa faktur. Contoh dari klien: sisa faktur <b>Rp 33.253.125</b>, pelanggan membayar <b>Rp 33.253.000</b>. Centang <span class="ui">Tandai Lunas</span>; selisih Rp 125 (kurang bayar) dicatat otomatis dan faktur dianggap lunas.</p>
+<ul>
+  <li>Sebelum tersimpan muncul jendela <span class="ui">Konfirmasi Selisih Pembayaran</span> berisi setiap faktur yang punya selisih (<span class="ui">kurang bayar</span> atau <span class="ui">lebih bayar</span>). Klik <span class="ui">Ya, Lanjutkan</span> kalau sudah benar. Selisih tidak dibulatkan.</li>
+  <li>Tanpa centang Lunas, pembayaran dianggap <b>sebagian</b> — tidak ada selisih, sisa faktur tetap menunggu dibayar.</li>
+  <li>Pembayaran lebih besar dari sisa faktur <b>tanpa</b> centang Lunas ditolak: <span class="ui">Pembayaran (Rp …) melebihi sisa faktur (Rp …). Tandai lunas dulu kalau memang ingin menutupnya dengan selisih.</span></li>
+  <li>Selisih di atas <b>Rp 10.000</b> otomatis ditandai untuk Supervisor (tanda kuning di Pengecekan Invoice). Pembayaran tetap tersimpan.</li>
+</ul>
+<div class="callout perhatikan"><span class="judul">Perhatikan</span>
+<ul>
+  <li>Pengeluaran dari <b>Kas Besar</b> atau <b>rekening bank</b> di atas batas tertentu butuh persetujuan Supervisor (jendela Menunggu Persetujuan muncul saat Konfirmasi).</li>
+  <li>Pembayaran tidak bisa diubah. Kalau salah: buka detail → <span class="ui">VOID</span> (isi <span class="ui">Kode Alasan</span> dan <span class="ui">Catatan Alasan</span>) → buat entri baru. Untuk Operator, VOID butuh persetujuan.</li>
+</ul>
+</div>
+
+<h3 id="s5-5">5.5 Barang rusak, retur dari pelanggan, retur ke supplier, tukar barang</h3>
+
+<h4>a. Barang di toko rusak → pindahkan ke Barang Rusak</h4>
+<ol>
+  <li>Buka <span class="ui">Mutasi Gudang</span> → <span class="ui">Entri</span>.</li>
+  <li><span class="ui">Jenis Mutasi</span>: klik <span class="ui">Transfer Gudang (STORE &lt;-&gt; BAD_STOCK)</span>.</li>
+  <li><span class="ui">Gudang Asal</span> = gudang Toko, <span class="ui">Gudang Tujuan</span> = Barang Rusak. Isi <span class="ui">Catatan</span> (mis. “dus penyok”).</li>
+  <li><span class="ui">Entri</span> baris: pilih <span class="ui">Produk</span>, isi <span class="ui">Qty</span> dan pilih <span class="ui">Satuan</span> (otomatis satuan terbesar). Klik <span class="ui">Simpan</span>, lalu <span class="ui">Simpan</span> dokumen.</li>
+  <li>Di jendela <span class="ui">Mutasi Tersimpan</span>, klik <span class="ui">Cetak Nota</span> bila perlu. Harga pokok tampil sebagai informasi saja dan tidak bisa diubah.</li>
+</ol>
+<p>Arah sebaliknya (<b>Barang Rusak → Toko</b>, barang ternyata masih layak jual) butuh persetujuan Supervisor. Layar menampilkan peringatan <span class="ui">Butuh persetujuan Supervisor</span>, dan jendela Menunggu Persetujuan muncul saat Simpan.</p>
+<figure><img src="img/mutasi-bs-ke-toko.png" alt=""><figcaption>Mutasi dari Barang Rusak ke Gudang Toko menampilkan peringatan persetujuan.</figcaption></figure>
+
+<h4>b. Pelanggan mengembalikan barang (Retur Penjualan)</h4>
+<ol>
+  <li>Buka <span class="ui">Retur Penjualan</span> → <span class="ui">Entri</span>.</li>
+  <li>Di <span class="ui">Faktur Asal</span>, ketik nomor faktur lalu tekan <span class="ui">Tab</span> (atau klik tombol … untuk mencari). Nama pelanggan, tanggal, dan total faktur tampil di bawahnya.</li>
+  <li>Tabel <span class="ui">Baris Faktur Asal</span> muncul: <span class="ui">Qty Faktur</span>, <span class="ui">Sudah Diretur</span>, <span class="ui">Sisa</span>. Centang barang yang dikembalikan dan isi <span class="ui">Qty Retur</span> (dalam satuan yang sama dengan faktur, tidak boleh melebihi Sisa).</li>
+  <li>Isi <span class="ui">Tanggal Retur</span>. Pilih <span class="ui">Cara Penyelesaian</span>:
+    <ul>
+      <li><span class="ui">Kurangi Piutang</span> — nilai retur mengurangi tagihan pelanggan.</li>
+      <li><span class="ui">Tunai</span> — uang dikembalikan; pilih <span class="ui">Akun Kas/Bank</span> sumbernya.</li>
+    </ul>
+  </li>
+  <li>Klik <span class="ui">Simpan</span>. Jendela <span class="ui">Retur Tersimpan</span> muncul; klik <span class="ui">Cetak Nota</span> untuk mencetak bukti retur.</li>
+</ol>
+<figure><img src="img/retur-penjualan-entri.png" alt=""><figcaption>Retur penjualan: faktur asal dipilih, baris dicentang, penyelesaian Kurangi Piutang.</figcaption></figure>
+<div class="callout perhatikan"><span class="judul">Perhatikan</span>
+<ul>
+  <li>Retur <b>wajib</b> menunjuk faktur asal. Faktur yang sudah dibatalkan tidak bisa diretur.</li>
+  <li>Barang retur <b>selalu</b> masuk gudang <b>Barang Rusak</b>, tidak kembali ke stok jual. Untuk menjual lagi, perlu mutasi Barang Rusak → Toko dengan persetujuan Supervisor.</li>
+  <li>Angka di bawah tabel bertanda <span class="ui">(Estimasi)</span>; angka final tampil setelah tersimpan.</li>
+  <li>Cetak bukti retur langsung dari jendela <span class="ui">Retur Tersimpan</span> (<span class="ui">Cetak Nota</span>), atau kapan saja dari detail retur → <span class="ui">Cetak</span>.</li>
+</ul>
+</div>
+<h4>Memperbaiki atau membatalkan retur</h4>
+<p>Detail retur (daftar → <span class="ui">View Detail</span>) punya tombol <span class="ui">Cetak</span>, <span class="ui">Ubah</span>, dan <span class="ui">VOID</span>, dengan aturan kunci cetak yang sama seperti faktur (Bab 3.3, 3.5):</p>
+<ul>
+  <li><span class="ui">Ubah</span> membuka layar retur yang sama dengan isian lama; nomor retur tetap. Faktur asal (retur penjualan) dan supplier (retur pembelian) tidak bisa diganti — kalau salah, VOID lalu buat retur baru.</li>
+  <li>Retur penjualan yang barangnya sudah keluar dari gudang Barang Rusak (sudah diretur ke supplier/dipindah) tidak bisa direvisi.</li>
+  <li><span class="ui">VOID</span> membalik stok dan pencatatan dengan tanggal hari ini. Operator butuh persetujuan.</li>
+</ul>
+<figure><img src="img/retur-penjualan-detail.png" alt=""><figcaption>Detail Retur Penjualan dengan tombol Cetak, Ubah, VOID.</figcaption></figure>
+
+<h4>c. Mengembalikan barang rusak ke supplier (Retur Pembelian)</h4>
+<ol>
+  <li>Buka <span class="ui">Retur Pembelian</span> → <span class="ui">Entri</span>.</li>
+  <li>Pilih <span class="ui">Supplier</span>. Tabel <span class="ui">Barang Rusak Milik Supplier Ini</span> menampilkan barang di gudang Barang Rusak yang pernah dibeli dari supplier itu.</li>
+  <li>Pilih <span class="ui">Satuan Retur</span>: <span class="ui">Satuan Kecil</span> (satuan dasar) atau <span class="ui">Satuan Besar</span> (satuan terbesar produk). Kolom <span class="ui">Tersedia</span>, <span class="ui">Harga Pokok (Ref.)</span>, <span class="ui">Qty Retur</span>, dan <span class="ui">Nilai Retur / Satuan</span> semuanya mengikuti satuan yang dipilih.</li>
+  <li>Pilih <span class="ui">Cara Penyelesaian</span>: <span class="ui">Kurangi Hutang</span> atau <span class="ui">Tunai</span> (+ <span class="ui">Akun Kas/Bank</span>).</li>
+  <li>Centang barang, isi <span class="ui">Qty Retur</span> dan <span class="ui">Nilai Retur / Satuan</span> — harga yang <b>disepakati dengan supplier</b>.</li>
+  <li>Klik <span class="ui">Simpan</span> → <span class="ui">Cetak Nota</span>.</li>
+</ol>
+<figure><img src="img/retur-pembelian-entri.png" alt=""><figcaption>Retur pembelian: kolom Harga Pokok (Ref.) sebagai pembanding dan Selisih (Estimasi) berwarna hijau bila menguntungkan toko.</figcaption></figure>
+<div class="callout tips"><span class="judul">Tips — pilih yang menguntungkan toko</span>
+<p>Nilai retur boleh berbeda dari harga pokok. Prinsip toko: ambil nilai yang paling menguntungkan. Kolom <span class="ui">Harga Pokok (Ref.)</span> adalah pembanding; <span class="ui">Selisih (Estimasi)</span> hijau (+) berarti toko untung dari negosiasi, merah (−) berarti rugi. Keduanya dicatat otomatis.</p>
+</div>
+
+<h4>d. Tukar barang dengan supplier</h4>
+<p>Tukar barang dicatat sebagai <b>dua dokumen</b>: (1) <span class="ui">Retur Pembelian</span> untuk barang yang dikembalikan, lalu (2) <span class="ui">Faktur Pembelian</span> baru untuk barang pengganti. Pilih <span class="ui">Kurangi Hutang</span> di retur sehingga hutang keduanya saling menutup.</p>
+
+<h3 id="s5-6">5.6 Pelanggan menitipkan barang</h3>
+<p><b>Barang titipan</b> di toko ini artinya: pelanggan <b>sudah membeli dan membayar</b>, tetapi belum mengambil barangnya. Barang itu sudah bukan milik toko. (Ini <b>bukan</b> konsinyasi.)</p>
+<ol>
+  <li>Buka <span class="ui">Mutasi Gudang</span> → <span class="ui">Entri</span> → <span class="ui">Jenis Mutasi</span>: <span class="ui">Titipan Pelanggan</span>.</li>
+  <li>Pilih <span class="ui">Pelanggan</span>, lalu <span class="ui">Faktur Penjualan</span> (hanya faktur pelanggan itu yang masih punya sisa yang belum dititip). Satu mutasi = satu faktur.</li>
+  <li>Klik <span class="ui">Entri</span> baris. Tabel <span class="ui">Pilih Baris Faktur</span> muncul dengan <span class="ui">Qty Faktur</span>, <span class="ui">Sudah Dititip</span>, <span class="ui">Sisa Boleh Dititip</span>. Klik baris barang yang dititip.</li>
+  <li><span class="ui">Qty Titipan</span> otomatis terisi sisa, dengan satuannya di sebelah (mis. <code>dus (isi 60)</code>). Kurangi atau ganti satuan bila hanya sebagian yang dititip. Klik <span class="ui">Simpan</span>, lalu <span class="ui">Simpan</span> dokumen.</li>
+</ol>
+<figure><img src="img/mutasi-titipan-baris.png" alt=""><figcaption>Memilih baris faktur untuk barang titipan: Qty Titipan 3 dus.</figcaption></figure>
+<div class="callout perhatikan"><span class="judul">Perhatikan</span>
+<ul>
+  <li>Qty titipan tidak boleh melebihi sisa baris faktur; kelebihan langsung ditolak.</li>
+  <li>Mutasi gudang belum bisa diubah atau di-VOID. Periksa qty dan satuan sebelum Simpan.</li>
+  <li>Daftar titipan per pelanggan bisa dilihat di <span class="ui">Laporan Barang Titipan</span>, dan muncul di Stok Opname sebagai penjelas selisih fisik.</li>
+</ul>
+</div>
+
+<h3 id="s5-7">5.7 Mencatat biaya, kasbon, dan pindah buku kas</h3>
+<h4>a. Biaya Operasional</h4>
+<p class="tujuan">Tujuan: mencatat pengeluaran Kas Kecil (BBM, upah angkut, ongkos kirim, dll.) dan kasbon karyawan.</p>
+<ol>
+  <li>Buka <span class="ui">Biaya Operasional</span> → <span class="ui">Entri</span>.</li>
+  <li>Isi <span class="ui">Tanggal</span>. <span class="ui">Akun Kas Sumber</span> otomatis <span class="ui">Kas Kecil</span>.</li>
+  <li>Klik <span class="ui">Entri</span> baris. Jendela <span class="ui">Entri Baris Biaya Operasional</span> punya dua tab:
+    <ul>
+      <li><span class="ui">Biaya</span> — pilih <span class="ui">Akun Biaya</span>. Untuk akun BBM/servis/pajak kendaraan muncul kotak <span class="ui">Kendaraan</span>; untuk Upah Tukang Angkut muncul kotak <span class="ui">Pekerja</span>.</li>
+      <li><span class="ui">Kasbon</span> — akun otomatis Piutang Karyawan; <span class="ui">Pekerja</span> wajib dipilih.</li>
+    </ul>
+  </li>
+  <li>Isi <span class="ui">Nominal</span>, <span class="ui">Keterangan</span>, dan <span class="ui">No. Referensi / Kwitansi</span> (opsional). <span class="ui">Simpan</span> baris. Ulangi untuk biaya lain.</li>
+  <li>Klik <span class="ui">Simpan</span> dokumen.</li>
+</ol>
+<figure><img src="img/biaya-baris-kendaraan.png" alt=""><figcaption>Baris biaya BBM: kotak Kendaraan muncul otomatis.</figcaption></figure>
+<ul>
+  <li>Satu tanggal = satu bukti (<code>KK/…</code>). Baris yang Anda simpan di hari yang sama otomatis bergabung ke bukti hari itu.</li>
+  <li>Boleh mundur tanggal sampai <b>7 hari</b>.</li>
+  <li><b>Memperbaiki</b>: klik bukti di daftar → panel <span class="ui">Detail Bukti Kas Keluar</span> → menu ⋮ di baris → <span class="ui">Ubah</span>. Bisa selama bukti belum <span class="ui">Disetujui</span> Supervisor. Setelah disetujui, koreksi lewat ⋮ → <span class="ui">VOID</span> (isi Kode Alasan &amp; Catatan Alasan) lalu entri baris baru. Untuk Operator, VOID baris butuh persetujuan Supervisor.</li>
+  <li>Akun <b>Gaji Salesman</b> hanya bisa dipilih Master.</li>
+  <li>Baris <span class="ui">Kasbon</span> wajib memilih <span class="ui">Pekerja</span> penerima kasbon.</li>
+</ul>
+<figure><img src="img/biaya-detail.png" alt=""><figcaption>Detail Bukti Kas Keluar beserta baris-barisnya.</figcaption></figure>
+
+<h4>b. Pelunasan Kasbon</h4>
+<p class="tujuan">Tujuan: mencatat karyawan yang menyetor tunai untuk melunasi kasbonnya.</p>
+<ol>
+  <li>Buka <span class="ui">Pelunasan Kasbon</span>. Tabel <span class="ui">Sisa Kasbon per Pekerja</span> menampilkan <span class="ui">Total Kasbon</span>, <span class="ui">Sudah Disetor</span>, dan <span class="ui">Sisa</span>.</li>
+  <li>Klik baris pekerja yang menyetor (atau klik <span class="ui">Entri</span> lalu pilih <span class="ui">Pekerja</span>).</li>
+  <li>Periksa <span class="ui">Tanggal</span>; <span class="ui">Disetor ke</span> selalu Kas Kecil. Isi <span class="ui">Nominal Setoran</span> dan <span class="ui">Keterangan</span> (opsional) → <span class="ui">Simpan</span>.</li>
+</ol>
+<figure><img src="img/pelunasan-kasbon-entri.png" alt=""><figcaption>Entri Pelunasan Kasbon: total, sudah disetor, dan sisa kasbon pekerja tampil di kanan.</figcaption></figure>
+<ul>
+  <li>Setoran sebagian boleh; nominal yang melebihi sisa kasbon ditolak.</li>
+  <li>Bukti bernomor <code>PK/…</code>. Kalau salah: pilih bukti → <span class="ui">VOID</span> (Operator butuh persetujuan); sisa kasbon pekerja bertambah lagi.</li>
+</ul>
+
+<h4>c. Pindah Buku Kas</h4>
+<p class="tujuan">Tujuan: memindahkan uang antar kas/bank milik sendiri (isi ulang Kas Kecil, setoran Kas Toko ke Kas Besar).</p>
+<ol>
+  <li>Buka <span class="ui">Pindah Buku Kas</span> → <span class="ui">Entri</span>.</li>
+  <li>Isi <span class="ui">Tanggal</span>, <span class="ui">Dari Kas</span>, <span class="ui">Ke Kas</span>, <span class="ui">Nominal</span>, <span class="ui">Keterangan</span>.</li>
+  <li>Klik <span class="ui">Simpan</span>. Muncul pemberitahuan <code>PB/… tersimpan.</code> dengan tombol <span class="ui">Cetak</span>. Bukti juga bisa dicetak nanti: klik dokumen di daftar → panel <span class="ui">Detail Pindah Buku Kas</span> → <span class="ui">Cetak</span>.</li>
+</ol>
+<figure><img src="img/pindah-buku-entri.png" alt=""><figcaption>Form Pindah Buku Kas.</figcaption></figure>
+<ul>
+  <li>Isi ulang Kas Kecil selalu <b>Rp 1.000.000</b>. Setoran Kas Toko ke Kas Besar di akhir hari <b>dipindahkan seluruhnya</b>.</li>
+  <li>Tidak butuh persetujuan sebelum simpan; Supervisor mengeceknya sesudahnya di Pengecekan Invoice.</li>
+  <li>Kalau salah: klik dokumen → <span class="ui">VOID</span> (butuh persetujuan untuk Operator) → buat ulang.</li>
+</ul>
+
+<h3 id="s5-8">5.8 Salah input — apa yang harus dilakukan?</h3>
+<table>
+  <thead><tr><th style="width:28%">Keadaan</th><th>Yang dilakukan</th></tr></thead>
+  <tbody>
+    <tr><td><b>Belum disimpan</b></td><td>Perbaiki langsung di jendela entri, atau tutup dan buang.</td></tr>
+    <tr><td><b>Sudah disimpan, belum dicetak</b>, masih dalam 2 hari</td><td>Detail faktur → <span class="ui">Ubah</span> → perbaiki → <span class="ui">Simpan</span>. Nomor tetap, muncul “Revisi N”. Bisa juga <span class="ui">VOID</span> lalu buat ulang (Operator: VOID butuh persetujuan).</td></tr>
+    <tr><td><b>Sudah dicetak</b>, masih dalam 2 hari</td><td>Detail → <span class="ui">Batal Cetak</span> → pilih <span class="ui">Diperbaiki</span> (atau <span class="ui">Dibatalkan/VOID</span>) → isi <span class="ui">Alasan</span> → <span class="ui">Lanjutkan</span>. Layar Ubah (atau VOID) terbuka; simpan → tunggu persetujuan. Setelah tersimpan, cetak ulang nota; nota hasil revisi mencantumkan nomor revisinya.</td></tr>
+    <tr><td><b>Sudah lewat 2 hari</b></td><td>Tidak bisa direvisi. <span class="ui">VOID</span> faktur lama (lewat Batal Cetak → Dibatalkan/VOID bila sudah dicetak), lalu buat faktur baru. Barang yang sudah kembali → gunakan Retur.</td></tr>
+    <tr><td><b>Ditandai Bermasalah</b> oleh Supervisor</td><td>Baris faktur berwarna merah di daftar. Buka detail: kotak merah <span class="ui">Ditandai bermasalah oleh supervisor</span> berisi catatannya. Perbaiki sesuai catatan dengan salah satu cara di atas, lalu beri tahu Supervisor untuk dicek ulang.</td></tr>
+    <tr><td>Faktur penjualan sudah punya <b>Surat Jalan atau Retur</b></td><td>Tidak bisa direvisi; gunakan VOID + faktur baru.</td></tr>
+    <tr><td><b>Retur</b> penjualan/pembelian salah</td><td>Sama seperti faktur: detail retur → <span class="ui">Ubah</span> (dalam batas 2 hari) atau <span class="ui">VOID</span> lalu buat retur baru.</td></tr>
+    <tr><td><b>Order Penjualan</b> tidak jadi</td><td>Detail order → <span class="ui">Batalkan SO</span> + alasan.</td></tr>
+    <tr><td>Faktur pembelian yang barangnya <b>sudah terjual sebagian</b></td><td>Tidak bisa direvisi; buat <span class="ui">Retur Pembelian</span> (tombol <span class="ui">Buat Retur Pembelian</span> muncul di pesan kesalahan).</td></tr>
+  </tbody>
+</table>
+<h4>Langkah Batal Cetak</h4>
+<ol>
+  <li>Buka detail dokumen yang sudah dicetak → klik <span class="ui">Batal Cetak</span>.</li>
+  <li>Pada <span class="ui">Mau diapakan setelah dibatalkan?</span> pilih <span class="ui">Diperbaiki</span> atau <span class="ui">Dibatalkan/VOID</span>.</li>
+  <li>Isi <span class="ui">Alasan</span> (wajib) → klik <span class="ui">Lanjutkan</span>.</li>
+  <li>Layar perbaikan (atau jendela VOID) terbuka dengan alasan sudah terisi. Selesaikan perbaikannya dan klik <span class="ui">Simpan</span> / <span class="ui">VOID Faktur</span>.</li>
+  <li>Jendela <span class="ui">Menunggu Persetujuan</span> muncul. Setelah Supervisor menyetujui, perubahan tersimpan otomatis.</li>
+</ol>
+<figure><img src="img/batal-cetak-dialog.png" alt=""><figcaption>Dialog Batal Cetak: niat dan alasan wajib diisi.</figcaption></figure>
+<h4>Langkah VOID</h4>
+<ol>
+  <li>Detail dokumen → <span class="ui">VOID</span> (atau lewat Batal Cetak bila sudah dicetak).</li>
+  <li>Isi <span class="ui">Kode Alasan</span> (singkat, misalnya <code>SALAH_INPUT</code>) dan <span class="ui">Catatan Alasan</span> (penjelasan).</li>
+  <li>Klik <span class="ui">VOID Faktur</span> (atau <span class="ui">VOID Batch</span>/<span class="ui">VOID</span>). Tunggu persetujuan bila diminta.</li>
+</ol>
+<figure><img src="img/void-dialog.png" alt=""><figcaption>Jendela VOID faktur penjualan. Faktur tidak dihapus; dibatalkan dengan pencatatan pembalik bertanggal hari ini.</figcaption></figure>
+<figure><img src="img/faktur-bermasalah-operator.png" alt=""><figcaption>Yang dilihat Operator pada faktur yang ditandai Bermasalah.</figcaption></figure>
+
+<!-- ============================ BAB 6 ============================ -->
+<h2 class="bab" id="bab6">6. Panduan Supervisor</h2>
+<div class="callout sup"><span class="judul">Hanya Supervisor/Master</span>
+<p>Menu Supervisor hanya tiga: <span class="ui">Pengecekan Invoice</span>, <span class="ui">Antrian Persetujuan</span>, dan <span class="ui">Laporan</span>. Supervisor tidak pernah mengubah faktur; kalau ada yang salah, tandai Bermasalah dan minta Operator memperbaikinya.</p>
+</div>
+
+<h3 id="s6-1">6.1 Pengecekan sore hari</h3>
+<p class="tujuan">Tujuan: memastikan setiap faktur dan bukti kas hari ini sesuai dengan nota fisik.</p>
+<ol>
+  <li>Buka <span class="ui">Pengecekan Invoice</span>. Halaman <span class="ui">Pengecekan Invoice Harian</span> otomatis menyaring <b>tanggal hari ini</b> dan status <span class="ui">Belum Dicek</span>. Ubah tanggal/status bila perlu (klik × untuk menghapus saringan).</li>
+  <li>Pilih tab: <span class="ui">Faktur Penjualan</span>, <span class="ui">Faktur Pembelian</span>, <span class="ui">Pindah Buku Kas</span>, atau <span class="ui">Biaya Operasional</span>.
+    <figure><img src="img/supervisor-pengecekan.png" alt=""><figcaption>Halaman pertama Supervisor setelah login: saringan hari ini + Belum Dicek, empat tab dokumen.</figcaption></figure>
+  </li>
+  <li>Klik <span class="ui">Detail</span> di baris dokumen. Panel kanan menampilkan baris barang/biaya dan total.</li>
+  <li>Cocokkan dengan nota fisik, lalu:
+    <ul>
+      <li><span class="ui">Setujui</span> — kalau semua benar.</li>
+      <li><span class="ui">Tandai Bermasalah</span> — isi <span class="ui">Catatan</span> (wajib; dibaca Operator), lalu klik <span class="ui">Tandai Bermasalah</span>.</li>
+    </ul>
+  </li>
+</ol>
+<figure><img src="img/pengecekan-detail.png" alt=""><figcaption>Panel detail faktur di Pengecekan Invoice dengan tombol Setujui dan Tandai Bermasalah.</figcaption></figure>
+<figure><img src="img/tandai-bermasalah.png" alt=""><figcaption>Mengisi catatan untuk Operator.</figcaption></figure>
+<h4>Apa yang dicek</h4>
+<ul>
+  <li>Pelanggan/supplier, tanggal, produk, qty, satuan, dan harga sama dengan nota fisik.</li>
+  <li>Tanda kuning <span class="ui">Selisih pembayaran &gt; Rp 10.000</span>: ada pelunasan dengan selisih besar — pastikan memang disepakati.</li>
+  <li>Biaya Operasional: akun biaya cocok dengan kwitansi; kendaraan/pekerja benar.</li>
+  <li>Pindah Buku Kas: isi ulang Kas Kecil Rp 1.000.000; setoran Kas Toko dipindahkan seluruhnya.</li>
+</ul>
+<p>Pengecekan bersifat <b>setelah kejadian</b> dan tidak pernah menghalangi Operator mencetak nota. Biaya Operasional yang sudah <span class="ui">Disetujui</span> tidak bisa lagi diubah langsung oleh Operator (harus VOID + baris baru).</p>
+
+<h3 id="s6-2">6.2 Antrian Persetujuan</h3>
+<p class="tujuan">Tujuan: menyetujui atau menolak permintaan Operator secepatnya — Operator sedang menunggu di layar.</p>
+<ol>
+  <li>Buka <span class="ui">Antrian Persetujuan</span>. Tab <span class="ui">Menunggu</span> terbuka. Halaman memperbarui sendiri setiap 5 detik.</li>
+  <li>Baca kalimat ringkasan di setiap kartu (misalnya <i>Faktur WARUNG BU SITI: 1 baris di bawah harga pokok — …</i>). Klik <span class="ui">Detail</span> untuk rincian.</li>
+  <li>Klik <span class="ui">Setujui</span>, atau <span class="ui">Tolak</span> → tulis alasan penolakan (wajib) → <span class="ui">Konfirmasi Tolak</span>.</li>
+</ol>
+<figure><img src="img/antrian-persetujuan.png" alt=""><figcaption>Antrian Persetujuan: beberapa jenis permintaan menunggu; kartu pertama dibuka Detail-nya.</figcaption></figure>
+<p>Tab lain: <span class="ui">Semua</span>, <span class="ui">Disetujui</span>, <span class="ui">Ditolak</span>, <span class="ui">Kedaluwarsa</span> (lewat 15 menit tanpa jawaban), <span class="ui">Selesai</span> (sudah dipakai Operator). Kartu yang tidak bisa diproses lagi tampil pudar.</p>
+<h4>Kapan menyetujui, kapan menolak</h4>
+<table>
+  <thead><tr><th style="width:24%">Jenis</th><th>Setujui bila…</th><th>Tolak bila…</th></tr></thead>
+  <tbody>
+    <tr><td class="ui">Jual di Bawah Harga Pokok</td><td>Harga murah memang disengaja (promo, barang mendekati kedaluwarsa, pelanggan khusus).</td><td>Kemungkinan salah ketik harga atau salah satuan.</td></tr>
+    <tr><td class="ui">VOID Dokumen</td><td>Alasan jelas dan dokumen memang harus batal (akan dibuat ulang).</td><td>Alasan kabur; kesalahan masih bisa direvisi.</td></tr>
+    <tr><td class="ui">Batal Cetak</td><td>Ada kesalahan nyata di nota yang sudah keluar, dan nota lama sudah/akan ditarik.</td><td>Hanya ingin cetak ulang (cetak ulang tidak butuh izin).</td></tr>
+    <tr><td class="ui">Pengeluaran Kas</td><td>Nominal dan tujuan pembayaran sesuai tagihan supplier.</td><td>Nominal/akun tidak sesuai; minta Operator memeriksa ulang.</td></tr>
+    <tr><td class="ui">Mutasi Bad Stock ke Toko</td><td>Barang sudah Anda periksa sendiri dan layak dijual.</td><td>Barang belum diperiksa atau memang rusak.</td></tr>
+  </tbody>
+</table>
+<div class="callout perhatikan"><span class="judul">Perhatikan</span>
+<ul>
+  <li>Setujui dari komputer Anda sendiri. Jangan login sebagai Supervisor di komputer Operator.</li>
+  <li>Persetujuan hanya berlaku untuk isi yang Anda lihat. Kalau Operator mengubah isi sesudahnya, ia harus meminta ulang.</li>
+</ul>
+</div>
+
+<!-- ============================ BAB 7 ============================ -->
+<h2 class="bab" id="bab7">7. Panduan Master</h2>
+<div class="callout sup"><span class="judul">Hanya Master</span>
+<p>Bab ini untuk pemilik/administrator. Master juga bisa memakai seluruh menu Operator dan Supervisor.</p>
+</div>
+
+<h3 id="s7-1">7.1 Akuntansi</h3>
+<p>Pencatatan akuntansi berjalan otomatis dari setiap transaksi. Menu <span class="ui">AKUNTANSI</span> dipakai untuk melihat, bukan untuk mengetik transaksi harian.</p>
+<h4>Bagan Akun</h4>
+<p>Daftar seluruh akun (kas, bank, piutang, persediaan, pendapatan, biaya, dll.) dalam bentuk pohon, dengan kolom <span class="ui">Kode</span>, <span class="ui">Nama</span>, <span class="ui">Tipe</span>, <span class="ui">Kelompok Laporan</span>, <span class="ui">Saldo Normal</span>, <span class="ui">Saldo</span>. Gunakan <span class="ui">Expand semua</span> / <span class="ui">Collapse semua</span> dan kotak <span class="ui">Cari kode/nama akun...</span>. Master bisa menambah akun (<span class="ui">Entri</span>) atau mengubah akun terpilih (<span class="ui">Ubah</span>), misalnya menambah rekening bank baru (nyalakan <span class="ui">Akun Kas/Bank</span>) atau menyalakan <span class="ui">Wajib Otorisasi Supervisor untuk Pengeluaran Besar</span> pada akun kas.</p>
+<figure><img src="img/bagan-akun.png" alt=""><figcaption>Bagan Akun.</figcaption></figure>
+<h4>Jurnal</h4>
+<p>Daftar catatan pembukuan yang dibuat otomatis oleh setiap transaksi (hanya baca). Saring dengan tanggal atau akun; klik baris untuk melihat rinciannya. Lencana <span class="ui">Pembalik</span> menandai catatan pembatalan dari VOID. Menu ini hanya untuk Master (Supervisor bisa membukanya lewat alamat langsung; Operator tidak).</p>
+<figure><img src="img/jurnal-detail.png" alt=""><figcaption>Detail satu jurnal dari faktur penjualan.</figcaption></figure>
+<h4>Saldo Awal</h4>
+<p>Untuk memasukkan posisi awal saat mulai memakai aplikasi (bertanggal 1 September 2026). Ada dua cara:</p>
+<p><b>A. Ketik langsung</b> di tiga tabel, klik <span class="ui">Tambah baris</span> untuk baris berikutnya, lalu <span class="ui">Simpan</span>:</p>
+<table>
+  <thead><tr><th style="width:26%">Tabel</th><th>Kolom</th></tr></thead>
+  <tbody>
+    <tr><td class="ui">Saldo Awal Stok</td><td><span class="ui">Produk</span>, <span class="ui">Qty</span>, <span class="ui">Satuan</span> (otomatis satuan terbesar), <span class="ui">Harga Pokok / Satuan</span> — harga per satuan yang dipilih. Gudang selalu Toko.</td></tr>
+    <tr><td class="ui">Saldo Awal Piutang</td><td><span class="ui">Pelanggan</span>, <span class="ui">Nominal</span> (sisa piutang), <span class="ui">Keterangan</span>.</td></tr>
+    <tr><td class="ui">Saldo Awal Hutang</td><td><span class="ui">Supplier</span>, <span class="ui">Nominal</span> (sisa hutang), <span class="ui">Keterangan</span>.</td></tr>
+  </tbody>
+</table>
+<p><b>B. Impor dari Excel:</b> klik <span class="ui">Unduh Template</span>, isi sheet Stok / Piutang / Hutang, lalu <span class="ui">Unggah File Excel</span>. Aplikasi menampilkan <b>pratinjau</b> dulu; baris yang bermasalah ditandai (sheet, baris, masalah) dan posting dikunci sampai file diperbaiki. Bila pratinjau benar, klik <span class="ui">Posting Saldo Awal dari File</span>; atau <span class="ui">Batalkan Pratinjau</span>.</p>
+<p>Kotak di atas menunjukkan apakah nilai stok pembuka sudah seimbang dengan saldo akun persediaan (<span class="ui">Saldo awal seimbang</span>).</p>
+<figure><img src="img/saldo-awal.png" alt=""><figcaption>Layar Saldo Awal: impor Excel dan tabel stok.</figcaption></figure>
+<div class="callout perhatikan"><span class="judul">Perhatikan</span>
+<ul>
+  <li>Saldo awal <b>tidak bisa dibatalkan</b> dari aplikasi, dan menyimpan dua kali akan mencatat dua kali. Simpan satu kali saja, setelah angkanya pasti.</li>
+  <li>Saldo awal piutang/hutang belum muncul sebagai faktur di Penerimaan/Pengeluaran Kas, jadi pelunasannya belum bisa dicatat di sana. Tanyakan ke developer cara mencatat pelunasannya.</li>
+</ul>
+</div>
+
+<h3 id="s7-2">7.2 Pengaturan</h3>
+<p>Ubah nilai, lalu klik <span class="ui">Simpan Perubahan</span>.</p>
+<table>
+  <thead><tr><th style="width:36%">Pengaturan</th><th>Keterangan</th></tr></thead>
+  <tbody>
+    <tr><td class="ui">Kode Toko</td><td>Bagian nomor dokumen (RM01). Terkunci setelah dokumen pertama terbit.</td></tr>
+    <tr><td><span class="ui">Nama Toko</span>, <span class="ui">Kota</span>, <span class="ui">Telepon</span></td><td>Tercetak di kepala nota; yang kosong tidak dicetak.</td></tr>
+    <tr><td class="ui">Perusahaan Berstatus PKP</td><td>Saat ini mati: PPN keluaran selalu Rp 0 dan PPN masukan dari supplier PKP ikut menjadi harga pokok. Bila dinyalakan, PPN keluaran dihitung di semua nota penjualan, tidak peduli pelanggannya PKP atau bukan. Jangan dinyalakan tanpa berkonsultasi dengan konsultan pajak dan developer.</td></tr>
+    <tr><td class="ui">Mode Perhitungan Pajak</td><td>Apakah harga yang diketik sudah/belum termasuk PPN. Baru berpengaruh bila toko PKP.</td></tr>
+    <tr><td class="ui">Maksimum Mundur Tanggal Transaksi</td><td>Batas hari tanggal transaksi boleh mundur (standar 2). Juga menjadi jendela revisi faktur.</td></tr>
+    <tr><td class="ui">Lebar Bucket Umur Piutang/Hutang</td><td>Jumlah hari per kolom umur di laporan piutang/hutang (30 → kolom 1-30, 31-60, 61-90, &gt;90).</td></tr>
+    <tr><td class="ui">Ambang Persetujuan Pengeluaran Kas</td><td>Pengeluaran dari akun kas yang ditandai “butuh persetujuan” (Kas Besar, bank) <b>di atas</b> nominal ini wajib disetujui Supervisor/Master. Rp 0 = setiap pengeluaran dari akun itu butuh persetujuan.</td></tr>
+  </tbody>
+</table>
+<figure><img src="img/pengaturan.png" alt=""><figcaption>Halaman Pengaturan.</figcaption></figure>
+
+<h3 id="s7-3">7.3 Pengguna dan password</h3>
+<p>Menu <span class="ui">Pengaturan</span> → <span class="ui">Pengguna</span> (khusus Master) untuk mengatur akun login.</p>
+<ul>
+  <li><b>Pengguna baru:</b> <span class="ui">Entri</span> → isi <span class="ui">Username</span> (3–32 karakter: huruf kecil, angka, titik, garis bawah, minus), <span class="ui">Nama Lengkap</span>, <span class="ui">Role</span> (Master / Supervisor / Operator), <span class="ui">Password</span> (minimal 6 karakter) → <span class="ui">Simpan</span>.</li>
+  <li><b>Mengubah:</b> pilih baris → <span class="ui">Ubah</span>. Username tidak bisa diubah.</li>
+  <li><b>Lupa password:</b> menu ⋮ di baris → <span class="ui">Reset Password</span> → isi <span class="ui">Password Baru</span> dan <span class="ui">Ulangi Password Baru</span>. Sesi login orang itu langsung diakhiri.</li>
+  <li><b>Karyawan keluar:</b> <span class="ui">Hapus</span>/<span class="ui">Nonaktifkan</span> — akun tidak bisa login lagi, tetapi namanya tetap tercatat di dokumen lama. Anda tidak bisa menonaktifkan akun sendiri atau Master aktif terakhir.</li>
+</ul>
+<figure><img src="img/pengguna-list.png" alt=""><figcaption>Pengaturan › Pengguna.</figcaption></figure>
+
+<h3 id="s7-4">7.4 Laporan untuk Master</h3>
+<p>Master melihat semua laporan (Bab 8). Yang paling sering dipakai pemilik: <span class="ui">Laporan Penjualan</span>, <span class="ui">Laporan Piutang</span>, <span class="ui">Laporan Hutang</span>, <span class="ui">Rekap Kas Harian</span>, dan <span class="ui">Laporan Biaya Operasional</span>. Gunakan <span class="ui">Kontinuitas Nomor Dokumen</span> dan <span class="ui">Rekonsiliasi Stok</span> untuk pemeriksaan berkala.</p>
+
+<!-- ============================ BAB 8 ============================ -->
+<h2 class="bab" id="bab8">8. Laporan</h2>
+<p>Buka menu <span class="ui">Laporan</span>, lalu klik kartu laporan yang diinginkan. Hampir semua laporan punya tombol <span class="ui">Excel</span> dan <span class="ui">PDF</span> di kanan atas untuk mengunduh. Baris yang menunjuk dokumen (misalnya faktur) bisa diklik untuk membuka dokumen sumbernya. Baris <b>GRAND TOTAL</b> tercetak tebal di bawah.</p>
+<figure><img src="img/laporan-operator.png" alt=""><figcaption>Halaman Laporan (tampilan Operator — tanpa kartu Stok Opname).</figcaption></figure>
+
+<h3 id="s8-1">8.1 Kontinuitas Nomor Dokumen</h3>
+<p><b>Gunanya:</b> membuktikan tidak ada nomor dokumen yang hilang. <b>Cara:</b> pilih <span class="ui">Jenis Dokumen</span> dan <span class="ui">Periode</span> (bulan). <b>Cara membaca:</b> setiap nomor dari 0001 tampil dengan <span class="ui">Status</span>: <span class="ui">Terposting</span>, <span class="ui">Dibatalkan</span> (latar kuning, alasan VOID tampil di <span class="ui">Keterangan</span>), atau <span class="ui">HILANG</span> (latar merah — seharusnya tidak pernah terjadi; laporkan ke developer). Di atas tabel tertulis <span class="ui">Nomor terakhir</span> dan jumlah <span class="ui">Lubang</span>.</p>
+<figure><img src="img/lap-kontinuitas.png" alt=""><figcaption>Laporan Kontinuitas Nomor Dokumen.</figcaption></figure>
+
+<h3 id="s8-2">8.2 Laporan Stok</h3>
+<p><b>Gunanya:</b> stok saat ini per produk. <b>Cara membaca:</b> kolom <span class="ui">Stok Toko</span>, <span class="ui">Stok BS</span> (Barang Rusak), dan <span class="ui">Total</span>, dalam pecahan satuan (mis. “12 dus 5 renceng”). Angka minus berarti faktur pembelian belum dimasukkan.</p>
+<figure><img src="img/lap-stok.png" alt=""><figcaption>Laporan Stok.</figcaption></figure>
+
+<h3 id="s8-3">8.3 Laporan Barang Titipan</h3>
+<p><b>Gunanya:</b> barang yang sudah dibayar pelanggan tetapi belum diambil, per pelanggan per faktur. Ketik nama pelanggan, nomor faktur, atau nama barang di kotak Cari.</p>
+
+<h3 id="s8-4">8.4 Stok Opname</h3>
+<div class="callout sup"><span class="judul">Hanya Supervisor/Master</span>
+<p>Operator tidak bisa membuka laporan ini, supaya hitungan fisik tidak terpengaruh angka sistem.</p>
+</div>
+<p><b>Gunanya:</b> menghitung stok fisik gudang Toko dan — setelah disetujui Master — mengoreksi stok sistem.</p>
+<ol>
+  <li>Unduh lembar kerja dengan tombol <span class="ui">Excel</span>/<span class="ui">PDF</span> bila ingin menghitung di kertas.</li>
+  <li>Isi <span class="ui">Tanggal Hitung</span>, <span class="ui">Catatan</span>, dan kolom <span class="ui">Fisik</span> per barang. <span class="ui">Selisih</span> terhitung otomatis terhadap <span class="ui">Stok Sistem (Toko)</span>. Kolom <span class="ui">Titipan (penjelas)</span> menjelaskan barang yang ada di rak tapi sudah milik pelanggan.</li>
+  <li>Klik <span class="ui">Simpan Hitungan</span>. Tersimpan sebagai dokumen <code>OP/…</code> berstatus <span class="ui">Draft</span> — stok <b>belum</b> berubah.</li>
+  <li>Di tabel <span class="ui">Dokumen Stok Opname</span>, klik dokumen untuk melihat rincian (Sistem, Fisik, Selisih, Nilai). <span class="ui">Muat ke Worksheet</span> untuk melanjutkan/memperbaiki hitungan; menyimpan lagi akan mengganti isi draft.</li>
+  <li><b>Master</b> memeriksa lalu klik <span class="ui">Posting (Koreksi Stok)</span>: stok sistem disesuaikan dengan hitungan fisik dan selisih nilainya dicatat otomatis. Status menjadi <span class="ui">Terposting</span>.</li>
+</ol>
+<figure><img src="img/opname-detail.png" alt=""><figcaption>Dokumen Stok Opname berstatus Draft: Muat ke Worksheet, Posting (Koreksi Stok), VOID.</figcaption></figure>
+<div class="callout perhatikan"><span class="judul">Perhatikan</span>
+<p>Supervisor bisa menyimpan hitungan, tetapi <span class="ui">Posting</span> dan <span class="ui">VOID</span> hanya oleh Master. VOID draft cukup membatalkannya; VOID dokumen terposting membalik koreksi stok dengan tanggal hari ini.</p>
+</div>
+
+<h3 id="s8-5">8.5 Laporan Penjualan</h3>
+<p><b>Gunanya:</b> total penjualan per periode. <b>Cara:</b> pilih <span class="ui">Dasar Pengelompokan</span> — <span class="ui">Per Pelanggan</span>, <span class="ui">Per Salesman</span>, atau <span class="ui">Detail per Faktur</span> — lalu isi <span class="ui">Dari</span> dan <span class="ui">Sampai</span>. Saringan <span class="ui">Salesman</span> hanya aktif pada Detail per Faktur. <b>Cara membaca:</b> mode rekap menampilkan <span class="ui">Jml Faktur</span> dan <span class="ui">Total</span>; mode detail menampilkan setiap faktur, klik baris untuk membuka fakturnya. Tidak ada perhitungan komisi.</p>
+<figure><img src="img/lap-penjualan-faktur.png" alt=""><figcaption>Laporan Penjualan, mode Detail per Faktur.</figcaption></figure>
+
+<h3 id="s8-6">8.6 Laporan Piutang</h3>
+<p><b>Gunanya:</b> siapa yang masih berutang ke toko dan sudah berapa lama. <b>Cara membaca:</b> satu baris per pelanggan dengan kolom umur (<span class="ui">1-30</span>, <span class="ui">31-60</span>, <span class="ui">61-90</span>, <span class="ui">&gt;90</span> hari) dan <span class="ui">Total</span>. Klik baris pelanggan → bagian <span class="ui">Rincian Piutang</span> muncul di bawah; klik baris rincian untuk membuka fakturnya.</p>
+<figure><img src="img/lap-piutang-detail.png" alt=""><figcaption>Laporan Piutang dengan rincian satu pelanggan.</figcaption></figure>
+
+<h3 id="s8-7">8.7 Laporan Hutang</h3>
+<p><b>Gunanya:</b> tagihan supplier yang belum dibayar, dikelompokkan menurut umur dari jatuh tempo. Klik baris supplier untuk melihat faktur pembentuknya (<span class="ui">No. Faktur</span>, <span class="ui">Jatuh Tempo</span>, <span class="ui">Sisa Hutang</span>).</p>
+<figure><img src="img/lap-hutang.png" alt=""><figcaption>Laporan Hutang.</figcaption></figure>
+
+<h3 id="s8-8">8.8 Rekap Kas Harian</h3>
+<p><b>Gunanya:</b> pengganti cash opname — posisi setiap kas/bank pada satu tanggal. <b>Cara:</b> pilih <span class="ui">Tanggal</span> dan (opsional) <span class="ui">Akun</span>. <b>Cara membaca:</b> <span class="ui">Saldo Awal</span> + <span class="ui">Masuk</span> − <span class="ui">Keluar</span> = <span class="ui">Saldo Akhir</span>. Cocokkan Saldo Akhir Kas Toko/Kas Kecil dengan uang fisik di laci.</p>
+<figure><img src="img/lap-kas.png" alt=""><figcaption>Rekap Kas Harian (data contoh tanpa saldo awal, sehingga Kas Besar tampak minus).</figcaption></figure>
+
+<h3 id="s8-9">8.9 Rekonsiliasi Stok</h3>
+<p><b>Gunanya:</b> pemeriksaan kesehatan data stok. Kolom <span class="ui">Selisih</span> <b>harus 0</b> di semua baris. Kalau ada yang tidak 0, jangan diperbaiki sendiri — hubungi developer.</p>
+
+<h3 id="s8-10">8.10 Laporan Biaya Operasional</h3>
+<p><b>Gunanya:</b> rekap biaya per akun untuk satu <span class="ui">Bulan</span> (<span class="ui">Nama Biaya</span>, <span class="ui">Jumlah</span>, GRAND TOTAL). Kasbon tidak ikut karena bukan biaya. Unduhan hanya <span class="ui">Excel</span>.</p>
+<figure><img src="img/lap-biaya.png" alt=""><figcaption>Laporan Biaya Operasional.</figcaption></figure>
+
+<!-- ============================ BAB 9 ============================ -->
+<h2 class="bab" id="bab9">9. Pertanyaan Umum &amp; Pesan Kesalahan</h2>
+
+<h3 id="s9-1">9.1 Pesan yang sering muncul</h3>
+<table>
+  <thead><tr><th style="width:46%">Pesan di layar</th><th>Artinya &amp; yang harus dilakukan</th></tr></thead>
+  <tbody>
+    <tr><td class="ui">Tanggal transaksi maksimal mundur 2 hari dari hari ini.</td><td>Tanggal transaksi terlalu lama. Pakai tanggal yang lebih baru, atau minta Master bila memang perlu.</td></tr>
+    <tr><td class="ui">Tanggal transaksi tidak boleh di masa depan.</td><td>Tanggal melewati hari ini. Periksa tanggal.</td></tr>
+    <tr><td class="ui">Faktur berumur lebih dari 2 hari tidak bisa direvisi. Gunakan VOID lalu terbitkan faktur baru.</td><td>Klik <span class="ui">Batalkan (VOID)</span>, lalu buat faktur baru (lihat 3.5).</td></tr>
+    <tr><td class="ui">Faktur ini sudah punya Surat Jalan atau Retur Penjualan yang merujuk baris-barisnya — tidak bisa direvisi. Gunakan VOID lalu terbitkan faktur baru.</td><td>Sama: VOID + faktur baru.</td></tr>
+    <tr><td class="ui">Barang dari faktur ini sudah terjual sebagian — tidak bisa direvisi. Gunakan Retur Pembelian.</td><td>Klik <span class="ui">Buat Retur Pembelian</span>.</td></tr>
+    <tr><td class="ui">Pilih Sales Order (salesman mengikuti PJ-nya).</td><td>Faktur Pengiriman wajib memilih Sales Order. Buat Order Penjualan dulu.</td></tr>
+    <tr><td class="ui">Tidak ada Sales Order terbuka untuk pelanggan ini.</td><td>Belum ada order untuk pelanggan itu, atau sudah semua dijadikan faktur.</td></tr>
+    <tr><td class="ui">Faktur bersaluran TOKO tidak bisa dibuatkan surat jalan — hanya faktur PENGIRIMAN.</td><td>Faktur Toko tidak butuh surat jalan.</td></tr>
+    <tr><td class="ui">Faktur ini sudah punya surat jalan aktif.</td><td>Surat jalannya sudah ada; buka menu Surat Jalan.</td></tr>
+    <tr><td class="ui">Pembayaran (Rp …) melebihi sisa faktur (Rp …). Tandai lunas dulu kalau memang ingin menutupnya dengan selisih.</td><td>Kurangi nominal, atau centang <span class="ui">Tandai Lunas</span>.</td></tr>
+    <tr><td class="ui">Kode alasan dan catatan alasan wajib diisi.</td><td>Isi kedua kotak di jendela VOID.</td></tr>
+    <tr><td class="ui">Alasan wajib diisi untuk membatalkan cetak dokumen yang sudah dicetak.</td><td>Isi <span class="ui">Alasan Revisi</span> / <span class="ui">Alasan</span>.</td></tr>
+    <tr><td class="ui">Waktu persetujuan habis (15 menit). Ulangi aksinya dari awal.</td><td>Supervisor tidak menjawab dalam 15 menit. Simpan ulang dan hubungi Supervisor.</td></tr>
+    <tr><td><span class="ui">Ditolak: …</span> / <span class="ui">Permintaan ditolak Supervisor/Master.</span></td><td>Baca alasan, perbaiki, ulangi.</td></tr>
+    <tr><td class="ui">Masih ada permintaan persetujuan lain yang berjalan — selesaikan dulu.</td><td>Tunggu/batalkan permintaan yang sedang terbuka.</td></tr>
+    <tr><td class="ui">Persetujuan dibatalkan — faktur belum dibatalkan.</td><td>Anda menekan Batalkan saat menunggu. Ulangi bila masih perlu.</td></tr>
+    <tr><td class="ui">Bukti sudah disetujui supervisor — gunakan VOID untuk koreksi.</td><td>Biaya operasional yang sudah disetujui: VOID baris lalu entri baris baru.</td></tr>
+    <tr><td class="ui">Bukti Kas Keluar tanggal … sudah dibuat dengan akun kas berbeda — pilih akun kas yang sama untuk baris tambahan hari ini.</td><td>Pakai akun kas yang sama dengan bukti hari itu (biasanya Kas Kecil).</td></tr>
+    <tr><td class="ui">Akun … hanya boleh dipilih MASTER.</td><td>Mis. Gaji Salesman — serahkan ke Master.</td></tr>
+    <tr><td class="ui">Qty titipan melebihi qty pada baris faktur …</td><td>Kurangi qty titipan atau periksa satuan yang dipilih (dus vs sachet).</td></tr>
+    <tr><td class="ui">Kombinasi gudang tidak valid</td><td>Transfer hanya antara gudang Toko dan Barang Rusak, dan gudang asal ≠ tujuan.</td></tr>
+    <tr><td class="ui">Barang dari retur ini sudah keluar dari Bad Stock (diretur ke supplier/dipindah) — tidak bisa direvisi.</td><td>VOID retur ini lalu buat retur baru, atau biarkan.</td></tr>
+    <tr><td class="ui">Faktur asal retur tidak bisa diganti — VOID retur ini lalu buat retur baru atas faktur yang benar.</td><td>Ikuti petunjuknya: VOID + retur baru.</td></tr>
+    <tr><td class="ui">Sales Order ini sudah dibatalkan, tidak bisa diedit lagi.</td><td>Buat Sales Order baru.</td></tr>
+    <tr><td class="ui">Kasbon wajib memilih pekerja yang menerima kasbon.</td><td>Pilih <span class="ui">Pekerja</span> di baris Kasbon.</td></tr>
+    <tr><td class="ui">Surat jalan ini sudah VOID, status kirim tidak bisa diubah.</td><td>Buat surat jalan baru dari faktur asalnya.</td></tr>
+    <tr><td class="ui">Diskon faktur tidak boleh melebihi subtotal.</td><td>Periksa nilai Diskon Faktur.</td></tr>
+    <tr><td class="ui">Pelanggan ini tidak aktif.</td><td>Aktifkan pelanggan di Master Data (⋮ → Aktifkan).</td></tr>
+    <tr><td class="ui">Qty melebihi sisa stok (sisa …). Boleh dilanjutkan — stok akan minus.</td><td>Hanya peringatan. Boleh disimpan; pastikan pembelian sudah diinput.</td></tr>
+    <tr><td class="ui">Gagal memuat data</td><td>Koneksi ke server terputus. Klik <span class="ui">Coba lagi</span>; bila tetap gagal, periksa komputer server.</td></tr>
+  </tbody>
+</table>
+
+<h3 id="s9-2">9.2 Pertanyaan umum</h3>
+<p><b>Kenapa tombol Ubah dan VOID tidak ada?</b> Dokumen sudah dicetak. Gunakan <span class="ui">Batal Cetak</span> (3.3).</p>
+<p><b>Saya hanya ingin mencetak ulang nota yang hilang.</b> Buka detail → <span class="ui">Cetak</span>. Tidak perlu izin.</p>
+<p><b>Faktur saya hilang dari daftar?</b> Periksa saringan aktif (hapus dengan ×) dan kotak Cari. Faktur tidak pernah terhapus.</p>
+<p><b>Harga di Riwayat Harga kosong.</b> Produk belum pernah dijual dengan satuan itu. Coba ganti satuan, atau tanyakan harga ke Master.</p>
+<p><b>Kenapa supplier tampil “PT S***”?</b> Nama supplier sengaja disamarkan untuk Operator. Pilih berdasarkan kode supplier.</p>
+<p><b>Order Penjualan tidak jadi.</b> Detail order → <span class="ui">Batalkan SO</span> + alasan.</p>
+<p><b>Lupa password.</b> Master me-reset di Pengaturan → Pengguna → ⋮ → Reset Password.</p>
+
+<h3 id="s9-3">9.3 Belum tersedia di aplikasi — hubungi developer</h3>
+<p>Hal-hal berikut <b>belum ada layarnya</b> di versi ini. Jangan mencari-cari menunya; hubungi developer:</p>
+<ul>
+  <li>Jurnal Manual.</li>
+  <li>Tutup bulan / buka kembali bulan.</li>
+  <li>Membatalkan atau mengoreksi Saldo Awal yang sudah disimpan, serta mencatat pelunasan saldo awal piutang/hutang.</li>
+  <li>Mengubah atau mem-VOID Mutasi Gudang.</li>
+  <li>Pemindai barcode.</li>
+</ul>
+
+<!-- ============================ BAB 10 ============================ -->
+<h2 class="bab" id="bab10">10. Glosarium</h2>
+<table>
+  <thead><tr><th style="width:26%">Istilah</th><th>Arti</th></tr></thead>
+  <tbody>
+    <tr><td><b>Barang Rusak (BS / Bad Stock)</b></td><td>Gudang untuk barang rusak dan retur pelanggan. Tidak dijual; bisa diretur ke supplier.</td></tr>
+    <tr><td><b>Batal Cetak</b></td><td>Permintaan membuka kunci dokumen yang sudah dicetak, dengan niat Diperbaiki atau Dibatalkan/VOID.</td></tr>
+    <tr><td><b>BKP</b></td><td>Barang Kena Pajak — produk yang dikenai PPN saat dibeli dari supplier PKP.</td></tr>
+    <tr><td><b>Bonus</b></td><td>Barang gratis dari supplier; dicatat baris tersendiri berharga 0.</td></tr>
+    <tr><td><b>Draf</b></td><td>Isian yang tersimpan sementara di browser sebelum dokumen disimpan.</td></tr>
+    <tr><td><b>DUS</b></td><td>Satuan besar yang otomatis terpilih saat memilih produk.</td></tr>
+    <tr><td><b>Harga Pokok (HPP)</b></td><td>Biaya perolehan barang dari supplier. Dihitung otomatis dari faktur pembelian; dipakai untuk batas jual-rugi.</td></tr>
+    <tr><td><b>H.Netto</b></td><td>Harga per satuan setelah potongan. Karena diskon penjualan sudah ditiadakan, nilainya sama dengan Harga @.</td></tr>
+    <tr><td><b>Isi</b></td><td>Jumlah satuan dasar dalam satu satuan yang dipilih (mis. 1 renceng = 10 sachet).</td></tr>
+    <tr><td><b>Jatuh Tempo</b></td><td>Batas tanggal pembayaran = tanggal faktur + termin.</td></tr>
+    <tr><td><b>Kasbon</b></td><td>Pinjaman uang karyawan dari Kas Kecil; dicatat di tab Kasbon Biaya Operasional.</td></tr>
+    <tr><td><b>Kunci cetak</b></td><td>Dokumen yang sudah dicetak tidak bisa diubah/dibatalkan tanpa Batal Cetak yang disetujui.</td></tr>
+    <tr><td><b>Mundur tanggal (backdate)</b></td><td>Mengisi tanggal transaksi sebelum hari ini; dibatasi 2 hari (7 hari untuk biaya &amp; pindah buku).</td></tr>
+    <tr><td><b>Pelunasan Kasbon</b></td><td>Setoran tunai karyawan ke Kas Kecil untuk mengurangi sisa kasbonnya (dokumen PK).</td></tr>
+    <tr><td><b>PJ</b></td><td>Penanggung jawab Order Penjualan (salesman).</td></tr>
+    <tr><td><b>PKP</b></td><td>Pengusaha Kena Pajak. Toko saat ini belum PKP, jadi PPN keluaran Rp 0.</td></tr>
+    <tr><td><b>PPN</b></td><td>Pajak Pertambahan Nilai. PPN masukan dari supplier PKP ikut menjadi harga pokok.</td></tr>
+    <tr><td><b>Piutang / Hutang</b></td><td>Piutang = tagihan toko ke pelanggan. Hutang = tagihan supplier ke toko.</td></tr>
+    <tr><td><b>Revisi</b></td><td>Memperbaiki faktur dengan nomor tetap; ditandai Revisi N.</td></tr>
+    <tr><td><b>Saluran</b></td><td>Toko (pembeli datang) atau Pengiriman (diantar; wajib Sales Order dan surat jalan).</td></tr>
+    <tr><td><b>Satuan dasar</b></td><td>Satuan terkecil produk (sachet, botol). Stok disimpan dalam satuan ini.</td></tr>
+    <tr><td><b>Selisih pembayaran</b></td><td>Beda kecil antara sisa faktur dan uang yang diterima/dibayar saat faktur ditandai lunas.</td></tr>
+    <tr><td><b>SO / Sales Order</b></td><td>Order Penjualan — pesanan sebelum faktur. Tidak menahan stok.</td></tr>
+    <tr><td><b>Stok Opname</b></td><td>Hitung fisik gudang Toko; setelah diposting Master, stok sistem dikoreksi sesuai hitungan (dokumen OP).</td></tr>
+    <tr><td><b>Surat Jalan (SJ)</b></td><td>Dokumen pengantar barang untuk faktur Pengiriman, tanpa harga.</td></tr>
+    <tr><td><b>Termin</b></td><td>Lama tempo pembayaran dalam hari, diisi per faktur.</td></tr>
+    <tr><td><b>Titipan</b></td><td>Barang yang sudah dibeli &amp; dibayar pelanggan tetapi belum diambil. Bukan konsinyasi.</td></tr>
+    <tr><td><b>VOID</b></td><td>Membatalkan dokumen. Dokumen tidak dihapus; angkanya dibalik dengan catatan bertanggal hari pembatalan.</td></tr>
+  </tbody>
+</table>
+
+<p style="margin-top:10mm;color:var(--muted);font-size:9.5pt">— Akhir panduan —</p>
+</body>
+</html>

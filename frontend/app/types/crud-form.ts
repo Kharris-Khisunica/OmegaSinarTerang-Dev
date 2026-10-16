@@ -9,6 +9,9 @@ export type FieldType
     | 'switch'
     | 'repeater'
     | 'display'
+    // Input tersamar. Field bertipe ini TIDAK PERNAH ikut draf sessionStorage
+    // (CrudFormPage.draftData) — password tidak boleh tersimpan di browser.
+    | 'password'
 
 export interface SelectOption {
   label: string
@@ -29,6 +32,13 @@ export interface RepeaterColumnDef {
   placeholder?: string | ((ctx: RepeaterCellContext) => string)
   /** Wajib diisi kalau type === 'select'. Sama konvensi dengan FieldDef.options. */
   options?: SelectOption[] | (() => Promise<SelectOption[]>)
+  /**
+   * Opsi select yang BERGANTUNG pada isi baris (mis. pilihan satuan menurut
+   * produk di baris itu). Kalau diisi, menggantikan `options` untuk kolom ini.
+   */
+  rowOptions?: (row: Record<string, unknown>) => SelectOption[]
+  /** Dipanggil setelah nilai sel berubah — mis. mengisi default kolom lain di baris yang sama. */
+  onChange?: (row: Record<string, unknown>) => void
 }
 
 export interface FieldAction {

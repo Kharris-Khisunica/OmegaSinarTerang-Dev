@@ -45,7 +45,9 @@ export const navigationGroups: NavSection[] = [
       // dibangun sebagai master terpisah di sini, tapi digabung ke Salesman
       // (koreksi 26 Sep 2026: agen dan salesman adalah orang yang sama) --
       // Surat Jalan sekarang memilih dari /master-data/salesmen di atas.
-      { label: 'Kendaraan', icon: 'i-lucide-car', to: '/master-data/vehicles', roles: ['MASTER', 'OPERATOR'] }
+      { label: 'Kendaraan', icon: 'i-lucide-car', to: '/master-data/vehicles', roles: ['MASTER', 'OPERATOR'] },
+      // Pekerja/Tukang Angkut -- need_fixing.md #23, dipakai Biaya Operasional & Kasbon.
+      { label: 'Pekerja', icon: 'i-lucide-hard-hat', to: '/master-data/workers', roles: ['MASTER', 'OPERATOR'] }
     ]
   },
   {
@@ -78,7 +80,10 @@ export const navigationGroups: NavSection[] = [
       { label: 'Biaya Operasional', icon: 'i-lucide-wallet', to: '/kas-bank/biaya-operasional', roles: ['MASTER', 'OPERATOR'] },
       // Pindah Buku Kas (paket R9, menyerap Hari 32A) -- pemindahan antar
       // akun kas/bank milik sendiri, kode dokumen `PB`.
-      { label: 'Pindah Buku Kas', icon: 'i-lucide-repeat', to: '/kas-bank/pindah-buku', roles: ['MASTER', 'OPERATOR'] }
+      { label: 'Pindah Buku Kas', icon: 'i-lucide-repeat', to: '/kas-bank/pindah-buku', roles: ['MASTER', 'OPERATOR'] },
+      // Pelunasan Kasbon (need_fixing.md #26) -- setor tunai kasbon karyawan
+      // ke Kas Kecil, kode dokumen `PK`.
+      { label: 'Pelunasan Kasbon', icon: 'i-lucide-hand-coins', to: '/kas-bank/pelunasan-kasbon', roles: ['MASTER', 'OPERATOR'] }
     ]
   },
   {
@@ -89,7 +94,7 @@ export const navigationGroups: NavSection[] = [
       // (definePageMeta) TETAP roles ['MASTER','SUPERVISOR'] sesuai matriks §5 —
       // Supervisor masih bisa buka lewat URL langsung, cuma bukan lewat nav.
       { label: 'Bagan Akun', icon: 'i-lucide-list-tree', to: '/akuntansi/bagan-akun', roles: ['MASTER'] },
-      { label: 'Jurnal', icon: 'i-lucide-book-text', to: '/akuntansi/jurnal', roles: ['MASTER', 'OPERATOR'] },
+      { label: 'Jurnal', icon: 'i-lucide-book-text', to: '/akuntansi/jurnal', roles: ['MASTER'] },
       // Saldo Awal MASTER-only (Permission Matrix §5) — endpoint POST/GET-verify sudah ada
       // sejak Hari 12 BE, layar impor file masih PR terbuka (KONTEKS_REVISI §4.1).
       { label: 'Saldo Awal', icon: 'i-lucide-package-plus', to: '/akuntansi/saldo-awal', roles: ['MASTER'] }
@@ -111,7 +116,9 @@ export const navigationGroups: NavSection[] = [
   {
     title: 'PENGATURAN',
     items: [
-      { label: 'Pengaturan', icon: 'i-lucide-settings', to: '/pengaturan', roles: ['MASTER'] }
+      { label: 'Pengaturan', icon: 'i-lucide-settings', to: '/pengaturan', roles: ['MASTER'] },
+      // need_fixing.md #24 — manajemen user & reset password.
+      { label: 'Pengguna', icon: 'i-lucide-user-cog', to: '/pengaturan/pengguna', roles: ['MASTER'] }
     ]
   }
 ]

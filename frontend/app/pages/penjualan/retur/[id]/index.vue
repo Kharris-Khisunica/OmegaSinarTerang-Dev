@@ -31,12 +31,15 @@ interface ReturnDetail {
   printStatus: PrintStatus
   printCount: number
   revisionNumber: number
+  voidReasonCode?: string | null
+  voidReasonNote?: string | null
   notes: string | null
   lines: ReturnLine[]
 }
 
 const route = useRoute()
 const api = useApi()
+const { performDualGateVoid } = useDualGateVoid()
 const { format: rupiah } = useRupiah()
 const { format: qtyFmt } = useQty()
 const { loadCustomerMap, loadProductMap } = useSalesInvoiceLookups()
@@ -84,29 +87,80 @@ const SETTLEMENT_LABEL: Record<string, string> = {
 }
 
 // --- Cetak (bebas, tanpa izin -- CLAUDE.md §2.16) ---------------------------
-const printLoading = ref(false)
+// Navigasi ke halaman nota, BUKAN POST .../print langsung di sini -- registrasi
+// cetak (print_count/printed_at) terjadi di [id]/cetak.vue saat nota benar-benar
+// dicetak, pola sama Faktur Penjualan / Surat Jalan.
 const actionError = ref('')
 
-async function handlePrint() {
-  actionError.value = ''
-  printLoading.value = true
-  try {
-    await api.post(`/sales-returns/${returnId}/print`)
-    await loadReturn()
-  } catch (err) {
-    actionError.value = getErrorMessage(err, 'Gagal mencetak retur.')
-  } finally {
-    printLoading.value = false
-  }
+function handlePrint() {
+  navigateTo(`/penjualan/retur/${returnId}/cetak`)
 }
 
-// --- Edit/VOID: belum ada endpoint backend untuk Retur Penjualan (sengaja
-// ditunda, pola sama Retur Pembelian Hari 16) -- DocumentActions tetap
-// menampilkan tombolnya karena postingStatus selalu POSTED, jadi diberi
-// pesan eksplisit alih-alih dead click senyap.
-const unsupportedNotice = ref(false)
-function showUnsupportedNotice() {
-  unsupportedNotice.value = true
+// --- Ubah (revisi-di-tempat, need_fixing.md #19, §2.16a) ---------------------
+// Form ubah memakai layar entri di halaman daftar (mode 'ubah'), pola sama
+// Faktur Penjualan. Kalau sudah PRINTED, DocumentActions memaksa Batal Cetak
+// dulu (niat EDIT + alasan) — alasan itu diteruskan sebagai `reason`.
+function goToRevise(reason = '') {
+  navigateTo({ path: '/penjualan/retur', query: { revise: returnId, ...(reason ? { reason } : {}) } })
+}
+function handleUnlockPrint(payload: { intent: 'EDIT' | 'VOID', reason: string }) {
+  if (payload.intent === 'EDIT') goToRevise(payload.reason)
+  else openVoidModal(payload.reason)
+}
+
+// --- VOID (need_fixing.md #19) -------------------------------------------------
+// Dua gerbang INDEPENDEN, persis Faktur Penjualan (performVoid() di
+// penjualan/faktur/[id]/index.vue — baca komentar panjang di sana):
+// UNLOCK_PRINT (x-authorization-request-id, kalau PRINTED, dicek lebih dulu)
+// dan VOID_DOCUMENT (x-void-authorization-request-id, hanya OPERATOR).
+const voidOpen = ref(false)
+const voidReasonCode = ref('')
+const voidReasonNote = ref('')
+const voidSubmitting = ref(false)
+const voidError = ref('')
+
+function openVoidModal(prefillReason = '') {
+  voidReasonCode.value = ''
+  voidReasonNote.value = prefillReason
+  voidError.value = ''
+  voidOpen.value = true
+}
+
+function callVoid(headers?: Record<string, string>) {
+  return api.post(
+    `/sales-returns/${returnId}/void`,
+    { reasonCode: voidReasonCode.value, reasonNote: voidReasonNote.value },
+    headers
+  )
+}
+
+// Dua gerbang VOID (UNLOCK_PRINT + VOID_DOCUMENT) — penjelasan lengkap di
+// composables/useDualGateVoid.ts.
+function performVoid(): Promise<unknown> {
+  return performDualGateVoid(salesReturn.value?.printStatus === 'PRINTED', callVoid)
+}
+
+async function submitVoid() {
+  if (!voidReasonCode.value.trim() || !voidReasonNote.value.trim()) {
+    voidError.value = 'Kode alasan dan catatan alasan wajib diisi.'
+    return
+  }
+  voidError.value = ''
+  voidSubmitting.value = true
+  voidOpen.value = false
+  try {
+    await performVoid()
+    await loadReturn()
+  } catch (err) {
+    voidOpen.value = true
+    if (err instanceof StepUpCancelledError) {
+      voidError.value = 'Persetujuan dibatalkan — retur penjualan belum dibatalkan.'
+      return
+    }
+    voidError.value = getErrorMessage(err, 'Gagal membatalkan retur penjualan.')
+  } finally {
+    voidSubmitting.value = false
+  }
 }
 </script>
 
@@ -151,18 +205,16 @@ function showUnsupportedNotice() {
         variant="subtle"
         icon="i-lucide-alert-triangle"
         :title="actionError"
-        :close-button="{ icon: 'i-lucide-x', color: 'neutral', variant: 'link' }"
+        :close="{ icon: 'i-lucide-x', color: 'neutral', variant: 'link' }"
         @update:open="actionError = ''"
       />
       <UAlert
-        v-if="unsupportedNotice"
-        color="neutral"
+        v-if="salesReturn.postingStatus === 'VOIDED'"
+        color="error"
         variant="subtle"
-        icon="i-lucide-info"
-        title="Belum didukung"
-        description="Ubah/VOID retur penjualan belum didukung."
-        :close-button="{ icon: 'i-lucide-x', color: 'neutral', variant: 'link' }"
-        @update:open="unsupportedNotice = false"
+        icon="i-lucide-ban"
+        title="Retur ini sudah VOID"
+        :description="`${salesReturn.voidReasonCode ?? ''} — ${salesReturn.voidReasonNote ?? ''}`"
       />
 
       <div class="flex flex-col gap-2">
@@ -177,11 +229,10 @@ function showUnsupportedNotice() {
           <DocumentActions
             :posting-status="salesReturn.postingStatus"
             :print-status="salesReturn.printStatus"
-            :print-loading="printLoading"
             @print="handlePrint"
-            @edit="showUnsupportedNotice"
-            @void="showUnsupportedNotice"
-            @unlock-print="showUnsupportedNotice"
+            @edit="goToRevise()"
+            @void="openVoidModal()"
+            @unlock-print="handleUnlockPrint"
           />
         </div>
 
@@ -252,5 +303,61 @@ function showUnsupportedNotice() {
         </div>
       </div>
     </div>
+
+    <UModal
+      v-model:open="voidOpen"
+      title="VOID Retur Penjualan"
+      description="Dokumen tidak dihapus — dibatalkan dengan jurnal & stok pembalik bertanggal hari ini."
+    >
+      <template #body>
+        <div class="flex flex-col gap-4">
+          <UAlert
+            v-if="voidError"
+            color="error"
+            variant="subtle"
+            icon="i-lucide-alert-triangle"
+            :description="voidError"
+          />
+          <UFormField
+            label="Kode Alasan"
+            required
+          >
+            <UInput
+              v-model="voidReasonCode"
+              class="w-full"
+              placeholder="mis. SALAH_INPUT"
+            />
+          </UFormField>
+          <UFormField
+            label="Catatan Alasan"
+            required
+          >
+            <UTextarea
+              v-model="voidReasonNote"
+              class="w-full"
+            />
+          </UFormField>
+        </div>
+      </template>
+      <template #footer>
+        <div class="flex justify-end gap-2 w-full">
+          <UButton
+            color="neutral"
+            variant="ghost"
+            @click="voidOpen = false"
+          >
+            Batal
+          </UButton>
+          <UButton
+            color="error"
+            :loading="voidSubmitting"
+            :disabled="voidSubmitting"
+            @click="submitVoid"
+          >
+            VOID
+          </UButton>
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>

@@ -5,15 +5,18 @@ import { DocumentCounterModule } from '../../core/document-counter/document-coun
 import { JournalPosterModule } from '../../core/journal-poster/journal-poster.module';
 import { PrintLockModule } from '../../core/print-lock/print-lock.module';
 import { StockRecorderModule } from '../../core/stock-recorder/stock-recorder.module';
+import { DocumentReviseModule } from '../../core/document-revise/document-revise.module';
+import { StepUpModule } from '../../core/step-up/step-up.module';
+import { VoidModule } from '../../core/void/void.module';
+import { PurchaseReturnVoidHook } from './purchase-return-void.hook';
 import { Warehouse } from '../warehouses/entities/warehouse.entity';
 import { PurchaseReturnLine } from './entities/purchase-return-line.entity';
 import { PurchaseReturn } from './entities/purchase-return.entity';
 import { PurchaseReturnsController } from './purchase-returns.controller';
 import { PurchaseReturnsService } from './purchase-returns.service';
 
-// TIDAK import VoidModule — VOID untuk RB sengaja belum dibangun hari ini
-// (pola sama warehouse_mutations Hari 13, lihat catatan di
-// purchase-return.entity.ts).
+// VoidModule/StepUpModule/DocumentReviseModule — VOID & revisi retur
+// pembelian (need_fixing.md #19).
 @Module({
   imports: [
     TypeOrmModule.forFeature([PurchaseReturn, PurchaseReturnLine, Warehouse]),
@@ -22,8 +25,11 @@ import { PurchaseReturnsService } from './purchase-returns.service';
     JournalPosterModule,
     AccountResolverModule,
     PrintLockModule,
+    VoidModule,
+    StepUpModule,
+    DocumentReviseModule,
   ],
   controllers: [PurchaseReturnsController],
-  providers: [PurchaseReturnsService],
+  providers: [PurchaseReturnsService, PurchaseReturnVoidHook],
 })
 export class PurchaseReturnsModule {}

@@ -6,6 +6,14 @@ import { DocumentCounterService } from '../../core/document-counter/document-cou
 import { PostJournalLineDto } from '../../core/journal-poster/dto/post-journal.dto';
 import { JournalPosterService } from '../../core/journal-poster/journal-poster.service';
 import { PrintLockService } from '../../core/print-lock/print-lock.service';
+import {
+  ApplyChangesResult,
+  DocumentReviseService,
+} from '../../core/document-revise/document-revise.service';
+import { StepUpService } from '../../core/step-up/step-up.service';
+import { VoidEngineService } from '../../core/void/void.service';
+import { Role } from '../../common/enums/role.enum';
+import { ActionType } from '../authorization-requests/action-type.enum';
 import { ArAccountResolverService } from '../../core/receivables/ar-account-resolver.service';
 import { StockRecorderService } from '../../core/stock-recorder/stock-recorder.service';
 import {
@@ -27,6 +35,8 @@ import {
   WarehouseType,
 } from '../warehouses/entities/warehouse.entity';
 import { CreateSalesReturnDto } from './dto/create-sales-return.dto';
+import { ReviseSalesReturnDto } from './dto/revise-sales-return.dto';
+import { VoidSalesReturnDto } from './dto/void-sales-return.dto';
 import { SalesReturnQueryDto } from './dto/sales-return-query.dto';
 import { SalesReturnLine } from './entities/sales-return-line.entity';
 import {
@@ -69,8 +79,12 @@ export interface CreateSalesReturnResult {
  * PurchaseReturnsService/PurchaseInvoicesService: backdate sudah divalidasi
  * lewat JournalPosterService.post().
  *
- * TIDAK ada voidReturn()/VOID hook hari ini — pola sama PurchaseReturnsService
- * (RB Hari 16 juga tidak membangun VOID).
+ * VOID (voidReturn) & revisi-di-tempat (reviseReturn) ditambahkan
+ * need_fixing.md #19 (6 Okt 2026) — pola PERSIS Faktur Penjualan:
+ * VOID = UNLOCK_PRINT (kalau PRINTED) + VOID_DOCUMENT (OPERATOR), jurnal
+ * pembalik bertanggal hari ini (VoidEngineService); revisi = nomor tetap,
+ * revision_number++, dibalik & diposting ulang bertanggal dokumen
+ * (DocumentReviseService, §2.16a).
  */
 @Injectable()
 export class SalesReturnsService {
@@ -87,6 +101,9 @@ export class SalesReturnsService {
     private readonly accountResolverService: AccountResolverService,
     private readonly arAccountResolverService: ArAccountResolverService,
     private readonly printLockService: PrintLockService,
+    private readonly voidEngineService: VoidEngineService,
+    private readonly stepUpService: StepUpService,
+    private readonly documentReviseService: DocumentReviseService,
   ) {}
 
   async create(
@@ -156,220 +173,17 @@ export class SalesReturnsService {
         }),
       );
 
-      const savedLines: SalesReturnLine[] = [];
-      let totalDppRawCents = 0;
-      let totalCostCents = 0;
-      const seenQtyBaseUnitByLine = new Map<string, number>();
-
-      for (let i = 0; i < dto.lines.length; i++) {
-        const lineDto = dto.lines[i];
-        const originalLine = invoice.lines.find(
-          (l) => l.id === lineDto.salesInvoiceLineId,
-        );
-        if (!originalLine) {
-          throw new BadRequestException(
-            `Baris faktur ${lineDto.salesInvoiceLineId} tidak ditemukan pada faktur ini.`,
-          );
-        }
-
-        const ratio = lineDto.qtyInput / Number(originalLine.qtyInput);
-        const qtyBaseUnitReturn = roundTo(
-          ratio * Number(originalLine.qtyBaseUnit),
-          4,
-        );
-
-        const alreadyReturned = await this.getAlreadyReturnedQtyBaseUnit(
-          originalLine.id,
-          manager,
-        );
-        const seenThisRequest = seenQtyBaseUnitByLine.get(originalLine.id) ?? 0;
-        if (
-          qtyBaseUnitReturn + alreadyReturned + seenThisRequest >
-          Number(originalLine.qtyBaseUnit) + QTY_EPSILON
-        ) {
-          throw new BadRequestException(
-            `Qty retur melebihi sisa qty faktur untuk baris ${originalLine.id}.`,
-          );
-        }
-        seenQtyBaseUnitByLine.set(
-          originalLine.id,
-          seenThisRequest + qtyBaseUnitReturn,
-        );
-
-        const lineDppCents = Math.round(
-          ratio * toCents(Number(originalLine.netAmount)),
-        );
-        const unitCostFifo = Number(originalLine.unitCostFifo);
-        const lineCostCents = Math.round(
-          qtyBaseUnitReturn * unitCostFifo * 100,
-        );
-        totalDppRawCents += lineDppCents;
-        totalCostCents += lineCostCents;
-
-        // Barang retur pelanggan SELALU masuk BAD_STOCK (CLAUDE.md §3 "Bad
-        // stock"), pada unit_cost = unit_cost_fifo faktur asal — TIDAK PERNAH
-        // dihitung ulang.
-        const movement = await this.stockRecorderService.recordIn(
-          {
-            productId: originalLine.productId,
-            warehouseId: badStockWarehouse.id,
-            qtyBaseUnit: qtyBaseUnitReturn,
-            unitCost: unitCostFifo,
-            lotDate: returnDate,
-            movementDate: returnDate,
-            movementType: StockMovementType.RETURN_IN,
-            supplierId: null,
-            sourceType: 'SALES_RETURN',
-            sourceId: salesReturn.id,
-            createdBy: user.sub,
-          },
-          manager,
-        );
-
-        const line = await manager.save(
-          SalesReturnLine,
-          manager.create(SalesReturnLine, {
-            salesReturnId: salesReturn.id,
-            lineOrder: i + 1,
-            salesInvoiceLineId: originalLine.id,
-            productId: originalLine.productId,
-            qtyInput: lineDto.qtyInput.toFixed(4),
-            qtyBaseUnit: qtyBaseUnitReturn.toFixed(4),
-            unitCostFifo: unitCostFifo.toFixed(4),
-            dppAmount: fromCents(lineDppCents).toFixed(2),
-            costAmount: fromCents(lineCostCents).toFixed(2),
-            stockMovementId: movement.id,
-          }),
-        );
-        savedLines.push(line);
-      }
-
-      // --- Prorata PPN Keluaran & diskon faktur dari angka ASLI faktur -----
-      const invoiceSubtotalCents = toCents(Number(invoice.subtotal));
-      const invoiceDiscountCents = toCents(
-        Number(invoice.invoiceDiscountAmount),
-      );
-      const invoiceDiscountRatio =
-        invoiceSubtotalCents > 0
-          ? invoiceDiscountCents / invoiceSubtotalCents
-          : 0;
-      const totalDppCents = Math.round(
-        totalDppRawCents * (1 - invoiceDiscountRatio),
-      );
-
-      const invoiceTaxableBaseCents =
-        invoiceSubtotalCents - invoiceDiscountCents;
-      const effectiveVatRate =
-        invoiceTaxableBaseCents > 0
-          ? toCents(Number(invoice.outputVatAmount)) / invoiceTaxableBaseCents
-          : 0;
-      const outputVatCents = Math.round(totalDppCents * effectiveVatRate);
-
-      const totalAmountCents = totalDppCents + outputVatCents;
-
-      // --- Validasi kumulatif: retur tidak boleh melebihi total faktur asal
-      // (pengganti sementara paid_amount, belum ada Payment module — CLAUDE.md
-      // §0, keputusan user eksplisit) ------------------------------------
-      const alreadyReturnedTotalCents = await this.getAlreadyReturnedTotalCents(
-        invoice.id,
+      const { savedLines, journalLines } = await this.postLinesAndBuildJournal({
+        salesReturnId: salesReturn.id,
+        returnNumber,
+        returnDate,
+        invoice,
+        customer,
+        dto,
+        badStockWarehouseId: badStockWarehouse.id,
+        userId: user.sub,
         manager,
-      );
-      const invoiceTotalCents = toCents(Number(invoice.totalAmount));
-      if (
-        alreadyReturnedTotalCents + totalAmountCents >
-        invoiceTotalCents + 1 // toleransi 1 sen pembulatan
-      ) {
-        throw new BadRequestException(
-          'Total retur melebihi total faktur asal.',
-        );
-      }
-
-      await manager.update(SalesReturn, salesReturn.id, {
-        dppAmount: fromCents(totalDppCents).toFixed(2),
-        outputVatAmount: fromCents(outputVatCents).toFixed(2),
-        totalAmount: fromCents(totalAmountCents).toFixed(2),
-        costBasisAmount: fromCents(totalCostCents).toFixed(2),
       });
-
-      // --- Jurnal (CLAUDE.md §4 "Retur Penjualan") --------------------------
-      // Retur Penjualan (D) DPP / PPN Keluaran (D) bila ada
-      //     Piutang/Kas (K) total
-      // Persediaan (D) HPP asli / HPP (K) HPP asli
-      const journalLines: PostJournalLineDto[] = [];
-
-      if (totalDppCents > 0) {
-        const salesReturnAccountId =
-          await this.accountResolverService.resolveSingleActive(
-            'is_sales_return_account = true',
-            'Retur Penjualan',
-            manager,
-          );
-        journalLines.push({
-          accountId: salesReturnAccountId,
-          debit: fromCents(totalDppCents),
-          credit: 0,
-          description: `Retur Penjualan ${returnNumber}`,
-        });
-      }
-
-      if (outputVatCents > 0) {
-        const outputVatAccountId =
-          await this.accountResolverService.resolveSingleActive(
-            'is_output_vat_account = true',
-            'PPN Keluaran',
-            manager,
-          );
-        journalLines.push({
-          accountId: outputVatAccountId,
-          debit: fromCents(outputVatCents),
-          credit: 0,
-          description: `PPN Keluaran retur ${returnNumber}`,
-        });
-      }
-
-      if (totalAmountCents > 0) {
-        const creditAccountId =
-          dto.settlementType === SalesReturnSettlementType.CASH
-            ? dto.cashAccountId!
-            : await this.arAccountResolverService.resolve(customer, manager);
-        journalLines.push({
-          accountId: creditAccountId,
-          debit: 0,
-          credit: fromCents(totalAmountCents),
-          description: `Retur Penjualan ${returnNumber}`,
-          customerId:
-            dto.settlementType === SalesReturnSettlementType.REDUCE_INVOICE
-              ? customer.id
-              : undefined,
-        });
-      }
-
-      if (totalCostCents > 0) {
-        const inventoryAccountId =
-          await this.accountResolverService.resolveSingleActive(
-            'is_inventory_account = true',
-            'Persediaan',
-            manager,
-          );
-        const cogsAccountId =
-          await this.accountResolverService.resolveSingleActive(
-            'is_cogs_account = true',
-            'Harga Pokok Penjualan',
-            manager,
-          );
-        journalLines.push({
-          accountId: inventoryAccountId,
-          debit: fromCents(totalCostCents),
-          credit: 0,
-          description: `Persediaan dari retur penjualan ${returnNumber}`,
-        });
-        journalLines.push({
-          accountId: cogsAccountId,
-          debit: 0,
-          credit: fromCents(totalCostCents),
-          description: `HPP retur penjualan ${returnNumber}`,
-        });
-      }
 
       // Retur seluruhnya bernilai nol (mis. semua baris bonus, unit_cost_fifo
       // dan unit_price sama-sama 0) — stok tetap berpindah lewat recordIn() di
@@ -402,6 +216,251 @@ export class SalesReturnsService {
         journalEntry,
       };
     });
+  }
+
+  /**
+   * Inti posting retur penjualan — dipakai create() DAN reviseReturn()
+   * (need_fixing.md #19, paket revisi-di-tempat §2.16a). Menulis baris +
+   * stok (BAD_STOCK, unit_cost_fifo faktur asal), memvalidasi kumulatif,
+   * memperbarui total header, dan MENGEMBALIKAN baris jurnal (bukan
+   * memposting) supaya jalur revisi bisa menyerahkan posting ke
+   * DocumentReviseService.
+   */
+  private async postLinesAndBuildJournal(params: {
+    salesReturnId: string;
+    returnNumber: string;
+    returnDate: Date;
+    invoice: SalesInvoice;
+    customer: Customer;
+    dto: CreateSalesReturnDto;
+    badStockWarehouseId: string;
+    userId: string;
+    manager: EntityManager;
+  }): Promise<{
+    savedLines: SalesReturnLine[];
+    journalLines: PostJournalLineDto[];
+  }> {
+    const {
+      salesReturnId,
+      returnNumber,
+      returnDate,
+      invoice,
+      customer,
+      dto,
+      badStockWarehouseId,
+      userId,
+      manager,
+    } = params;
+    const savedLines: SalesReturnLine[] = [];
+    let totalDppRawCents = 0;
+    let totalCostCents = 0;
+    const seenQtyBaseUnitByLine = new Map<string, number>();
+
+    for (let i = 0; i < dto.lines.length; i++) {
+      const lineDto = dto.lines[i];
+      const originalLine = invoice.lines.find(
+        (l) => l.id === lineDto.salesInvoiceLineId,
+      );
+      if (!originalLine) {
+        throw new BadRequestException(
+          `Baris faktur ${lineDto.salesInvoiceLineId} tidak ditemukan pada faktur ini.`,
+        );
+      }
+
+      const ratio = lineDto.qtyInput / Number(originalLine.qtyInput);
+      const qtyBaseUnitReturn = roundTo(
+        ratio * Number(originalLine.qtyBaseUnit),
+        4,
+      );
+
+      const alreadyReturned = await this.getAlreadyReturnedQtyBaseUnit(
+        originalLine.id,
+        manager,
+      );
+      const seenThisRequest = seenQtyBaseUnitByLine.get(originalLine.id) ?? 0;
+      if (
+        qtyBaseUnitReturn + alreadyReturned + seenThisRequest >
+        Number(originalLine.qtyBaseUnit) + QTY_EPSILON
+      ) {
+        throw new BadRequestException(
+          `Qty retur melebihi sisa qty faktur untuk baris ${originalLine.id}.`,
+        );
+      }
+      seenQtyBaseUnitByLine.set(
+        originalLine.id,
+        seenThisRequest + qtyBaseUnitReturn,
+      );
+
+      const lineDppCents = Math.round(
+        ratio * toCents(Number(originalLine.netAmount)),
+      );
+      const unitCostFifo = Number(originalLine.unitCostFifo);
+      const lineCostCents = Math.round(qtyBaseUnitReturn * unitCostFifo * 100);
+      totalDppRawCents += lineDppCents;
+      totalCostCents += lineCostCents;
+
+      // Barang retur pelanggan SELALU masuk BAD_STOCK (CLAUDE.md §3 "Bad
+      // stock"), pada unit_cost = unit_cost_fifo faktur asal — TIDAK PERNAH
+      // dihitung ulang.
+      const movement = await this.stockRecorderService.recordIn(
+        {
+          productId: originalLine.productId,
+          warehouseId: badStockWarehouseId,
+          qtyBaseUnit: qtyBaseUnitReturn,
+          unitCost: unitCostFifo,
+          lotDate: returnDate,
+          movementDate: returnDate,
+          movementType: StockMovementType.RETURN_IN,
+          supplierId: null,
+          sourceType: 'SALES_RETURN',
+          sourceId: salesReturnId,
+          createdBy: userId,
+        },
+        manager,
+      );
+
+      const line = await manager.save(
+        SalesReturnLine,
+        manager.create(SalesReturnLine, {
+          salesReturnId: salesReturnId,
+          lineOrder: i + 1,
+          salesInvoiceLineId: originalLine.id,
+          productId: originalLine.productId,
+          qtyInput: lineDto.qtyInput.toFixed(4),
+          qtyBaseUnit: qtyBaseUnitReturn.toFixed(4),
+          unitCostFifo: unitCostFifo.toFixed(4),
+          dppAmount: fromCents(lineDppCents).toFixed(2),
+          costAmount: fromCents(lineCostCents).toFixed(2),
+          stockMovementId: movement.id,
+        }),
+      );
+      savedLines.push(line);
+    }
+
+    // --- Prorata PPN Keluaran & diskon faktur dari angka ASLI faktur -----
+    const invoiceSubtotalCents = toCents(Number(invoice.subtotal));
+    const invoiceDiscountCents = toCents(Number(invoice.invoiceDiscountAmount));
+    const invoiceDiscountRatio =
+      invoiceSubtotalCents > 0
+        ? invoiceDiscountCents / invoiceSubtotalCents
+        : 0;
+    const totalDppCents = Math.round(
+      totalDppRawCents * (1 - invoiceDiscountRatio),
+    );
+
+    const invoiceTaxableBaseCents = invoiceSubtotalCents - invoiceDiscountCents;
+    const effectiveVatRate =
+      invoiceTaxableBaseCents > 0
+        ? toCents(Number(invoice.outputVatAmount)) / invoiceTaxableBaseCents
+        : 0;
+    const outputVatCents = Math.round(totalDppCents * effectiveVatRate);
+
+    const totalAmountCents = totalDppCents + outputVatCents;
+
+    // --- Validasi kumulatif: retur tidak boleh melebihi total faktur asal
+    // (pengganti sementara paid_amount, belum ada Payment module — CLAUDE.md
+    // §0, keputusan user eksplisit) ------------------------------------
+    const alreadyReturnedTotalCents = await this.getAlreadyReturnedTotalCents(
+      invoice.id,
+      salesReturnId,
+      manager,
+    );
+    const invoiceTotalCents = toCents(Number(invoice.totalAmount));
+    if (
+      alreadyReturnedTotalCents + totalAmountCents >
+      invoiceTotalCents + 1 // toleransi 1 sen pembulatan
+    ) {
+      throw new BadRequestException('Total retur melebihi total faktur asal.');
+    }
+
+    await manager.update(SalesReturn, salesReturnId, {
+      dppAmount: fromCents(totalDppCents).toFixed(2),
+      outputVatAmount: fromCents(outputVatCents).toFixed(2),
+      totalAmount: fromCents(totalAmountCents).toFixed(2),
+      costBasisAmount: fromCents(totalCostCents).toFixed(2),
+    });
+
+    // --- Jurnal (CLAUDE.md §4 "Retur Penjualan") --------------------------
+    // Retur Penjualan (D) DPP / PPN Keluaran (D) bila ada
+    //     Piutang/Kas (K) total
+    // Persediaan (D) HPP asli / HPP (K) HPP asli
+    const journalLines: PostJournalLineDto[] = [];
+
+    if (totalDppCents > 0) {
+      const salesReturnAccountId =
+        await this.accountResolverService.resolveSingleActive(
+          'is_sales_return_account = true',
+          'Retur Penjualan',
+          manager,
+        );
+      journalLines.push({
+        accountId: salesReturnAccountId,
+        debit: fromCents(totalDppCents),
+        credit: 0,
+        description: `Retur Penjualan ${returnNumber}`,
+      });
+    }
+
+    if (outputVatCents > 0) {
+      const outputVatAccountId =
+        await this.accountResolverService.resolveSingleActive(
+          'is_output_vat_account = true',
+          'PPN Keluaran',
+          manager,
+        );
+      journalLines.push({
+        accountId: outputVatAccountId,
+        debit: fromCents(outputVatCents),
+        credit: 0,
+        description: `PPN Keluaran retur ${returnNumber}`,
+      });
+    }
+
+    if (totalAmountCents > 0) {
+      const creditAccountId =
+        dto.settlementType === SalesReturnSettlementType.CASH
+          ? dto.cashAccountId!
+          : await this.arAccountResolverService.resolve(customer, manager);
+      journalLines.push({
+        accountId: creditAccountId,
+        debit: 0,
+        credit: fromCents(totalAmountCents),
+        description: `Retur Penjualan ${returnNumber}`,
+        customerId:
+          dto.settlementType === SalesReturnSettlementType.REDUCE_INVOICE
+            ? customer.id
+            : undefined,
+      });
+    }
+
+    if (totalCostCents > 0) {
+      const inventoryAccountId =
+        await this.accountResolverService.resolveSingleActive(
+          'is_inventory_account = true',
+          'Persediaan',
+          manager,
+        );
+      const cogsAccountId =
+        await this.accountResolverService.resolveSingleActive(
+          'is_cogs_account = true',
+          'Harga Pokok Penjualan',
+          manager,
+        );
+      journalLines.push({
+        accountId: inventoryAccountId,
+        debit: fromCents(totalCostCents),
+        credit: 0,
+        description: `Persediaan dari retur penjualan ${returnNumber}`,
+      });
+      journalLines.push({
+        accountId: cogsAccountId,
+        debit: 0,
+        credit: fromCents(totalCostCents),
+        description: `HPP retur penjualan ${returnNumber}`,
+      });
+    }
+
+    return { savedLines, journalLines };
   }
 
   async findAll(
@@ -445,6 +504,214 @@ export class SalesReturnsService {
       throw new BadRequestException('Retur penjualan tidak ditemukan.');
     }
     return salesReturn;
+  }
+
+  /**
+   * VOID Retur Penjualan (need_fixing.md #19) — dua gerbang independen,
+   * persis SalesInvoicesService.voidInvoice(): UNLOCK_PRINT intent VOID
+   * (x-authorization-request-id, kalau PRINTED) + VOID_DOCUMENT
+   * (x-void-authorization-request-id, OPERATOR). Jurnal & stok BS dibalik
+   * bertanggal hari ini; SalesReturnVoidHook menolak kalau barang BS dari
+   * retur ini sudah terpakai.
+   */
+  async voidReturn(
+    id: string,
+    dto: VoidSalesReturnDto,
+    user: AuthenticatedUser,
+    authorizationRequestId: string | undefined,
+    voidAuthorizationRequestId?: string,
+  ): Promise<SalesReturn> {
+    const existing = await this.findOne(id);
+    const unlockReason = dto.unlockReason ?? dto.reasonNote;
+
+    await this.printLockService.preflight({
+      table: 'sales_returns',
+      sourceType: 'SALES_RETURN',
+      documentId: id,
+      documentLabel: existing.returnNumber,
+      intent: 'VOID',
+      reason: unlockReason,
+      user,
+      authorizationRequestId,
+    });
+
+    const needsVoidApproval = user.role === Role.OPERATOR;
+    const voidPayload = { sourceType: 'SALES_RETURN', sourceId: id };
+    const voidContextSummary = `VOID retur penjualan ${existing.returnNumber}: ${dto.reasonNote}`;
+    if (needsVoidApproval && !voidAuthorizationRequestId) {
+      await this.stepUpService.requireApproval({
+        user,
+        actionType: ActionType.VOID_DOCUMENT,
+        payload: voidPayload,
+        contextSummary: voidContextSummary,
+      });
+    }
+
+    await this.dataSource.transaction(async (manager) => {
+      await this.printLockService.consume({
+        table: 'sales_returns',
+        sourceType: 'SALES_RETURN',
+        documentId: id,
+        documentLabel: existing.returnNumber,
+        intent: 'VOID',
+        reason: unlockReason,
+        user,
+        authorizationRequestId,
+        manager,
+      });
+      if (needsVoidApproval) {
+        await this.stepUpService.requireApproval({
+          user,
+          actionType: ActionType.VOID_DOCUMENT,
+          payload: voidPayload,
+          contextSummary: voidContextSummary,
+          authorizationRequestId: voidAuthorizationRequestId,
+          manager,
+        });
+      }
+      await this.voidEngineService.voidDocument({
+        sourceType: 'SALES_RETURN',
+        sourceId: id,
+        reasonCode: dto.reasonCode,
+        reasonNote: dto.reasonNote,
+        userId: user.sub,
+        manager,
+      });
+    });
+
+    return this.findOne(id);
+  }
+
+  /**
+   * Revisi-di-tempat Retur Penjualan (need_fixing.md #19, pola §2.16a):
+   * nomor tetap, revision_number++, jurnal+stok LAMA dibalik lalu diposting
+   * ulang bertanggal dokumen (DocumentReviseService — jendela backdate,
+   * K2). Faktur asal TIDAK bisa diganti (retur atas faktur lain = dokumen
+   * lain: VOID + retur baru). Gerbang: kunci cetak intent EDIT; barang BS
+   * dari retur ini belum terpakai.
+   */
+  async reviseReturn(
+    id: string,
+    dto: ReviseSalesReturnDto,
+    user: AuthenticatedUser,
+    authorizationRequestId: string | undefined,
+  ): Promise<SalesReturn> {
+    const existing = await this.findOne(id);
+    if (existing.postingStatus === SalesReturnPostingStatus.VOIDED) {
+      throw new BadRequestException(
+        'Retur ini sudah VOID, tidak bisa direvisi.',
+      );
+    }
+    if (dto.salesInvoiceId !== existing.salesInvoiceId) {
+      throw new BadRequestException(
+        'Faktur asal retur tidak bisa diganti — VOID retur ini lalu buat retur baru atas faktur yang benar.',
+      );
+    }
+    this.validateSettlement(dto);
+
+    await this.printLockService.preflight({
+      table: 'sales_returns',
+      sourceType: 'SALES_RETURN',
+      documentId: id,
+      documentLabel: existing.returnNumber,
+      intent: 'EDIT',
+      reason: dto.reason,
+      user,
+      authorizationRequestId,
+    });
+
+    await this.dataSource.transaction(async (manager) => {
+      await this.printLockService.consume({
+        table: 'sales_returns',
+        sourceType: 'SALES_RETURN',
+        documentId: id,
+        documentLabel: existing.returnNumber,
+        intent: 'EDIT',
+        reason: dto.reason,
+        user,
+        authorizationRequestId,
+        manager,
+      });
+      // consume() SUDAH menaikkan revision_number kalau PRINTED (K4).
+      const wasPrinted =
+        existing.printStatus === SalesReturnPrintStatus.PRINTED;
+
+      const invoice = await manager.findOne(SalesInvoice, {
+        where: { id: existing.salesInvoiceId },
+        relations: { lines: true },
+      });
+      if (
+        !invoice ||
+        invoice.postingStatus === SalesInvoicePostingStatus.VOIDED
+      ) {
+        throw new BadRequestException(
+          'Faktur asal sudah VOID — retur ini tidak bisa direvisi, hanya di-VOID.',
+        );
+      }
+      const customer = await manager.findOneOrFail(Customer, {
+        where: { id: invoice.customerId },
+      });
+      const badStockWarehouse = await this.resolveBadStockWarehouse(manager);
+      if (dto.settlementType === SalesReturnSettlementType.CASH) {
+        await this.accountResolverService.assertAccountHasFlag(
+          dto.cashAccountId!,
+          'is_cash_account',
+          'Kas/Bank',
+          manager,
+        );
+      }
+      const newReturnDate = parseDateOnly(dto.returnDate);
+
+      await this.documentReviseService.revise({
+        sourceType: 'SALES_RETURN',
+        sourceId: id,
+        originalDate: parseDateOnly(existing.returnDate),
+        userId: user.sub,
+        manager,
+        reversalDescription: `Pembalik revisi retur penjualan ${existing.returnNumber}`,
+        beforeReverse: (m) =>
+          this.stockRecorderService.assertLotsUnconsumed(
+            'SALES_RETURN',
+            id,
+            m,
+            'Barang dari retur ini sudah keluar dari Bad Stock (diretur ke supplier/dipindah) — tidak bisa direvisi.',
+          ),
+        applyChanges: async (m): Promise<ApplyChangesResult> => {
+          await m.update(SalesReturn, id, {
+            returnDate: toDateOnlyString(newReturnDate),
+            settlementType: dto.settlementType,
+            cashAccountId: dto.cashAccountId ?? null,
+            notes: dto.notes ?? null,
+          });
+          // Baris lama dihapus & ditulis ulang dalam SATU event revisi
+          // (pola PurchaseInvoicesService.reviseInvoice); sales_return_lines
+          // tidak dirujuk dokumen lain.
+          await m.delete(SalesReturnLine, { salesReturnId: id });
+          const { journalLines } = await this.postLinesAndBuildJournal({
+            salesReturnId: id,
+            returnNumber: existing.returnNumber,
+            returnDate: newReturnDate,
+            invoice,
+            customer,
+            dto,
+            badStockWarehouseId: badStockWarehouse.id,
+            userId: user.sub,
+            manager: m,
+          });
+          return {
+            repostDate: newReturnDate,
+            journalDescription: `Retur Penjualan ${existing.returnNumber} (revisi)`,
+            journalLines,
+          };
+        },
+      });
+
+      if (!wasPrinted) {
+        await manager.increment(SalesReturn, { id }, 'revisionNumber', 1);
+      }
+    });
+
+    return this.findOne(id);
   }
 
   /**
@@ -503,13 +770,16 @@ export class SalesReturnsService {
    */
   private async getAlreadyReturnedTotalCents(
     salesInvoiceId: string,
+    excludeSalesReturnId: string,
     manager: EntityManager,
   ): Promise<number> {
+    // excludeSalesReturnId: retur yang SEDANG diposting/direvisi tidak boleh
+    // ikut terhitung (header-nya sudah ada sebelum totalnya diperbarui).
     const rows: { total: string | null }[] = await manager.query(
       `SELECT SUM(total_amount) AS total
        FROM sales_returns
-       WHERE sales_invoice_id = $1 AND posting_status = 'POSTED'`,
-      [salesInvoiceId],
+       WHERE sales_invoice_id = $1 AND posting_status = 'POSTED' AND id <> $2`,
+      [salesInvoiceId, excludeSalesReturnId],
     );
     return toCents(Number(rows[0]?.total ?? 0));
   }

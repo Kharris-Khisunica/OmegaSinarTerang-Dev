@@ -10,6 +10,7 @@ import { PostJournalLineDto } from '../../core/journal-poster/dto/post-journal.d
 import { JournalPosterService } from '../../core/journal-poster/journal-poster.service';
 import { DocumentCounterService } from '../../core/document-counter/document-counter.service';
 import { PrintLockService } from '../../core/print-lock/print-lock.service';
+import { StepUpService } from '../../core/step-up/step-up.service';
 import { StockRecorderService } from '../../core/stock-recorder/stock-recorder.service';
 import { TaxRateResolverService } from '../../core/tax-rates/tax-rate-resolver.service';
 import { VoidEngineService } from '../../core/void/void.service';
@@ -20,6 +21,8 @@ import {
   resolveSortDir,
 } from '../../common/pagination';
 import { AuthenticatedUser } from '../auth/types/jwt-payload.interface';
+import { ActionType } from '../authorization-requests/action-type.enum';
+import { Role } from '../../common/enums/role.enum';
 import { JournalEntry } from '../journal-entries/entities/journal-entry.entity';
 import { Product } from '../products/entities/product.entity';
 import { Supplier } from '../suppliers/entities/supplier.entity';
@@ -117,6 +120,7 @@ export class PurchaseInvoicesService {
     private readonly printLockService: PrintLockService,
     private readonly voidEngineService: VoidEngineService,
     private readonly documentReviseService: DocumentReviseService,
+    private readonly stepUpService: StepUpService,
   ) {}
 
   async create(
@@ -559,16 +563,21 @@ export class PurchaseInvoicesService {
 
   /**
    * VOID lewat VoidEngineService (Hari 11) + PurchaseInvoiceVoidHook —
-   * digerbangi kunci cetak (kalau sudah dicetak). Rule umum §2.13 ("VOID
-   * oleh Operator wajib step-up") SENGAJA belum ditambahkan hari ini —
-   * ActionType.VOID_DOCUMENT payload matcher-nya baru didaftarkan Hari 21
-   * (lihat catatan di payload-matchers.ts), bukan hari ini.
+   * digerbangi DUA gerbang independen, pola PERSIS
+   * SalesInvoicesService.voidInvoice():
+   *   - kunci cetak UNLOCK_PRINT intent VOID (§2.16, semua role, hanya kalau
+   *     sudah PRINTED) lewat `authorizationRequestId`;
+   *   - VOID_DOCUMENT (§2.13, hanya OPERATOR, tidak peduli status cetak)
+   *     lewat `voidAuthorizationRequestId`.
+   * Gerbang kedua dulu ditunda menunggu payload matcher VOID_DOCUMENT
+   * (Hari 21) lalu terlupa — ditambahkan 6 Okt 2026 (need_fixing.md #13).
    */
   async voidInvoice(
     id: string,
     dto: VoidPurchaseInvoiceDto,
     user: AuthenticatedUser,
     authorizationRequestId: string | undefined,
+    voidAuthorizationRequestId?: string,
   ): Promise<PurchaseInvoice> {
     const existing = await this.findOne(id);
     const unlockReason = dto.unlockReason ?? dto.reasonNote;
@@ -584,6 +593,21 @@ export class PurchaseInvoicesService {
       authorizationRequestId,
     });
 
+    const needsVoidApproval = user.role === Role.OPERATOR;
+    const voidPayload = { sourceType: 'PURCHASE_INVOICE', sourceId: id };
+    const voidContextSummary = `VOID faktur pembelian ${existing.invoiceNumber}: ${dto.reasonNote}`;
+
+    if (needsVoidApproval && !voidAuthorizationRequestId) {
+      // WAJIB tanpa manager — baris authorization_requests baru tidak boleh
+      // ikut rollback (sama alasannya dengan preflight() di atas).
+      await this.stepUpService.requireApproval({
+        user,
+        actionType: ActionType.VOID_DOCUMENT,
+        payload: voidPayload,
+        contextSummary: voidContextSummary,
+      });
+    }
+
     await this.dataSource.transaction(async (manager) => {
       await this.printLockService.consume({
         table: 'purchase_invoices',
@@ -596,6 +620,17 @@ export class PurchaseInvoicesService {
         authorizationRequestId,
         manager,
       });
+
+      if (needsVoidApproval) {
+        await this.stepUpService.requireApproval({
+          user,
+          actionType: ActionType.VOID_DOCUMENT,
+          payload: voidPayload,
+          contextSummary: voidContextSummary,
+          authorizationRequestId: voidAuthorizationRequestId,
+          manager,
+        });
+      }
 
       await this.voidEngineService.voidDocument({
         sourceType: 'PURCHASE_INVOICE',

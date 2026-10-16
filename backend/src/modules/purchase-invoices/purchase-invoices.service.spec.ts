@@ -172,6 +172,7 @@ describe('PurchaseInvoicesService', () => {
       printLockService,
       voidEngineService,
       documentReviseService,
+      stepUpService,
     );
 
     const suffix = Date.now();
@@ -321,6 +322,13 @@ describe('PurchaseInvoicesService', () => {
     await dataSource.query(`DELETE FROM units WHERE id = $1`, [unitId]);
     await dataSource.query(`DELETE FROM brands WHERE id = $1`, [brandId]);
     const testUserIds = [masterUserId, operatorUserId, supervisorUserId];
+    // Jaring pengaman: request step-up yang terbit di tengah tes (mis. 412
+    // VOID_DOCUMENT yang tidak dilanjutkan) tidak selalu tercatat di
+    // createdRequestIds — hapus per requester supaya FK users tidak macet.
+    await dataSource.query(
+      'DELETE FROM authorization_requests WHERE requester_id = ANY($1)',
+      [testUserIds],
+    );
     await dataSource.query('DELETE FROM audit_logs WHERE user_id = ANY($1)', [
       testUserIds,
     ]);
@@ -1150,20 +1158,72 @@ describe('PurchaseInvoicesService', () => {
       );
     });
 
-    it('VOID faktur yang sudah dicetak tanpa unlock -> 412 intent VOID; approve + retry -> sukses', async () => {
+    // Tangkap body 412 + actionType-nya, lalu approve — dipakai dua tes
+    // VOID_DOCUMENT di bawah (§2.13, need_fixing.md #13).
+    async function approveStepUp(
+      promise: Promise<unknown>,
+      expectedActionType: string,
+    ): Promise<string> {
+      let body: StepUpRequiredBody | undefined;
+      try {
+        await promise;
+        throw new Error('Seharusnya melempar 412.');
+      } catch (err) {
+        expect(err).toBeInstanceOf(HttpException);
+        expect((err as HttpException).getStatus()).toBe(412);
+        body = (err as HttpException).getResponse() as StepUpRequiredBody;
+      }
+      const requestId = body.authorizationRequestId;
+      createdRequestIds.push(requestId);
+      const rows: { action_type: string }[] = await dataSource.query(
+        `SELECT action_type FROM authorization_requests WHERE id = $1`,
+        [requestId],
+      );
+      expect(rows[0]?.action_type).toBe(expectedActionType);
+      await authorizationRequestsService.approve(requestId, supervisorUser);
+      return requestId;
+    }
+
+    it('VOID oleh OPERATOR faktur belum dicetak -> 412 VOID_DOCUMENT; approve + retry -> sukses', async () => {
+      const { invoice } = await createSimpleInvoice();
+      const dto = { reasonCode: 'SALAH_INPUT', reasonNote: 'operator batal' };
+
+      const voidRequestId = await approveStepUp(
+        service.voidInvoice(invoice.id, dto, operatorUser, undefined),
+        'VOID_DOCUMENT',
+      );
+      const voided = await service.voidInvoice(
+        invoice.id,
+        dto,
+        operatorUser,
+        undefined,
+        voidRequestId,
+      );
+      expect(voided.postingStatus).toBe(PurchaseInvoicePostingStatus.VOIDED);
+    });
+
+    it('VOID oleh OPERATOR faktur yang sudah dicetak -> 412 UNLOCK_PRINT, lalu 412 VOID_DOCUMENT, lalu sukses (3 round-trip)', async () => {
       const { invoice } = await createSimpleInvoice();
       await service.registerPrint(invoice.id);
+      const dto = {
+        reasonCode: 'SALAH_INPUT',
+        reasonNote: 'Faktur dicetak lalu ternyata salah',
+      };
 
-      const voided = await unlockAndRetry((authorizationRequestId) =>
-        service.voidInvoice(
-          invoice.id,
-          {
-            reasonCode: 'SALAH_INPUT',
-            reasonNote: 'Faktur dicetak lalu ternyata salah',
-          },
-          operatorUser,
-          authorizationRequestId,
-        ),
+      const printRequestId = await approveStepUp(
+        service.voidInvoice(invoice.id, dto, operatorUser, undefined),
+        'UNLOCK_PRINT',
+      );
+      const voidRequestId = await approveStepUp(
+        service.voidInvoice(invoice.id, dto, operatorUser, printRequestId),
+        'VOID_DOCUMENT',
+      );
+      const voided = await service.voidInvoice(
+        invoice.id,
+        dto,
+        operatorUser,
+        printRequestId,
+        voidRequestId,
       );
       expect(voided.postingStatus).toBe(PurchaseInvoicePostingStatus.VOIDED);
       expect(voided.printStatus).toBe(

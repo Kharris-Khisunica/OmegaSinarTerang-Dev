@@ -12,7 +12,9 @@ export type DocumentType =
   | 'PAYMENT'
   | 'JOURNAL_ENTRY'
   | 'OPERATIONAL_EXPENSE'
-  | 'CASH_TRANSFER';
+  | 'CASH_TRANSFER'
+  | 'KASBON_REPAYMENT'
+  | 'STOCK_OPNAME';
 
 // Kode persis dari sistem lama klien (CLAUDE.md §2.3) — JL/B1/GD sudah
 // tercetak di nota yang beredar. Jangan diganti jadi singkatan lama
@@ -35,6 +37,14 @@ export const DOCUMENT_PREFIXES: Record<DocumentType, string> = {
   // antar kas milik sendiri, bukan kunci cetak §2.16 & tidak masuk Laporan
   // Kontinuitas Nomor Dokumen (pola sama OPERATIONAL_EXPENSE di atas).
   CASH_TRANSFER: 'PB',
+  // PK = Pelunasan Kasbon (need_fixing.md #26) — setoran tunai pelunasan
+  // kasbon karyawan ke Kas Kecil. Pola KK/PB: tidak ikut kunci cetak §2.16 &
+  // tidak masuk Laporan Kontinuitas Nomor Dokumen.
+  KASBON_REPAYMENT: 'PK',
+  // OP = Stok Opname (need_fixing.md #25) — dokumen internal penghitungan
+  // fisik + koreksi stok. Tidak ikut kunci cetak §2.16 & tidak masuk Laporan
+  // Kontinuitas (status DRAFT/POSTED/VOIDED-nya sendiri sudah jejaknya).
+  STOCK_OPNAME: 'OP',
 };
 
 @Injectable()

@@ -132,10 +132,9 @@ export class OperationalExpensesController {
     return this.operationalExpensesService.review(id, dto, req.user);
   }
 
-  // VOID per baris — lihat catatan operational-expense-line.entity.ts. Tidak
-  // ada step-up VOID hari ini (aturan umum CLAUDE.md §2.13 belum
-  // diimplementasikan modul mana pun, menyusul Hari 21 — lihat komentar
-  // purchase-invoices.service.ts).
+  // VOID per baris — lihat catatan operational-expense-line.entity.ts.
+  // x-void-authorization-request-id -> VOID_DOCUMENT (§2.13, hanya OPERATOR).
+  // Tidak ada gerbang UNLOCK_PRINT (Biaya Operasional tidak ikut kunci cetak).
   @Roles(Role.MASTER, Role.OPERATOR)
   @Audit('VOID', 'operational_expenses')
   @Post('lines/:lineId/void')
@@ -144,6 +143,15 @@ export class OperationalExpensesController {
     @Body() dto: VoidOperationalExpenseLineDto,
     @Req() req: RequestWithUser,
   ) {
-    return this.operationalExpensesService.voidLine(lineId, dto, req.user);
+    const voidHeaderId = req.headers['x-void-authorization-request-id'];
+    const voidAuthorizationRequestId = Array.isArray(voidHeaderId)
+      ? voidHeaderId[0]
+      : voidHeaderId;
+    return this.operationalExpensesService.voidLine(
+      lineId,
+      dto,
+      req.user,
+      voidAuthorizationRequestId,
+    );
   }
 }

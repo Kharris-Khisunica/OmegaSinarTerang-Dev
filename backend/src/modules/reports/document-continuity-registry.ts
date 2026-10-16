@@ -24,6 +24,9 @@ export interface DocumentContinuityConfig {
  *     komentar DOCUMENT_PREFIXES di document-counter.service.ts).
  *   - CASH_TRANSFER (PB, paket R9) — pemindahan antar kas milik sendiri,
  *     pola sama OPERATIONAL_EXPENSE (lihat komentar DOCUMENT_PREFIXES).
+ *   - KASBON_REPAYMENT (PK, need_fixing.md #26) — pelunasan kasbon karyawan,
+ *     pola sama OPERATIONAL_EXPENSE/CASH_TRANSFER.
+ *   - STOCK_OPNAME (OP, need_fixing.md #25) — dokumen internal opname.
  *
  * Nama tabel/kolom di sini TIDAK PERNAH datang dari input user — hanya
  * dipakai lewat DOCUMENT_CONTINUITY_TYPES yang statis, lalu diinterpolasi ke

@@ -6,16 +6,18 @@ import { JournalPosterModule } from '../../core/journal-poster/journal-poster.mo
 import { PrintLockModule } from '../../core/print-lock/print-lock.module';
 import { ReceivablesModule } from '../../core/receivables/receivables.module';
 import { StockRecorderModule } from '../../core/stock-recorder/stock-recorder.module';
+import { DocumentReviseModule } from '../../core/document-revise/document-revise.module';
+import { StepUpModule } from '../../core/step-up/step-up.module';
+import { VoidModule } from '../../core/void/void.module';
+import { SalesReturnVoidHook } from './sales-return-void.hook';
 import { Warehouse } from '../warehouses/entities/warehouse.entity';
 import { SalesReturnLine } from './entities/sales-return-line.entity';
 import { SalesReturn } from './entities/sales-return.entity';
 import { SalesReturnsController } from './sales-returns.controller';
 import { SalesReturnsService } from './sales-returns.service';
 
-// TIDAK import VoidModule — VOID untuk RJ sengaja belum dibangun hari ini
-// (pola sama purchase_returns Hari 16). TIDAK import StepUpModule — tidak
-// ada gerbang otorisasi untuk retur penjualan (CASH settlement hanya
-// divalidasi AccountResolverService.assertAccountHasFlag(), bukan step-up).
+// VoidModule/StepUpModule/DocumentReviseModule — VOID & revisi retur
+// penjualan (need_fixing.md #19).
 @Module({
   imports: [
     TypeOrmModule.forFeature([SalesReturn, SalesReturnLine, Warehouse]),
@@ -25,8 +27,11 @@ import { SalesReturnsService } from './sales-returns.service';
     AccountResolverModule,
     ReceivablesModule,
     PrintLockModule,
+    VoidModule,
+    StepUpModule,
+    DocumentReviseModule,
   ],
   controllers: [SalesReturnsController],
-  providers: [SalesReturnsService],
+  providers: [SalesReturnsService, SalesReturnVoidHook],
 })
 export class SalesReturnsModule {}

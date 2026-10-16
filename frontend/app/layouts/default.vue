@@ -121,12 +121,12 @@ const userMenuItems = [
       :default-size="16"
       :max-size="20"
     >
-      <template #header>
+      <template #header="{ collapsed }">
         <NuxtLink
           to="/"
           class="flex items-center gap-2"
         >
-          <AppLogo class="w-auto h-6 shrink-0" />
+          <AppLogo :collapsed="collapsed" />
         </NuxtLink>
       </template>
 

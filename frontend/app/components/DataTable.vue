@@ -149,6 +149,15 @@ function load() {
 }
 
 let searchDebounce: ReturnType<typeof setTimeout> | undefined
+// need_fixing.md #8 — "/" fokus ke kotak Cari (PANDUAN_UI.md §12, halaman
+// daftar). Hanya tabel ber-endpoint (daftar utama, bukan grid lokal di dalam
+// modal) dan diam selama ada modal dokumen/baris terbuka.
+const searchWrap = ref<HTMLElement | null>(null)
+const { anyModalOpen } = useModalStack()
+useDocumentHotkeys('list', {
+  onFocusSearch: () => searchWrap.value?.querySelector('input')?.focus()
+}, { active: computed(() => !!props.endpoint && props.searchable && !anyModalOpen.value) })
+
 function onSearchInput(value: string) {
   search.value = value
   if (searchDebounce) clearTimeout(searchDebounce)
@@ -262,14 +271,18 @@ defineExpose({ reload: load, selectedRow, clearSelection })
       </div>
       <!-- Baris Cari + filter (§5.1) -->
       <div class="flex flex-wrap items-center gap-2">
-        <UInput
+        <div
           v-if="searchable"
-          :model-value="search"
-          :placeholder="searchPlaceholder"
-          icon="i-lucide-search"
-          class="w-64"
-          @update:model-value="onSearchInput"
-        />
+          ref="searchWrap"
+        >
+          <UInput
+            :model-value="search"
+            :placeholder="searchPlaceholder"
+            icon="i-lucide-search"
+            class="w-64"
+            @update:model-value="onSearchInput"
+          />
+        </div>
         <div
           v-for="filter in filters.filter(f => f.type === 'select')"
           :key="filter.key"
