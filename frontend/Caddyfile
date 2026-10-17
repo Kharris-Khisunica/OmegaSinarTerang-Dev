@@ -1,11 +1,11 @@
 {
-	auto_https off
-	admin off
+    auto_https off
+    admin off
 }
 
 :80 {
-	root * /srv
-	encode gzip
-	try_files {path} /index.html
-	file_server
+    root * /srv
+    encode gzip
+    try_files {path} {path}/index.html /200.html
+    file_server
 }
