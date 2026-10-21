@@ -6,8 +6,6 @@
 // §6): TIGA tanda tangan Dibuat / Diterima / Diketahui. Kolom tanpa DISC %/
 // DISC RP -- diskon baris pembelian di-drop sejak paket R7/K5 (CLAUDE.md §3);
 // diskon faktur (rupiah) tampil sebagai baris rincian di atas GRAND TOTAL.
-// Nama supplier untuk OPERATOR sudah ter-mask oleh backend (CLAUDE.md §3) --
-// dicetak apa adanya, display_code tetap tampil.
 import type { ProductLookup, SupplierLookup, UnitLookup } from '~/composables/usePurchaseInvoiceLookups'
 
 definePageMeta({ layout: 'print', roles: ['MASTER', 'OPERATOR'] })

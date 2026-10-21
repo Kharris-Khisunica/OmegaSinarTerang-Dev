@@ -6,9 +6,8 @@ import type { FieldDef } from '~/types/crud-form'
  * TIDAK PERNAH dikirim dari FE (backend tidak menerimanya di DTO, `whitelist: true`
  * akan membuangnya kalau dikirim juga). Field tetap ditampilkan (disabled) supaya
  * Master/Operator tahu kode supplier itu ada dan otomatis, bukan diketik manual.
- * Untuk OPERATOR, `name`/`contactPhone`/`contactAddress` yang tampil di sini SUDAH
- * ter-mask oleh `SupplierMaskingInterceptor` di backend (CLAUDE.md §3) — FE tidak
- * perlu masking sendiri, cukup tampilkan apa adanya dari response.
+ * Revisi klien 17 Okt 2026 (Hari 44): supplier cukup NAMA (+ PKP, gerbang PPN
+ * masukan §2.11) — kontak di-drop dan masking OPERATOR dicabut.
  */
 export function useSupplierSchema(): FieldDef[] {
   return [
@@ -22,31 +21,15 @@ export function useSupplierSchema(): FieldDef[] {
       placeholder: 'Otomatis setelah disimpan',
       hint: 'Dibuat otomatis oleh sistem, tidak bisa diubah.'
     },
-    {
-      key: 'contactPhone',
-      label: 'No. Telepon',
-      type: 'text',
-      cols: 6,
-      placeholder: '081234567890'
-    },
     { key: 'isPkp', label: 'PKP (Pengusaha Kena Pajak)', type: 'switch', cols: 6, hint: 'Aktifkan kalau supplier ini kena PPN.' },
-    { key: 'contactAddress', label: 'Alamat', type: 'textarea', cols: 12, uppercase: true },
     { key: 'isActive', label: 'Aktif', type: 'switch', cols: 6, defaultValue: true }
   ]
 }
 
-/**
- * Form -> payload POST/PATCH /suppliers (displayCode dibuang, server-generated).
- * Sengaja TIDAK mengonversi string kosong -> undefined: `contactPhone`/`contactAddress`
- * kosong tetap dikirim apa adanya (null atau '') supaya mengosongkan field saat edit
- * benar-benar terkirim ke server, bukan diam-diam diabaikan (lihat perilaku
- * `UpdateSupplierDto` di suppliers.service.ts: field hanya di-update kalau !== undefined).
- */
+/** Form -> payload POST/PATCH /suppliers (displayCode dibuang, server-generated). */
 export function supplierTransformOut(form: Record<string, unknown>): Record<string, unknown> {
   return {
     name: form.name,
-    contactPhone: form.contactPhone,
-    contactAddress: form.contactAddress,
     isPkp: form.isPkp,
     isActive: form.isActive
   }

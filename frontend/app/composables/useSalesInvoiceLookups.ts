@@ -4,11 +4,8 @@ export interface CustomerLookup {
   name: string
   isActive: boolean
   isPkp: boolean
-  // Dipakai halaman cetak nota (§13.1 PANDUAN_UI.md) -- backend tidak
-  // memangkas field ini untuk GET /customers (beda dari GET /suppliers yang
-  // di-mask untuk OPERATOR, CLAUDE.md §3), jadi aman dibaca di sini juga.
-  phone: string | null
-  address: string | null
+  // Dicetak di kepala nota (§13.1 PANDUAN_UI.md). Sejak revisi klien 17 Okt
+  // 2026 (Hari 44) pelanggan hanya punya Nama + Kota — telepon/alamat di-drop.
   city: string | null
 }
 
@@ -36,6 +33,14 @@ export interface SalesmanLookup {
 }
 
 export interface VehicleLookup {
+  id: string
+  code: string
+  name: string
+  isActive: boolean
+}
+
+// Pekerja/tukang angkut (master `workers`) -- dipilih di Surat Jalan (Hari 44).
+export interface WorkerLookup {
   id: string
   code: string
   name: string
@@ -74,5 +79,10 @@ export function useSalesInvoiceLookups() {
     return new Map(res.data.map(v => [v.id, v]))
   }
 
-  return { loadCustomerMap, loadProductMap, loadUnitMap, loadSalesmanMap, loadVehicleMap }
+  async function loadWorkerMap(): Promise<Map<string, WorkerLookup>> {
+    const res = await api.get<{ data: WorkerLookup[] }>('/workers', { limit: 200 })
+    return new Map(res.data.map(w => [w.id, w]))
+  }
+
+  return { loadCustomerMap, loadProductMap, loadUnitMap, loadSalesmanMap, loadVehicleMap, loadWorkerMap }
 }

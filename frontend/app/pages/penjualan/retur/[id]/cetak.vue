@@ -49,7 +49,7 @@ const { format: qtyFmt } = useQty()
 const { loadCustomerMap, loadProductMap } = useSalesInvoiceLookups()
 
 const salesReturn = ref<ReturnDetail | null>(null)
-const customerMap = ref(new Map<string, { name: string, address: string | null, city: string | null, phone: string | null }>())
+const customerMap = ref(new Map<string, { name: string, city: string | null }>())
 const productMap = ref(new Map<string, { displayName: string, code: string }>())
 const invoiceNumber = ref('-')
 const store = ref<Record<string, string>>({})
@@ -244,10 +244,9 @@ async function triggerPrint() {
               <div class="font-bold">
                 {{ customer?.name ?? '-' }}
               </div>
-              <div v-if="customer?.address || customer?.city">
-                {{ [customer?.address, customer?.city].filter(Boolean).join(', ') }}
+              <div v-if="customer?.city">
+                {{ customer.city }}
               </div>
-              <div>TEL : {{ customer?.phone ?? '' }}</div>
             </div>
           </div>
 

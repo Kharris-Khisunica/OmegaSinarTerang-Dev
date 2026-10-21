@@ -18,19 +18,7 @@ export class Customer {
   name: string;
 
   @Column({ nullable: true, type: 'varchar' })
-  phone: string | null;
-
-  @Column({ nullable: true, type: 'text' })
-  address: string | null;
-
-  @Column({ nullable: true, type: 'varchar' })
-  district: string | null;
-
-  @Column({ nullable: true, type: 'varchar' })
   city: string | null;
-
-  @Column({ nullable: true, type: 'varchar' })
-  province: string | null;
 
   @Column({ name: 'is_pkp', default: false })
   isPkp: boolean;

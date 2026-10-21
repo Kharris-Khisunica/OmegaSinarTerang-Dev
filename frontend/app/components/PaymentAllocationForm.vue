@@ -106,9 +106,6 @@ async function loadParties() {
         .map(c => ({ label: `${c.code} - ${c.name}`, value: c.id }))
     } else {
       const map = await loadSupplierMap()
-      // name/displayCode sudah ter-mask untuk OPERATOR oleh backend
-      // (SupplierMaskingInterceptor, CLAUDE.md §3) -- ditampilkan apa adanya,
-      // pola sama pembelian/faktur/index.vue.
       partyOptions.value = [...map.values()]
         .map(s => ({ label: `${s.displayCode} - ${s.name}`, value: s.id }))
     }

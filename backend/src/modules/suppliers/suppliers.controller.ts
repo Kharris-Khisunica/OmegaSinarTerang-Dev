@@ -6,7 +6,6 @@ import {
   Patch,
   Post,
   Query,
-  UseInterceptors,
 } from '@nestjs/common';
 import { Role } from '../../common/enums/role.enum';
 import { Audit } from '../audit/decorators/audit.decorator';
@@ -14,11 +13,9 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { CreateSupplierDto } from './dto/create-supplier.dto';
 import { SupplierQueryDto } from './dto/supplier-query.dto';
 import { UpdateSupplierDto } from './dto/update-supplier.dto';
-import { SupplierMaskingInterceptor } from './supplier-masking.interceptor';
 import { SuppliersService } from './suppliers.service';
 
 @Controller('suppliers')
-@UseInterceptors(SupplierMaskingInterceptor)
 export class SuppliersController {
   constructor(private readonly suppliersService: SuppliersService) {}
 

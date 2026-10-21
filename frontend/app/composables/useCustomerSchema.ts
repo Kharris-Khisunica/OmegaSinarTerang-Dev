@@ -55,19 +55,10 @@ export function useCustomerSchema(): FieldDef[] {
         onClick: (_form, setField) => setField('code', '')
       }
     },
-    {
-      key: 'phone',
-      label: 'No. Telepon',
-      type: 'text',
-      cols: 6,
-      placeholder: '081234567890',
-      hint: 'Format Indonesia, tanpa spasi/strip. Contoh: 081234567890 atau +6281234567890.'
-    },
-    { key: 'isPkp', label: 'PKP (Pengusaha Kena Pajak)', type: 'switch', cols: 6, hint: 'Aktifkan kalau customer ini kena PPN.' },
-    { key: 'address', label: 'Alamat Lengkap', type: 'textarea', cols: 12, placeholder: 'Nama jalan, nomor, RT/RW, patokan, dsb.', uppercase: true },
-    { key: 'district', label: 'Kecamatan', type: 'text', cols: 4, uppercase: true },
-    { key: 'city', label: 'Kota', type: 'text', cols: 4, uppercase: true },
-    { key: 'province', label: 'Provinsi', type: 'text', cols: 4, uppercase: true }
+    // Revisi klien 17 Okt 2026 (Hari 44): pelanggan cukup Nama + Kota —
+    // telepon & alamat rinci di-drop.
+    { key: 'city', label: 'Kota', type: 'text', cols: 6, uppercase: true },
+    { key: 'isPkp', label: 'PKP (Pengusaha Kena Pajak)', type: 'switch', cols: 6, hint: 'Aktifkan kalau customer ini kena PPN.' }
   ]
 
   if (activeRole.value === 'MASTER') {

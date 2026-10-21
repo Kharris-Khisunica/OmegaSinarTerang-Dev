@@ -16,6 +16,7 @@ import { AuthenticatedUser } from '../auth/types/jwt-payload.interface';
 import { CreateDeliveryOrderDto } from './dto/create-delivery-order.dto';
 import { DeliveryOrderQueryDto } from './dto/delivery-order-query.dto';
 import { UpdateDeliveryOrderStatusDto } from './dto/update-delivery-order-status.dto';
+import { UpdateDeliveryOrderWorkersDto } from './dto/update-delivery-order-workers.dto';
 import { VoidDeliveryOrderDto } from './dto/void-delivery-order.dto';
 import { DeliveryOrdersService } from './delivery-orders.service';
 
@@ -66,6 +67,18 @@ export class DeliveryOrdersController {
     @Body() dto: UpdateDeliveryOrderStatusDto,
   ) {
     return this.deliveryOrdersService.updateStatus(id, dto);
+  }
+
+  // Daftar pekerja juga BEBAS kunci cetak (keputusan 17 Okt 2026, Hari 44,
+  // pola sama status kirim) — jejaknya di audit_logs lewat @Audit.
+  @Roles(Role.MASTER, Role.OPERATOR)
+  @Audit('EDIT', 'delivery_orders')
+  @Patch(':id/workers')
+  updateWorkers(
+    @Param('id') id: string,
+    @Body() dto: UpdateDeliveryOrderWorkersDto,
+  ) {
+    return this.deliveryOrdersService.updateWorkers(id, dto);
   }
 
   // DUA header independen, pola sama SalesInvoicesController.voidInvoice():

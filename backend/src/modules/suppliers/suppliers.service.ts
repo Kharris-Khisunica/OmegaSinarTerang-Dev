@@ -43,7 +43,7 @@ export class SuppliersService {
 
     if (query.search) {
       qb.andWhere(
-        '(supplier.displayCode ILIKE :search OR supplier.name ILIKE :search OR supplier.contactPhone ILIKE :search)',
+        '(supplier.displayCode ILIKE :search OR supplier.name ILIKE :search)',
         { search: `%${query.search}%` },
       );
     }
@@ -69,8 +69,6 @@ export class SuppliersService {
     const supplier = this.suppliersRepository.create({
       displayCode,
       name: toUpperTrim(dto.name),
-      contactPhone: dto.contactPhone ?? null,
-      contactAddress: toUpperTrim(dto.contactAddress) ?? null,
       isPkp: dto.isPkp ?? false,
       isActive: dto.isActive ?? true,
     });
@@ -81,10 +79,6 @@ export class SuppliersService {
     await this.findOne(id);
     await this.suppliersRepository.update(id, {
       ...(dto.name !== undefined && { name: toUpperTrim(dto.name) }),
-      ...(dto.contactPhone !== undefined && { contactPhone: dto.contactPhone }),
-      ...(dto.contactAddress !== undefined && {
-        contactAddress: toUpperTrim(dto.contactAddress),
-      }),
       ...(dto.isPkp !== undefined && { isPkp: dto.isPkp }),
       ...(dto.isActive !== undefined && { isActive: dto.isActive }),
     });

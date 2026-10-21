@@ -28,9 +28,7 @@ export interface CashAccountOption {
 
 /**
  * Loader untuk Retur Pembelian (Hari 16), pola sama usePurchaseInvoiceLookups.ts
- * / useWarehouseMutationLookups.ts. `name`/`displayCode` supplier SUDAH
- * ter-mask untuk OPERATOR oleh SupplierMaskingInterceptor backend
- * (CLAUDE.md §3) — tidak perlu masking lagi di sini.
+ * / useWarehouseMutationLookups.ts.
  *
  * findBadStockLots() SENGAJA tidak dipanggil di sini secara otomatis —
  * dipanggil eksplisit oleh create.vue lewat watch(supplierId) supaya daftar

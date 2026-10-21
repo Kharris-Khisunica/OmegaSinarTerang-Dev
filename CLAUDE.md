@@ -232,6 +232,12 @@ transaksi. Cabang kedua = proyek terpisah berskala minggu, bukan setelan.
       dan `revision_number` tidak berubah, jejaknya di `audit_logs`. **VOID SJ tetap
       ikut kunci cetak** + `VOID_DOCUMENT` untuk Operator (§2.13), dan karena SJ tanpa
       jurnal/stok, VOID-nya tidak lewat `VoidEngineService`.
+    - **Pengecualian kedua: daftar pekerja Surat Jalan** (`delivery_order_workers`,
+      `PATCH /delivery-orders/:id/workers`) **bebas kunci cetak** *(keputusan 17 Okt 2026,
+      revisi akhir klien sebelum deploy — Hari 44, belum dikonfirmasi ulang ke klien)*.
+      Pola sama status kirim: `print_status`/`revision_number` tidak berubah, jejak di
+      `audit_logs`. Pekerja **tercetak** di lembar SJ, jadi lembar lama bisa berbeda dari
+      data sesudah diubah — disengaja, bukan bug.
 
 16a. **Revisi-di-tempat Faktur Penjualan & Pembelian** (paket R6, `docs/RENCANA_REVISI_TESTING_KLIEN.md`
     §2A K1-K4 — **belum dikonfirmasi ulang ke klien**, pola sama Payment §2.12).
@@ -324,6 +330,11 @@ transaksi. Cabang kedua = proyek terpisah berskala minggu, bukan setelan.
   yang dipertahankan, **tapi wajib dibuat terlihat** (operator lama tidak tahu cara pakainya).
 
 **Pelanggan & Supplier**
+- **Master disederhanakan** *(revisi akhir klien 17 Okt 2026, Hari 44)*: supplier hanya
+  **nama** (+ `display_code` otomatis + `is_pkp`), pelanggan hanya **nama + kota** (+ `code`
+  otomatis/manual + `is_pkp` + `ar_account_id`). Kolom telepon/alamat/kecamatan/provinsi
+  **di-DROP dari DB** (migration `1785080602983`/`…984`), masking supplier untuk OPERATOR
+  dicabut. Kode tetap dibangkitkan — dipakai import saldo awal & laporan hutang/piutang.
 - `customers.is_pkp`. Termin **diinput per faktur**, bukan disimpan di master pelanggan.
   Nilai default boleh diambil dari faktur terakhir pelanggan itu.
 - **`suppliers.is_pkp`** ADA. Menggerbangi perhitungan PPN masukan (§2.11).
@@ -339,7 +350,6 @@ transaksi. Cabang kedua = proyek terpisah berskala minggu, bukan setelan.
     **satu fungsi bersama**. Satu saja yang menuliskan akun default secara langsung →
     saldo pelanggan bocor tanpa error apa pun.
   - **Dikunci selama saldo pelanggan belum nol.**
-- Data Pajak (nama, alamat, kota, NPWP, alias) disimpan, belum dipakai selama non-PKP.
 - Akun kas & bank **DI-SEED sejak Hari 17A** (Kas Kecil, Kas Toko, Kas Besar, Bank BCA/BSI/
   Mandiri/BSI a.n. Asmiati) — menyimpang dari keputusan awal "tidak di-seed" karena struktur
   kas klien sudah diketahui lengkap dan `requires_outflow_approval` pada Kas Besar + seluruh
@@ -524,8 +534,14 @@ Detail penuh & jejak tanya-jawab di `docs/PERTANYAAN_KLIEN_BIAYA_OPERASIONAL*.md
 **Lain-lain**
 - **Retur penjualan wajib menunjuk faktur asal.** Harga pokoknya wajib dari
   `sales_invoice_lines.unit_cost_fifo`, bukan harga baru.
-- `GET /suppliers` untuk `OPERATOR`: `name`, `contact_phone`, `contact_address` **ter-mask**;
-  `display_code` tetap tampil.
+- ~~`GET /suppliers` untuk `OPERATOR` ter-mask~~ — **dicabut 17 Okt 2026** (Hari 44): supplier
+  hanya punya nama, tidak ada lagi yang disensor.
+- **Sales Order tanpa harga** *(revisi 17 Okt 2026, Hari 44)*: layar SO tidak lagi menampilkan
+  atau mengirim harga; `sales_order_lines.unit_price` tetap nullable untuk SO lama. Harga
+  diketik di faktur (panel riwayat harga). Faktur yang dibuat dari SO **menampilkan nomor SO**
+  (detail, daftar, cetak nota — `salesOrderNumber`, bukan kolom).
+- **Surat Jalan mencatat pekerja** (master `workers`, wajib ≥ 1, boleh > 1) dan lembar cetaknya
+  memuat **TOTAL FAKTUR** asal di halaman terakhir — baris barang tetap tanpa harga.
 - **Sales Order tidak menahan stok.** Qty terikat SO terbuka hanya **ditampilkan** sebagai
   informasi. Stok berkurang saat faktur, bukan saat SO.
   SO **tidak ikut kunci cetak** dan **tidak masuk Laporan Kontinuitas Nomor** (§2.16).

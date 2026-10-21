@@ -485,9 +485,10 @@ export class SalesInvoicesService {
 
     const qb = this.salesInvoicesRepository.createQueryBuilder('invoice');
     if (query.search) {
-      qb.andWhere('invoice.invoiceNumber ILIKE :search', {
-        search: `%${query.search}%`,
-      });
+      qb.andWhere(
+        `(invoice.invoiceNumber ILIKE :search OR invoice.salesOrderId IN (SELECT so.id FROM sales_orders so WHERE so.order_number ILIKE :search))`,
+        { search: `%${query.search}%` },
+      );
     }
     if (query.customerId) {
       qb.andWhere('invoice.customerId = :customerId', {
@@ -508,6 +509,7 @@ export class SalesInvoicesService {
       .take(limit);
 
     const [data, total] = await qb.getManyAndCount();
+    await this.attachSalesOrderNumbers(data);
     return buildPaginatedResult(data, total, page, limit);
   }
 
@@ -519,7 +521,35 @@ export class SalesInvoicesService {
     if (!invoice) {
       throw new BadRequestException('Faktur penjualan tidak ditemukan.');
     }
+    await this.attachSalesOrderNumbers([invoice]);
     return invoice;
+  }
+
+  // Hari 44 — faktur yang dibuat dari SO wajib merujuk nomor SO-nya (detail,
+  // daftar, cetak nota). Satu query untuk semua faktur di halaman ini.
+  private async attachSalesOrderNumbers(
+    invoices: SalesInvoice[],
+  ): Promise<void> {
+    const ids = [
+      ...new Set(
+        invoices
+          .map((invoice) => invoice.salesOrderId)
+          .filter((id): id is string => id !== null),
+      ),
+    ];
+    const rows: { id: string; order_number: string }[] =
+      ids.length === 0
+        ? []
+        : await this.dataSource.query(
+            `SELECT id, order_number FROM sales_orders WHERE id = ANY($1::uuid[])`,
+            [ids],
+          );
+    const numbers = new Map(rows.map((row) => [row.id, row.order_number]));
+    for (const invoice of invoices) {
+      invoice.salesOrderNumber = invoice.salesOrderId
+        ? (numbers.get(invoice.salesOrderId) ?? null)
+        : null;
+    }
   }
 
   /**

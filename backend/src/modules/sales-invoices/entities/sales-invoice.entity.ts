@@ -54,6 +54,11 @@ export class SalesInvoice {
   @Column({ name: 'sales_order_id', type: 'uuid', nullable: true })
   salesOrderId: string | null;
 
+  // Hari 44 — nomor SO asal untuk ditampilkan/dicetak. BUKAN kolom: diisi
+  // SalesInvoicesService.findOne()/findAll() dari sales_orders.order_number
+  // (null untuk faktur TOKO). Tidak pernah ikut disimpan.
+  salesOrderNumber?: string | null;
+
   @Column({ name: 'salesman_id', type: 'uuid' })
   salesmanId: string;
 

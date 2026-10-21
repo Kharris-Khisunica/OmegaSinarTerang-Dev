@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Column, FilterDef } from '~/types/data-table'
-import type { CustomerLookup, SalesmanLookup, VehicleLookup } from '~/composables/useSalesInvoiceLookups'
+import type { CustomerLookup, SalesmanLookup, VehicleLookup, WorkerLookup } from '~/composables/useSalesInvoiceLookups'
 
 // Daftar Surat Jalan (Hari 25 FE, BE Hari 24/25). TIDAK ADA tombol "Entri" —
 // SJ hanya terbentuk DARI faktur penjualan bersaluran PENGIRIMAN (tombol
@@ -18,25 +18,28 @@ interface DeliveryOrderRow extends Record<string, unknown> {
   customerId: string
   salesmanId: string
   vehicleId: string
+  workers: { workerId: string }[]
   deliveryStatus: DeliveryStatus
   postingStatus: 'POSTED' | 'VOIDED'
   printStatus: 'NOT_PRINTED' | 'PRINTED' | 'PRINT_CANCELLED'
   createdAt: string
 }
 
-const { loadCustomerMap, loadSalesmanMap, loadVehicleMap } = useSalesInvoiceLookups()
+const { loadCustomerMap, loadSalesmanMap, loadVehicleMap, loadWorkerMap } = useSalesInvoiceLookups()
 
 const customerMap = ref<Map<string, CustomerLookup>>(new Map())
 const salesmanMap = ref<Map<string, SalesmanLookup>>(new Map())
 const vehicleMap = ref<Map<string, VehicleLookup>>(new Map())
+const workerMap = ref<Map<string, WorkerLookup>>(new Map())
 
 async function loadAllOptions() {
-  const [customers, salesmen, vehicles] = await Promise.all([
-    loadCustomerMap(), loadSalesmanMap(), loadVehicleMap()
+  const [customers, salesmen, vehicles, workers] = await Promise.all([
+    loadCustomerMap(), loadSalesmanMap(), loadVehicleMap(), loadWorkerMap()
   ])
   customerMap.value = customers
   salesmanMap.value = salesmen
   vehicleMap.value = vehicles
+  workerMap.value = workers
 }
 
 function customerLabel(id: string): string {
@@ -48,6 +51,10 @@ function salesmanLabel(id: string): string {
 }
 function vehicleLabel(id: string): string {
   return vehicleMap.value.get(id)?.name ?? '-'
+}
+function workersLabel(workers: { workerId: string }[] | undefined): string {
+  const names = (workers ?? []).map(w => workerMap.value.get(w.workerId)?.name ?? '-')
+  return names.length > 0 ? names.join(', ') : '-'
 }
 
 // dd-MM-yyyy (PANDUAN_UI.md §10) -- pola sama modul transaksi lain.
@@ -84,6 +91,7 @@ const columns: Column<DeliveryOrderRow>[] = [
   { key: 'customerId', label: 'Pelanggan', format: v => customerLabel(v as string) },
   { key: 'salesmanId', label: 'Salesman', format: v => salesmanLabel(v as string) },
   { key: 'vehicleId', label: 'Kendaraan', format: v => vehicleLabel(v as string) },
+  { key: 'workers', label: 'Pekerja', format: v => workersLabel(v as { workerId: string }[]) },
   { key: 'deliveryStatus', label: 'Status Kirim', align: 'center', slot: 'deliveryStatus' },
   { key: 'printStatus', label: 'P', align: 'center', slot: 'printCheck' },
   { key: 'createdAt', label: 'Waktu', format: v => ddmmyyyyHm(v as string) }

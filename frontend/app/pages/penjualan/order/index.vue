@@ -19,7 +19,7 @@ interface SalesOrderRow extends Record<string, unknown> {
   orderNumber: string
   orderDate: string
   customerId: string
-  // PJ (penanggung jawab) atas SO ini (koreksi 02 Okt 2026) -- diteruskan ke
+  // Sales atas SO ini (koreksi 02 Okt 2026) -- diteruskan ke
   // Faktur Penjualan saat "Jadikan Faktur", terkunci di sana (lihat
   // penjualan/faktur/index.vue).
   salesmanId: string
@@ -34,7 +34,6 @@ interface SalesOrderLine {
   unitId: string
   qtyInput: string
   qtyBaseUnit: string
-  unitPrice: string | null
 }
 interface SalesOrderDetail extends SalesOrderRow {
   lines: SalesOrderLine[]
@@ -43,7 +42,6 @@ interface LineRow {
   productId: string | undefined
   unitId: string | undefined
   qtyInput: number | undefined
-  unitPrice: number | undefined
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -58,14 +56,13 @@ const STATUS_COLOR: Record<string, 'success' | 'neutral' | 'error'> = {
 }
 
 function newLine(): LineRow {
-  return { productId: undefined, unitId: undefined, qtyInput: undefined, unitPrice: undefined }
+  return { productId: undefined, unitId: undefined, qtyInput: undefined }
 }
 
 const api = useApi()
 const router = useRouter()
 const route = useRoute()
 const { user: authUser } = useAuth()
-const { format: rupiah } = useRupiah()
 const { format: qtyFmt } = useQty()
 const { loadCustomerMap, loadProductMap, loadUnitMap, loadSalesmanMap } = useSalesOrderLookups()
 
@@ -125,7 +122,7 @@ const selectedRow = ref<SalesOrderRow | null>(null)
 const columns: Column<SalesOrderRow>[] = [
   { key: 'orderNumber', label: 'No. Order', mono: true },
   { key: 'customerId', label: 'Pelanggan', format: v => customerLabel(v as string) },
-  { key: 'salesmanId', label: 'PJ', format: v => salesmanLabel(v as string) },
+  { key: 'salesmanId', label: 'Sales', format: v => salesmanLabel(v as string) },
   { key: 'orderDate', label: 'Tanggal', format: v => ddmmyyyy(v as string) },
   { key: 'status', label: 'Status', align: 'center', slot: 'status' },
   { key: 'createdAt', label: 'Waktu', format: v => ddmmyyyyHm(v as string) }
@@ -206,9 +203,6 @@ async function submitCancel() {
 function lineQtyLabel(line: SalesOrderLine): string {
   return `${qtyFmt(Number(line.qtyInput))} ${unitName(line.unitId)}`
 }
-function lineAmount(line: SalesOrderLine): number {
-  return Number(line.qtyInput) * (line.unitPrice !== null ? Number(line.unitPrice) : 0)
-}
 
 // ---- Bagian B: entri via DocumentModal + LineModal (PANDUAN_UI.md §6, §7.2) -
 // Satu DocumentModal dipakai dua mode -- editingId null = Entri, terisi = Ubah.
@@ -257,8 +251,7 @@ function openEditFromDetail(d: SalesOrderDetail) {
   lines.value = d.lines.map(l => ({
     productId: l.productId,
     unitId: l.unitId,
-    qtyInput: Number(l.qtyInput),
-    unitPrice: l.unitPrice !== null ? Number(l.unitPrice) : undefined
+    qtyInput: Number(l.qtyInput)
   }))
   entriSnapshot = JSON.stringify(draftData.value)
   detailOpen.value = false
@@ -441,25 +434,26 @@ function saveLine() {
 const lineColumns: Column<LineRow & Record<string, unknown>>[] = [
   { key: 'productId', label: 'Produk', format: v => productOptions.value.find(p => p.value === v)?.label ?? '-' },
   { key: 'qtyInput', label: 'Qty', align: 'right', format: v => qtyFmt(v as number) },
-  { key: 'unitId', label: 'Satuan', format: (v, row) => unitOptionsForLine(row).find(u => u.value === v)?.label ?? '-' },
-  { key: 'unitPrice', label: 'Harga', align: 'right', format: v => (v != null ? rupiah(v as number, { bare: true }) : '-') }
+  { key: 'unitId', label: 'Satuan', format: (v, row) => unitOptionsForLine(row).find(u => u.value === v)?.label ?? '-' }
 ]
 
 // ---- Validasi & submit ------------------------------------------------------
 function validate(): string | null {
   if (!editingId.value && !customerId.value) return 'Pilih pelanggan.'
-  if (!salesmanId.value) return 'Pilih salesman (PJ).'
+  if (!salesmanId.value) return 'Pilih salesman.'
   if (!orderDate.value) return 'Tanggal order wajib diisi.'
   if (lines.value.length === 0) return 'Isi minimal satu baris produk dengan qty lebih dari 0.'
   return null
 }
 
+// Sales Order TANPA harga (revisi klien 17 Okt 2026, Hari 44) -- harga
+// diketik di faktur (panel riwayat harga). unitPrice tidak pernah dikirim;
+// kolom DB-nya tetap nullable untuk SO lama.
 function buildPayload(): Record<string, unknown> {
   const linesPayload = lines.value.map(l => ({
     productId: l.productId,
     unitId: l.unitId,
-    qtyInput: l.qtyInput,
-    unitPrice: l.unitPrice
+    qtyInput: l.qtyInput
   }))
   // customerId SENGAJA tidak pernah dikirim saat Ubah -- UpdateSalesOrderDto
   // backend tidak punya field itu sama sekali (customer terkunci setelah SO
@@ -617,9 +611,7 @@ onMounted(async () => {
             :rows="detail.lines as unknown as Record<string, unknown>[]"
             :columns="[
               { key: 'productId', label: 'Produk', format: (v: unknown) => productOptions.find(p => p.value === v)?.label ?? '-' },
-              { key: 'qtyInput', label: 'Qty', slot: 'qty' },
-              { key: 'unitPrice', label: 'Harga', align: 'right', format: (v: unknown) => (v != null ? rupiah(Number(v), { bare: true }) : '-') },
-              { key: 'id', label: 'Jumlah', align: 'right', slot: 'amount' }
+              { key: 'qtyInput', label: 'Qty', slot: 'qty' }
             ]"
             dense
             zebra
@@ -628,16 +620,12 @@ onMounted(async () => {
             <template #qty="{ row }">
               {{ lineQtyLabel(row as unknown as SalesOrderLine) }}
             </template>
-            <template #amount="{ row }">
-              {{ rupiah(lineAmount(row as unknown as SalesOrderLine), { bare: true }) }}
-            </template>
           </DataTable>
 
           <TotalsBar
             :items="[
               { label: 'Item', value: String(detail.lines.length) },
-              { label: 'Qty', value: qtyFmt(detail.lines.reduce((s, l) => s + Number(l.qtyInput), 0)) },
-              { label: 'Total', value: rupiah(detail.lines.reduce((s, l) => s + lineAmount(l), 0), { bare: true }), emphasize: true }
+              { label: 'Qty', value: qtyFmt(detail.lines.reduce((s, l) => s + Number(l.qtyInput), 0)), emphasize: true }
             ]"
           />
 
@@ -766,7 +754,7 @@ onMounted(async () => {
             />
           </UFormField>
           <UFormField
-            label="Salesman (PJ)"
+            label="Salesman"
             required
             hint="Penanggung jawab order ini -- diteruskan ke Faktur Penjualan saat 'Jadikan Faktur'."
           >
@@ -849,8 +837,7 @@ onMounted(async () => {
         <TotalsBar
           :items="[
             { label: 'Item', value: String(lines.length) },
-            { label: 'Qty', value: qtyFmt(lines.reduce((s, l) => s + (l.qtyInput ?? 0), 0)) },
-            { label: 'Total', value: rupiah(lines.reduce((s, l) => s + (l.qtyInput ?? 0) * (l.unitPrice ?? 0), 0), { bare: true }), emphasize: true }
+            { label: 'Qty', value: qtyFmt(lines.reduce((s, l) => s + (l.qtyInput ?? 0), 0)), emphasize: true }
           ]"
         />
       </template>
@@ -916,18 +903,6 @@ onMounted(async () => {
           >
             {{ lineStockWarningText }}
           </p>
-        </UFormField>
-        <UFormField
-          label="Harga @"
-          hint="Opsional, murni informasi -- Sales Order tidak mengikat uang."
-        >
-          <MoneyInput
-            v-model="lineDraft.unitPrice"
-            placeholder="0"
-            :min="0"
-            class="w-full"
-            @update:model-value="lineDirty = true"
-          />
         </UFormField>
       </template>
       <template #context>

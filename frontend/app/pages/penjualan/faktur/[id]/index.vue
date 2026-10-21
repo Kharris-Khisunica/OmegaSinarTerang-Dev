@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CustomerLookup, ProductLookup, SalesmanLookup, UnitLookup, VehicleLookup } from '~/composables/useSalesInvoiceLookups'
+import type { CustomerLookup, ProductLookup, SalesmanLookup, UnitLookup, VehicleLookup, WorkerLookup } from '~/composables/useSalesInvoiceLookups'
 import type { SelectOption } from '~/types/crud-form'
 
 definePageMeta({ title: 'Detail Faktur Penjualan', roles: ['MASTER', 'OPERATOR'] })
@@ -26,6 +26,7 @@ interface InvoiceDetail {
   invoiceDate: string
   customerId: string
   salesChannel: SalesChannel
+  salesOrderNumber: string | null
   salesmanId: string
   termDays: number
   dueDate: string
@@ -56,7 +57,7 @@ const toast = useToast()
 const { performDualGateVoid } = useDualGateVoid()
 const { format: rupiah } = useRupiah()
 const { format: qtyFmt } = useQty()
-const { loadCustomerMap, loadProductMap, loadUnitMap, loadSalesmanMap, loadVehicleMap } = useSalesInvoiceLookups()
+const { loadCustomerMap, loadProductMap, loadUnitMap, loadSalesmanMap, loadVehicleMap, loadWorkerMap } = useSalesInvoiceLookups()
 
 const invoiceId = route.params.id as string
 
@@ -68,6 +69,7 @@ const productMap = ref<Map<string, ProductLookup>>(new Map())
 const unitMap = ref<Map<string, UnitLookup>>(new Map())
 const salesmanMap = ref<Map<string, SalesmanLookup>>(new Map())
 const vehicleMap = ref<Map<string, VehicleLookup>>(new Map())
+const workerMap = ref<Map<string, WorkerLookup>>(new Map())
 
 async function loadInvoice() {
   invoice.value = await api.get<InvoiceDetail>(`/sales-invoices/${invoiceId}`)
@@ -75,19 +77,21 @@ async function loadInvoice() {
 
 onMounted(async () => {
   try {
-    const [, customers, products, units, salesmen, vehicles] = await Promise.all([
+    const [, customers, products, units, salesmen, vehicles, workers] = await Promise.all([
       loadInvoice(),
       loadCustomerMap(),
       loadProductMap(),
       loadUnitMap(),
       loadSalesmanMap(),
-      loadVehicleMap()
+      loadVehicleMap(),
+      loadWorkerMap()
     ])
     customerMap.value = customers
     productMap.value = products
     unitMap.value = units
     salesmanMap.value = salesmen
     vehicleMap.value = vehicles
+    workerMap.value = workers
   } catch (err) {
     loadError.value = getErrorMessage(err, 'Gagal memuat detail faktur.')
   } finally {
@@ -216,11 +220,16 @@ async function submitVoid() {
 // TOKO/VOID/duplikat) -- guard `v-if` di sini murni supaya operator tidak
 // disodori tombol yang pasti ditolak.
 const deliveryOrderOpen = ref(false)
+// Di layar input SJ berlabel "Checker" (revisi klien 17 Okt 2026, Hari 44 --
+// hanya label; datanya tetap master salesmen / delivery_orders.salesman_id).
 // Salesman yang mengantar & menagih (CLAUDE.md §1) -- "Agen" dan "Salesman"
 // adalah orang yang sama (koreksi 26 Sep 2026), jadi dropdown ini memakai
 // salesmanMap yang sudah dimuat di atas, bukan master terpisah lagi.
 const deliverySalesmanId = ref<string | undefined>(undefined)
 const deliveryVehicleId = ref<string | undefined>(undefined)
+// Pekerja/tukang angkut yang ikut mengantar -- wajib minimal satu, boleh
+// lebih (revisi klien 17 Okt 2026, Hari 44).
+const deliveryWorkerIds = ref<string[]>([])
 const deliveryDate = ref(new Date().toISOString().slice(0, 10))
 const deliveryNotes = ref('')
 const deliverySubmitting = ref(false)
@@ -233,10 +242,13 @@ const deliverySalesmanOptions = computed<SelectOption[]>(() =>
   [...salesmanMap.value.values()].filter(s => s.isActive).map(s => ({ label: `${s.code} - ${s.name}`, value: s.id })))
 const vehicleOptions = computed<SelectOption[]>(() =>
   [...vehicleMap.value.values()].filter(v => v.isActive).map(v => ({ label: `${v.code} - ${v.name}`, value: v.id })))
+const workerOptions = computed<SelectOption[]>(() =>
+  [...workerMap.value.values()].filter(w => w.isActive).map(w => ({ label: `${w.code} - ${w.name}`, value: w.id })))
 
 function openDeliveryOrderModal() {
   deliverySalesmanId.value = undefined
   deliveryVehicleId.value = undefined
+  deliveryWorkerIds.value = []
   deliveryDate.value = new Date().toISOString().slice(0, 10)
   deliveryNotes.value = ''
   deliveryError.value = ''
@@ -245,7 +257,11 @@ function openDeliveryOrderModal() {
 
 async function submitDeliveryOrder() {
   if (!deliverySalesmanId.value || !deliveryVehicleId.value) {
-    deliveryError.value = 'Salesman dan kendaraan wajib dipilih.'
+    deliveryError.value = 'Checker dan kendaraan wajib dipilih.'
+    return
+  }
+  if (deliveryWorkerIds.value.length === 0) {
+    deliveryError.value = 'Pilih minimal satu pekerja.'
     return
   }
   deliveryError.value = ''
@@ -256,6 +272,7 @@ async function submitDeliveryOrder() {
       deliveryDate: deliveryDate.value,
       salesmanId: deliverySalesmanId.value,
       vehicleId: deliveryVehicleId.value,
+      workerIds: deliveryWorkerIds.value,
       notes: deliveryNotes.value || undefined
     })
     deliveryOrderOpen.value = false
@@ -354,6 +371,9 @@ async function submitDeliveryOrder() {
 
         <div class="text-sm text-muted">
           {{ customerLabel(invoice.customerId) }} · {{ CHANNEL_LABEL[invoice.salesChannel] }} · {{ salesmanLabel(invoice.salesmanId) }}
+          <template v-if="invoice.salesOrderNumber">
+            · No. SO <span class="font-mono">{{ invoice.salesOrderNumber }}</span>
+          </template>
         </div>
         <div class="text-sm text-muted">
           Faktur {{ formatDate(invoice.invoiceDate) }} · Jth. Tempo {{ formatDate(invoice.dueDate) }} ({{ invoice.termDays }} hari)
@@ -457,7 +477,7 @@ async function submitDeliveryOrder() {
     <UModal
       v-model:open="deliveryOrderOpen"
       title="Buat Surat Jalan"
-      description="Seluruh baris faktur ini disalin ke surat jalan. Tidak ada nilai rupiah -- surat jalan bukan dokumen uang."
+      description="Seluruh baris faktur ini disalin ke surat jalan. Lembar cetaknya mencantumkan total faktur sebagai informasi tagihan."
     >
       <template #body>
         <div class="flex flex-col gap-4">
@@ -479,13 +499,13 @@ async function submitDeliveryOrder() {
             />
           </UFormField>
           <UFormField
-            label="Salesman"
+            label="Checker"
             required
           >
             <USelect
               v-model="deliverySalesmanId"
               :items="deliverySalesmanOptions"
-              placeholder="Pilih salesman..."
+              placeholder="Pilih checker..."
               class="w-full"
             />
           </UFormField>
@@ -497,6 +517,19 @@ async function submitDeliveryOrder() {
               v-model="deliveryVehicleId"
               :items="vehicleOptions"
               placeholder="Pilih kendaraan..."
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField
+            label="Pekerja"
+            required
+            hint="Boleh lebih dari satu."
+          >
+            <USelect
+              v-model="deliveryWorkerIds"
+              :items="workerOptions"
+              multiple
+              placeholder="Pilih pekerja..."
               class="w-full"
             />
           </UFormField>

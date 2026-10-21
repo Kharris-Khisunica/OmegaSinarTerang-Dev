@@ -6,7 +6,9 @@ import { StepUpModule } from '../../core/step-up/step-up.module';
 import { SalesInvoice } from '../sales-invoices/entities/sales-invoice.entity';
 import { Salesman } from '../salesmen/entities/salesman.entity';
 import { Vehicle } from '../vehicles/entities/vehicle.entity';
+import { Worker } from '../workers/entities/worker.entity';
 import { DeliveryOrderLine } from './entities/delivery-order-line.entity';
+import { DeliveryOrderWorker } from './entities/delivery-order-worker.entity';
 import { DeliveryOrder } from './entities/delivery-order.entity';
 import { DeliveryOrdersController } from './delivery-orders.controller';
 import { DeliveryOrdersService } from './delivery-orders.service';
@@ -21,8 +23,10 @@ import { DeliveryOrdersService } from './delivery-orders.service';
     TypeOrmModule.forFeature([
       DeliveryOrder,
       DeliveryOrderLine,
+      DeliveryOrderWorker,
       Salesman,
       Vehicle,
+      Worker,
       SalesInvoice,
     ]),
     DocumentCounterModule,

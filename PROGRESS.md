@@ -4687,6 +4687,55 @@ sekarang sebagai keputusan kerja, wajib dibawa ke klien, bukan ditolak).
   `RolesGuard` + middleware `01.roles.global.ts` sudah dipakai identik di
   banyak halaman lain), bukan uji langsung. Tidak ada commit dibuat.
 
+### Hari 44 — Revisi akhir klien sebelum deploy (17 Okt 2026)
+
+*Keputusan kerja langsung dari diskusi akhir klien — belum dikonfirmasi ulang
+tertulis, pola sama Payment §2.12.*
+
+1. **Supplier = nama saja, tanpa sensor.** Migration
+   `1785080602983-DropSupplierContactColumns` (DROP `contact_phone`,
+   `contact_address`). `display_code` + `is_pkp` tetap. Masking OPERATOR
+   dicabut total (`supplier-masking*.ts` + spec dihapus, interceptor dilepas).
+2. **Pelanggan = nama + kota.** Migration `…984-DropCustomerContactColumns`
+   (DROP `phone`, `address`, `district`, `province`). `code`, `is_pkp`,
+   `ar_account_id` (MASTER) tetap. Nota JL/RJ/SJ mencetak kota saja, baris
+   `TEL` dihapus.
+3. **Produk baru default satuan PCS / DUS** (`useProductSchema.ts`
+   `defaultValue`). Migration `…985-SeedDefaultUnitsPcsDus` menyisipkan PCS &
+   DUS ke master satuan bila belum ada (by name/code).
+4. **SO tanpa harga** — FE saja (`penjualan/order/index.vue`: kolom Harga/
+   Jumlah/Total & input Harga dihapus, payload tak mengirim `unitPrice`).
+   Faktur dari SO kini wajib diisi harganya (`validate()` FE menolak baris
+   tanpa harga sebelum 400 backend).
+5. **Faktur merujuk No. SO** — `SalesInvoice.salesOrderNumber` (properti
+   non-kolom, diisi `attachSalesOrderNumbers()` di `findOne`/`findAll`);
+   tampil di detail, kolom daftar, dan cetak nota (baris `MEMO` kosong
+   diganti `NO. SO`). Pencarian daftar faktur juga cocok ke nomor SO.
+6. **Pekerja di Surat Jalan** — tabel `delivery_order_workers` (migration
+   `…986`), wajib ≥ 1 (`workerIds`), boleh > 1, `PATCH /delivery-orders/:id/
+   workers` **bebas kunci cetak** (CLAUDE.md §2.16 pengecualian kedua). FE:
+   multi-select di modal Buat SJ, tombol "Ubah Pekerja" di detail, kolom di
+   daftar, baris `PEKERJA` di cetak.
+7. **Cetak SJ memuat TOTAL FAKTUR** (halaman terakhir, `useRupiah()`).
+8. *(Susulan, pesan user di sesi yang sama)* Label input "Salesman" di modal
+   Buat SJ → **"Checker"** (hanya label, data tetap `salesman_id`); label SO
+   "Salesman (PJ)" → "Salesman"; tanda tangan nota faktur penjualan →
+   **"Diketahui Oleh," / "Diprint Oleh,"**.
+
+- **Verifikasi**: build BE ✅, lint BE ✅, build FE ✅, lint FE ✅, `/health`
+  ✅. `nuxt typecheck` — 9 error yang sama dengan catatan R11 (`lineDraftCalc`,
+  `*InvoiceCalc.ts`), nol di berkas baru. Migration up → down ×4 → up di DB
+  kosong ✅ (langkah 4 `verify.sh` sempat merah karena tipe parameter `$1`
+  ganda di seed satuan — diperbaiki dengan `VALUES` literal). Test BE
+  `--runInBand` di **klon `omega_dev` yang sudah ter-migrasi**: 360/362 ✅;
+  2 gagal = `opening-balance verify()` & `cash-daily-report GRAND TOTAL`,
+  suite yang sama dengan catatan flaky 26 Sep (tidak dibuktikan ulang
+  terhadap HEAD sesi ini). `delivery-orders.service.spec.ts` +4 test pekerja.
+- ⚠️ **`omega_dev` sendiri BELUM dijalankan migration baru** (sengaja —
+  migration men-DROP kolom kontak). Selama belum, `npm run test` di
+  `omega_dev` akan merah di spec SJ (`delivery_order_workers` tidak ada).
+- Manual browser E2E **belum** dilakukan. Tidak ada commit dibuat.
+
 ---
 
 ## 5. UAT Mingguan

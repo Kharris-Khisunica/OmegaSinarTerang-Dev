@@ -52,6 +52,8 @@ interface InvoiceRow extends Record<string, unknown> {
   invoiceNumber: string
   customerId: string
   salesChannel: SalesChannel
+  // Hari 44 — nomor SO asal (diisi backend, null untuk TOKO).
+  salesOrderNumber: string | null
   invoiceDate: string
   totalAmount: string
   postingStatus: 'POSTED' | 'VOIDED'
@@ -183,6 +185,7 @@ const columns: Column<InvoiceRow>[] = [
   { key: 'invoiceNumber', label: 'No. Faktur', mono: true },
   { key: 'customerId', label: 'Pelanggan', format: v => customerLabel(v as string) },
   { key: 'salesChannel', label: 'Saluran', format: v => CHANNEL_LABEL[v as SalesChannel] ?? String(v) },
+  { key: 'salesOrderNumber', label: 'No. SO', mono: true, format: v => (v ? String(v) : '-') },
   { key: 'invoiceDate', label: 'Tanggal', format: v => ddmmyyyy(v as string) },
   { key: 'totalAmount', label: 'Total', align: 'right', format: v => rupiah(Number(v), { bare: true }) },
   { key: 'postingStatus', label: 'Status', align: 'center', slot: 'postingStatus' },
@@ -739,6 +742,10 @@ function validate(): string | null {
   }
   if (!invoiceDate.value) return 'Tanggal faktur wajib diisi.'
   if (lines.value.length === 0) return 'Isi minimal satu baris produk dengan qty lebih dari 0.'
+  // Sales Order tidak lagi membawa harga (revisi klien 17 Okt 2026, Hari 44)
+  // -- baris hasil salinan SO harus diberi harga dulu di sini.
+  const noPrice = lines.value.findIndex(l => !((l.unitPrice ?? 0) > 0))
+  if (noPrice !== -1) return `Baris ${noPrice + 1}: harga belum diisi.`
   return null
 }
 

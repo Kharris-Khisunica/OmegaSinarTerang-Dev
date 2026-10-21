@@ -26,9 +26,7 @@ export interface UnitLookup {
  * Loader id->baris untuk Faktur Pembelian (Hari 14), pola sama
  * useWarehouseMutationLookups.ts. Dipakai create.vue (picker) DAN index.vue
  * (menampilkan nama supplier/produk di atas response GET /purchase-invoices
- * yang cuma berisi id). `name`/`displayCode` supplier SUDAH ter-mask untuk
- * OPERATOR oleh SupplierMaskingInterceptor backend (CLAUDE.md §3) — tidak
- * perlu masking lagi di sini, tampilkan apa adanya.
+ * yang cuma berisi id).
  */
 export function usePurchaseInvoiceLookups() {
   const api = useApi()

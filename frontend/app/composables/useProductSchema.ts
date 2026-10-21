@@ -128,7 +128,11 @@ export function useProductSchema(): FieldDef[] {
       hint: 'Aktifkan kalau produk ini dikenakan PPN saat dibeli dari supplier ber-PPN.'
     },
     { key: 'isActive', label: 'Aktif', type: 'switch', cols: 6, defaultValue: true },
-    { key: 'baseUnit', label: 'Satuan Dasar (terkecil)', type: 'text', required: true, cols: 6, placeholder: 'pcs' },
+    // Default PCS (kecil) / DUS (besar) — revisi klien 17 Okt 2026, Hari 44.
+    // Hanya berlaku di form baru; edit selalu memakai data tersimpan
+    // (productTransformIn). Keduanya di-seed ke master satuan (migration
+    // SeedDefaultUnitsPcsDus).
+    { key: 'baseUnit', label: 'Satuan Dasar (terkecil)', type: 'text', required: true, cols: 6, placeholder: 'pcs', defaultValue: 'PCS' },
     // Metadata dari server, tidak ditampilkan — dipakai disabled/hint/action di atas.
     { key: 'isCodeLocked', label: 'Kode Terkunci', type: 'switch', cols: 12, showIf: () => false },
     {
@@ -136,6 +140,7 @@ export function useProductSchema(): FieldDef[] {
       label: 'Konversi Satuan Jual/Beli',
       type: 'repeater',
       cols: 12,
+      defaultValue: [{ unitName: 'DUS', ratioToNext: null }],
       hint: 'Format tiap baris: 1 [satuan besar] = [Isi] [satuan di bawahnya]. Urutkan dari PALING BESAR ke PALING KECIL (mis. dus, lalu renceng) — baris terakhir menuju satuan dasar. Baris dengan nama satuan kosong otomatis diabaikan saat disimpan.',
       repeaterColumns: [
         { key: 'unitName', label: 'Nama Satuan', type: 'text', placeholder: 'dus' },

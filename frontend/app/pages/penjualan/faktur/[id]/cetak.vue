@@ -24,6 +24,7 @@ interface InvoiceDetail {
   invoiceNumber: string
   invoiceDate: string
   customerId: string
+  salesOrderNumber: string | null
   salesmanId: string
   termDays: number
   dueDate: string
@@ -44,7 +45,7 @@ const { format: qtyFmt } = useQty()
 const { loadCustomerMap, loadProductMap, loadSalesmanMap } = useSalesInvoiceLookups()
 
 const invoice = ref<InvoiceDetail | null>(null)
-const customerMap = ref(new Map<string, { name: string, address: string | null, city: string | null, phone: string | null }>())
+const customerMap = ref(new Map<string, { name: string, city: string | null }>())
 const productMap = ref(new Map<string, { displayName: string, code: string }>())
 const salesmanMap = ref(new Map<string, { code: string }>())
 const store = ref<Record<string, string>>({})
@@ -232,16 +233,15 @@ async function triggerPrint() {
                 <span v-if="invoice.revisionNumber > 0">( Revisi ke-{{ invoice.revisionNumber }} )</span>
               </div>
               <div>JTH. TEMPO&nbsp;: {{ invoice.termDays > 0 ? invoice.termDays : '-' }} Hari ( {{ ddmmyyyy(invoice.dueDate) }} )</div>
-              <div>MEMO&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:</div>
+              <div>NO. SO&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: {{ invoice.salesOrderNumber ?? '-' }}</div>
             </div>
             <div>
               <div class="font-bold">
                 {{ customer?.name ?? '-' }}
               </div>
-              <div v-if="customer?.address || customer?.city">
-                {{ [customer?.address, customer?.city].filter(Boolean).join(', ') }}
+              <div v-if="customer?.city">
+                {{ customer.city }}
               </div>
-              <div>TEL : {{ customer?.phone ?? '' }}</div>
             </div>
           </div>
 
@@ -299,13 +299,13 @@ async function triggerPrint() {
           <div class="mt-auto flex items-end justify-between">
             <div class="flex gap-12">
               <div>
-                <div>Dikirim Oleh,</div>
+                <div>Diketahui Oleh,</div>
                 <div class="mt-8">
                   ____________
                 </div>
               </div>
               <div>
-                <div>Diterima Oleh,</div>
+                <div>Diprint Oleh,</div>
                 <div class="mt-8">
                   ____________
                 </div>

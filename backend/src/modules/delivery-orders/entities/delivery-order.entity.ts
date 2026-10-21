@@ -7,6 +7,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { DeliveryOrderLine } from './delivery-order-line.entity';
+import { DeliveryOrderWorker } from './delivery-order-worker.entity';
 
 export enum DeliveryOrderPostingStatus {
   POSTED = 'POSTED',
@@ -120,4 +121,8 @@ export class DeliveryOrder {
 
   @OneToMany(() => DeliveryOrderLine, (line) => line.deliveryOrder)
   lines: DeliveryOrderLine[];
+
+  // Hari 44 — pekerja yang ikut mengantar (minimal satu saat create).
+  @OneToMany(() => DeliveryOrderWorker, (worker) => worker.deliveryOrder)
+  workers: DeliveryOrderWorker[];
 }

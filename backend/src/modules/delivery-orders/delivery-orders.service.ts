@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, EntityManager, In, Repository } from 'typeorm';
 import { SalesChannel } from '../../common/enums/sales-channel.enum';
 import {
   buildPaginatedResult,
@@ -20,11 +20,14 @@ import {
 } from '../sales-invoices/entities/sales-invoice.entity';
 import { Salesman } from '../salesmen/entities/salesman.entity';
 import { Vehicle } from '../vehicles/entities/vehicle.entity';
+import { Worker } from '../workers/entities/worker.entity';
 import { CreateDeliveryOrderDto } from './dto/create-delivery-order.dto';
 import { DeliveryOrderQueryDto } from './dto/delivery-order-query.dto';
 import { UpdateDeliveryOrderStatusDto } from './dto/update-delivery-order-status.dto';
+import { UpdateDeliveryOrderWorkersDto } from './dto/update-delivery-order-workers.dto';
 import { VoidDeliveryOrderDto } from './dto/void-delivery-order.dto';
 import { DeliveryOrderLine } from './entities/delivery-order-line.entity';
+import { DeliveryOrderWorker } from './entities/delivery-order-worker.entity';
 import {
   DeliveryOrder,
   DeliveryOrderPostingStatus,
@@ -40,6 +43,7 @@ const SORTABLE_COLUMNS = [
 export interface CreateDeliveryOrderResult {
   deliveryOrder: DeliveryOrder;
   lines: DeliveryOrderLine[];
+  workers: DeliveryOrderWorker[];
 }
 
 /**
@@ -65,6 +69,10 @@ export interface CreateDeliveryOrderResult {
  * gerbang itu membuat SETIAP update status butuh approval; status kirim
  * adalah status sub-ledger, bukan isi dokumen — pola sama paid_amount
  * faktur, CLAUDE.md §2.15). VOID SJ lewat voidDeliveryOrder().
+ *
+ * Pekerja (tukang angkut, Hari 44) — minimal satu, diganti utuh lewat
+ * updateWorkers(), juga BEBAS kunci cetak (keputusan 17 Okt 2026, pola sama
+ * status kirim).
  */
 @Injectable()
 export class DeliveryOrdersService {
@@ -131,6 +139,7 @@ export class DeliveryOrdersService {
       if (!vehicle) {
         throw new BadRequestException('Kendaraan tidak ditemukan.');
       }
+      await this.assertWorkers(manager, dto.workerIds);
 
       const deliveryNumber = await this.documentCounterService.getNextNumber(
         'DELIVERY_ORDER',
@@ -172,7 +181,13 @@ export class DeliveryOrdersService {
         savedLines.push(line);
       }
 
-      return { deliveryOrder, lines: savedLines };
+      const workers = await this.saveWorkers(
+        manager,
+        deliveryOrder.id,
+        dto.workerIds,
+      );
+
+      return { deliveryOrder, lines: savedLines, workers };
     });
   }
 
@@ -188,7 +203,9 @@ export class DeliveryOrdersService {
     );
     const sortDir = resolveSortDir(query.sortDir);
 
-    const qb = this.deliveryOrdersRepository.createQueryBuilder('do');
+    const qb = this.deliveryOrdersRepository
+      .createQueryBuilder('do')
+      .leftJoinAndSelect('do.workers', 'worker');
     if (query.search) {
       qb.andWhere('do.deliveryNumber ILIKE :search', {
         search: `%${query.search}%`,
@@ -216,7 +233,7 @@ export class DeliveryOrdersService {
   async findOne(id: string): Promise<DeliveryOrder> {
     const deliveryOrder = await this.deliveryOrdersRepository.findOne({
       where: { id },
-      relations: { lines: true },
+      relations: { lines: true, workers: true },
     });
     if (!deliveryOrder) {
       throw new BadRequestException('Surat jalan tidak ditemukan.');
@@ -243,6 +260,29 @@ export class DeliveryOrdersService {
     }
     await this.deliveryOrdersRepository.update(id, {
       deliveryStatus: dto.deliveryStatus,
+    });
+    return this.findOne(id);
+  }
+
+  /**
+   * Ganti daftar pekerja surat jalan (Hari 44). BEBAS kunci cetak (pola sama
+   * updateStatus()): print_status & revision_number TIDAK disentuh, jejaknya
+   * di audit_logs (@Audit EDIT di controller). SJ VOID ditolak.
+   */
+  async updateWorkers(
+    id: string,
+    dto: UpdateDeliveryOrderWorkersDto,
+  ): Promise<DeliveryOrder> {
+    const existing = await this.findOne(id);
+    if (existing.postingStatus === DeliveryOrderPostingStatus.VOIDED) {
+      throw new BadRequestException(
+        'Surat jalan ini sudah VOID, pekerja tidak bisa diubah.',
+      );
+    }
+    await this.dataSource.transaction(async (manager) => {
+      await this.assertWorkers(manager, dto.workerIds);
+      await manager.delete(DeliveryOrderWorker, { deliveryOrderId: id });
+      await this.saveWorkers(manager, id, dto.workerIds);
     });
     return this.findOne(id);
   }
@@ -343,6 +383,40 @@ export class DeliveryOrdersService {
       documentId: id,
     });
     return this.findOne(id);
+  }
+
+  private async assertWorkers(
+    manager: EntityManager,
+    workerIds: string[],
+  ): Promise<void> {
+    if (workerIds.length === 0) {
+      throw new BadRequestException('Pilih minimal satu pekerja.');
+    }
+    const workers = await manager.find(Worker, {
+      where: { id: In(workerIds) },
+    });
+    if (workers.length !== new Set(workerIds).size) {
+      throw new BadRequestException('Pekerja tidak ditemukan.');
+    }
+    const inactive = workers.filter((w) => !w.isActive);
+    if (inactive.length > 0) {
+      throw new BadRequestException(
+        `Pekerja nonaktif tidak bisa dipilih: ${inactive.map((w) => w.name).join(', ')}.`,
+      );
+    }
+  }
+
+  private async saveWorkers(
+    manager: EntityManager,
+    deliveryOrderId: string,
+    workerIds: string[],
+  ): Promise<DeliveryOrderWorker[]> {
+    return manager.save(
+      DeliveryOrderWorker,
+      workerIds.map((workerId) =>
+        manager.create(DeliveryOrderWorker, { deliveryOrderId, workerId }),
+      ),
+    );
   }
 }
 

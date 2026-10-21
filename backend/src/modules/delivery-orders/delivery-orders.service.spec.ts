@@ -27,8 +27,10 @@ import {
 import { Unit } from '../units/entities/unit.entity';
 import { User } from '../users/entities/user.entity';
 import { Vehicle } from '../vehicles/entities/vehicle.entity';
+import { Worker } from '../workers/entities/worker.entity';
 import { DeliveryOrdersService } from './delivery-orders.service';
 import { DeliveryOrderLine } from './entities/delivery-order-line.entity';
+import { DeliveryOrderWorker } from './entities/delivery-order-worker.entity';
 import {
   DeliveryOrder,
   DeliveryOrderDeliveryStatus,
@@ -65,6 +67,10 @@ describe('DeliveryOrdersService', () => {
   // memakai invoice.salesmanId, bukan dto.salesmanId, sebagai sumbernya.
   let driverSalesmanId: string;
   let vehicleId: string;
+  // Hari 44 — pekerja SJ (wajib minimal satu).
+  let workerId: string;
+  let secondWorkerId: string;
+  let inactiveWorkerId: string;
 
   const createdProductIds: string[] = [];
   const createdCustomerIds: string[] = [];
@@ -110,6 +116,8 @@ describe('DeliveryOrdersService', () => {
         Vehicle,
         DeliveryOrder,
         DeliveryOrderLine,
+        DeliveryOrderWorker,
+        Worker,
         AuthorizationRequest,
       ],
     });
@@ -215,12 +223,46 @@ describe('DeliveryOrdersService', () => {
       }),
     );
     vehicleId = vehicle.id;
+
+    const workersRepo = dataSource.getRepository(Worker);
+    const workerSuffix = suffix.toString().slice(-6);
+    workerId = (
+      await workersRepo.save(
+        workersRepo.create({
+          code: `PKR-TDO-A-${workerSuffix}`,
+          name: 'Pekerja Uji A',
+          isActive: true,
+        }),
+      )
+    ).id;
+    secondWorkerId = (
+      await workersRepo.save(
+        workersRepo.create({
+          code: `PKR-TDO-B-${workerSuffix}`,
+          name: 'Pekerja Uji B',
+          isActive: true,
+        }),
+      )
+    ).id;
+    inactiveWorkerId = (
+      await workersRepo.save(
+        workersRepo.create({
+          code: `PKR-TDO-X-${workerSuffix}`,
+          name: 'Pekerja Uji Nonaktif',
+          isActive: false,
+        }),
+      )
+    ).id;
   });
 
   afterAll(async () => {
     if (createdDeliveryOrderIds.length > 0) {
       await dataSource.query(
         `DELETE FROM delivery_order_lines WHERE delivery_order_id = ANY($1)`,
+        [createdDeliveryOrderIds],
+      );
+      await dataSource.query(
+        `DELETE FROM delivery_order_workers WHERE delivery_order_id = ANY($1)`,
         [createdDeliveryOrderIds],
       );
       await dataSource.query(`DELETE FROM delivery_orders WHERE id = ANY($1)`, [
@@ -252,6 +294,9 @@ describe('DeliveryOrdersService', () => {
       ]);
     }
     await dataSource.query(`DELETE FROM vehicles WHERE id = $1`, [vehicleId]);
+    await dataSource.query(`DELETE FROM workers WHERE id = ANY($1)`, [
+      [workerId, secondWorkerId, inactiveWorkerId],
+    ]);
     await dataSource.query(`DELETE FROM salesmen WHERE id = $1`, [
       driverSalesmanId,
     ]);
@@ -384,6 +429,7 @@ describe('DeliveryOrdersService', () => {
           deliveryDate: daysAgoIso(0),
           salesmanId: driverSalesmanId,
           vehicleId,
+          workerIds: [workerId],
         },
         masterUser,
       ),
@@ -408,6 +454,7 @@ describe('DeliveryOrdersService', () => {
           deliveryDate: daysAgoIso(0),
           salesmanId: driverSalesmanId,
           vehicleId,
+          workerIds: [workerId],
         },
         masterUser,
       ),
@@ -433,6 +480,7 @@ describe('DeliveryOrdersService', () => {
           deliveryDate: daysAgoIso(0),
           salesmanId: driverSalesmanId,
           vehicleId,
+          workerIds: [workerId],
         },
         masterUser,
       ),
@@ -460,6 +508,7 @@ describe('DeliveryOrdersService', () => {
         deliveryDate: daysAgoIso(0),
         salesmanId: driverSalesmanId,
         vehicleId,
+        workerIds: [workerId],
         notes: 'Uji surat jalan',
       },
       masterUser,
@@ -468,6 +517,7 @@ describe('DeliveryOrdersService', () => {
 
     expect(result.deliveryOrder.salesmanId).toBe(driverSalesmanId);
     expect(result.deliveryOrder.vehicleId).toBe(vehicleId);
+    expect(result.workers.map((w) => w.workerId)).toEqual([workerId]);
     expect(result.deliveryOrder.customerId).toBe(customerId);
     expect(result.deliveryOrder.deliveryNumber).toMatch(
       /^SJ\/[A-Z0-9]+-\d{4}\d{4}$/,
@@ -498,6 +548,7 @@ describe('DeliveryOrdersService', () => {
         deliveryDate: daysAgoIso(0),
         salesmanId: driverSalesmanId,
         vehicleId,
+        workerIds: [workerId],
       },
       masterUser,
     );
@@ -510,6 +561,7 @@ describe('DeliveryOrdersService', () => {
           deliveryDate: daysAgoIso(0),
           salesmanId: driverSalesmanId,
           vehicleId,
+          workerIds: [workerId],
         },
         masterUser,
       ),
@@ -534,6 +586,7 @@ describe('DeliveryOrdersService', () => {
           deliveryDate: daysAgoIso(0),
           salesmanId: randomUUID(),
           vehicleId,
+          workerIds: [workerId],
         },
         masterUser,
       ),
@@ -546,6 +599,7 @@ describe('DeliveryOrdersService', () => {
           deliveryDate: daysAgoIso(0),
           salesmanId: driverSalesmanId,
           vehicleId: randomUUID(),
+          workerIds: [workerId],
         },
         masterUser,
       ),
@@ -569,6 +623,7 @@ describe('DeliveryOrdersService', () => {
         deliveryDate: daysAgoIso(0),
         salesmanId: driverSalesmanId,
         vehicleId,
+        workerIds: [workerId],
       },
       masterUser,
     );
@@ -578,6 +633,125 @@ describe('DeliveryOrdersService', () => {
     expect(first.printCount).toBe(1);
     const second = await service.registerPrint(result.deliveryOrder.id);
     expect(second.printCount).toBe(2);
+  });
+
+  describe('pekerja surat jalan (Hari 44)', () => {
+    async function seedPengirimanInvoice(): Promise<string> {
+      const customerId = await createTestCustomer();
+      const salesmanId = await createTestSalesman();
+      const productId = await createTestProduct('Produk Pekerja SJ');
+      const { invoice } = await seedInvoice({
+        customerId,
+        salesmanId,
+        salesChannel: SalesChannel.PENGIRIMAN,
+        lines: [{ productId, unitId, qtyInput: 1, qtyBaseUnit: 1 }],
+      });
+      return invoice.id;
+    }
+
+    it('lebih dari satu pekerja tersimpan dan ikut di findOne()', async () => {
+      const salesInvoiceId = await seedPengirimanInvoice();
+      const result = await service.create(
+        {
+          salesInvoiceId,
+          deliveryDate: daysAgoIso(0),
+          salesmanId: driverSalesmanId,
+          vehicleId,
+          workerIds: [workerId, secondWorkerId],
+        },
+        masterUser,
+      );
+      createdDeliveryOrderIds.push(result.deliveryOrder.id);
+
+      const found = await service.findOne(result.deliveryOrder.id);
+      expect(found.workers.map((w) => w.workerId).sort()).toEqual(
+        [workerId, secondWorkerId].sort(),
+      );
+    });
+
+    it('tanpa pekerja / pekerja tidak ada / pekerja nonaktif -> ditolak, SJ tidak terbentuk', async () => {
+      const salesInvoiceId = await seedPengirimanInvoice();
+      const base = {
+        salesInvoiceId,
+        deliveryDate: daysAgoIso(0),
+        salesmanId: driverSalesmanId,
+        vehicleId,
+      };
+      await expect(
+        service.create({ ...base, workerIds: [] }, masterUser),
+      ).rejects.toThrow('Pilih minimal satu pekerja.');
+      await expect(
+        service.create({ ...base, workerIds: [randomUUID()] }, masterUser),
+      ).rejects.toThrow('Pekerja tidak ditemukan.');
+      await expect(
+        service.create(
+          { ...base, workerIds: [workerId, inactiveWorkerId] },
+          masterUser,
+        ),
+      ).rejects.toThrow('Pekerja nonaktif');
+
+      const rows: unknown[] = await dataSource.query(
+        `SELECT id FROM delivery_orders WHERE sales_invoice_id = $1`,
+        [salesInvoiceId],
+      );
+      expect(rows).toHaveLength(0);
+    });
+
+    it('updateWorkers() setelah dicetak -> TANPA approval; printStatus tetap PRINTED, revisionNumber tidak naik', async () => {
+      const salesInvoiceId = await seedPengirimanInvoice();
+      const result = await service.create(
+        {
+          salesInvoiceId,
+          deliveryDate: daysAgoIso(0),
+          salesmanId: driverSalesmanId,
+          vehicleId,
+          workerIds: [workerId],
+        },
+        masterUser,
+      );
+      createdDeliveryOrderIds.push(result.deliveryOrder.id);
+      await service.registerPrint(result.deliveryOrder.id);
+
+      const updated = await service.updateWorkers(result.deliveryOrder.id, {
+        workerIds: [secondWorkerId],
+      });
+      expect(updated.workers.map((w) => w.workerId)).toEqual([secondWorkerId]);
+      expect(updated.printStatus).toBe(DeliveryOrderPrintStatus.PRINTED);
+      expect(updated.revisionNumber).toBe(0);
+
+      const requests: unknown[] = await dataSource.query(
+        `SELECT id FROM authorization_requests WHERE payload->>'sourceId' = $1`,
+        [result.deliveryOrder.id],
+      );
+      expect(requests).toHaveLength(0);
+    });
+
+    it('updateWorkers() pada SJ VOID -> ditolak', async () => {
+      const salesInvoiceId = await seedPengirimanInvoice();
+      const result = await service.create(
+        {
+          salesInvoiceId,
+          deliveryDate: daysAgoIso(0),
+          salesmanId: driverSalesmanId,
+          vehicleId,
+          workerIds: [workerId],
+        },
+        masterUser,
+      );
+      createdDeliveryOrderIds.push(result.deliveryOrder.id);
+      await service.voidDeliveryOrder(
+        result.deliveryOrder.id,
+        { reasonCode: 'SALAH_INPUT', reasonNote: 'Uji VOID pekerja' },
+        masterUser,
+        undefined,
+      );
+
+      await expect(
+        service.updateWorkers(result.deliveryOrder.id, {
+          workerIds: [secondWorkerId],
+        }),
+      ).rejects.toThrow('pekerja tidak bisa diubah');
+    });
   });
 
   describe('updateStatus() bebas kunci cetak + VOID SJ (need_fixing.md #18)', () => {
@@ -597,6 +771,7 @@ describe('DeliveryOrdersService', () => {
           deliveryDate: daysAgoIso(0),
           salesmanId: driverSalesmanId,
           vehicleId,
+          workerIds: [workerId],
         },
         masterUser,
       );
@@ -686,6 +861,7 @@ describe('DeliveryOrdersService', () => {
           deliveryDate: daysAgoIso(0),
           salesmanId: driverSalesmanId,
           vehicleId,
+          workerIds: [workerId],
         },
         masterUser,
       );

@@ -6,14 +6,6 @@ export class CreateSupplierDto {
   name: string;
 
   @IsOptional()
-  @IsString()
-  contactPhone?: string;
-
-  @IsOptional()
-  @IsString()
-  contactAddress?: string;
-
-  @IsOptional()
   @IsBoolean()
   isPkp?: boolean;
 

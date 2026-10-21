@@ -2,11 +2,12 @@
 // Nota Surat Jalan -- BELUM ADA foto referensi (PANDUAN_UI.md §13.3: "SJ ...
 // tidak ada di referensi. Turunkan dari §13.1"). Kepala kiri/kanan sama
 // dengan Faktur Penjualan (judul+telepon toko | kota+tanggal+"Kepada Yth"+
-// pelanggan), kaki sama (Hal. n/m -> CETAK : user - timestamp), TANPA rupiah
-// sama sekali (CLAUDE.md §1 "nota dibawa sopir untuk menagih", bukan surat
-// jalan -- larangan sama seperti §13.2 Mutasi Gudang: dilarang panggil
-// useRupiah()/baca harga di berkas ini). Kolom kiri header diganti
-// FAKTUR ASAL/SALESMAN/KENDARAAN (tidak ada di JL). "Agen" dan "Salesman"
+// pelanggan), kaki sama (Hal. n/m -> CETAK : user - timestamp). Baris barang
+// TANPA harga -- satu-satunya angka rupiah adalah TOTAL FAKTUR asal di kaki
+// halaman terakhir (revisi klien 17 Okt 2026, Hari 44: sopir perlu tahu
+// nilai tagihan). Nilainya stabil: faktur yang punya SJ tidak bisa direvisi
+// (CLAUDE.md §2.16a). Kolom kiri header diganti
+// FAKTUR ASAL/SALESMAN/KENDARAAN/PEKERJA (tidak ada di JL). "Agen" dan "Salesman"
 // adalah orang yang sama (koreksi 26 Sep 2026) -- kolom ini dulu berlabel
 // "AGEN (SOPIR)", sekarang memakai master salesmen langsung. Tanda tangan
 // "Dikirim Oleh," / "Diterima Oleh," dipertahankan dari §13.1 -- pas dengan
@@ -35,8 +36,9 @@ interface DeliveryOrderDetail {
   postingStatus: 'POSTED' | 'VOIDED'
   notes: string | null
   lines: DeliveryOrderLine[]
+  workers: { workerId: string }[]
 }
-interface InvoiceRef { invoiceNumber: string }
+interface InvoiceRef { invoiceNumber: string, totalAmount: string }
 interface Setting { key: string, value: string }
 
 const route = useRoute()
@@ -44,15 +46,18 @@ const router = useRouter()
 const api = useApi()
 const { user } = useAuth()
 const { format: qtyFmt } = useQty()
-const { loadCustomerMap, loadProductMap, loadUnitMap, loadSalesmanMap, loadVehicleMap } = useSalesInvoiceLookups()
+const { format: rupiah } = useRupiah()
+const { loadCustomerMap, loadProductMap, loadUnitMap, loadSalesmanMap, loadVehicleMap, loadWorkerMap } = useSalesInvoiceLookups()
 
 const deliveryOrder = ref<DeliveryOrderDetail | null>(null)
-const customerMap = ref(new Map<string, { name: string, address: string | null, city: string | null, phone: string | null }>())
+const customerMap = ref(new Map<string, { name: string, city: string | null }>())
 const productMap = ref(new Map<string, { displayName: string, code: string }>())
 const unitMap = ref(new Map<string, { name: string }>())
 const salesmanMap = ref(new Map<string, { name: string }>())
 const vehicleMap = ref(new Map<string, { name: string }>())
+const workerMap = ref(new Map<string, { name: string }>())
 const invoiceNumber = ref('-')
+const invoiceTotal = ref<number | null>(null)
 const store = ref<Record<string, string>>({})
 const printedAt = ref('')
 const loading = ref(true)
@@ -70,13 +75,14 @@ function ddMonShortyyyy(value: string | null | undefined): string {
 }
 
 async function loadAll() {
-  const [detail, customers, products, units, salesmen, vehicles] = await Promise.all([
+  const [detail, customers, products, units, salesmen, vehicles, workers] = await Promise.all([
     api.get<DeliveryOrderDetail>(`/delivery-orders/${route.params.id}`),
     loadCustomerMap(),
     loadProductMap(),
     loadUnitMap(),
     loadSalesmanMap(),
-    loadVehicleMap()
+    loadVehicleMap(),
+    loadWorkerMap()
   ])
   deliveryOrder.value = detail
   customerMap.value = customers
@@ -84,11 +90,14 @@ async function loadAll() {
   unitMap.value = units
   salesmanMap.value = salesmen
   vehicleMap.value = vehicles
+  workerMap.value = workers
   try {
     const invoice = await api.get<InvoiceRef>(`/sales-invoices/${detail.salesInvoiceId}`)
     invoiceNumber.value = invoice.invoiceNumber
+    invoiceTotal.value = Number(invoice.totalAmount)
   } catch {
     invoiceNumber.value = '-'
+    invoiceTotal.value = null
   }
   // GET /settings adalah MASTER-only (CLAUDE.md §5) -- Operator (paling
   // sering mencetak nota) akan 403 di sini. Gagal senyap (header toko
@@ -114,6 +123,10 @@ onMounted(async () => {
 const customer = computed(() => (deliveryOrder.value ? customerMap.value.get(deliveryOrder.value.customerId) : undefined))
 const salesmanName = computed(() => (deliveryOrder.value ? salesmanMap.value.get(deliveryOrder.value.salesmanId)?.name ?? '-' : '-'))
 const vehicleName = computed(() => (deliveryOrder.value ? vehicleMap.value.get(deliveryOrder.value.vehicleId)?.name ?? '-' : '-'))
+const workerNames = computed(() => {
+  const names = (deliveryOrder.value?.workers ?? []).map(w => workerMap.value.get(w.workerId)?.name ?? '-')
+  return names.length > 0 ? names.join(', ') : '-'
+})
 
 function productName(id: string): string {
   return productMap.value.get(id)?.displayName ?? id
@@ -247,15 +260,15 @@ async function triggerPrint() {
               <div>FAKTUR ASAL&nbsp;: {{ invoiceNumber }}</div>
               <div>SALESMAN&nbsp;&nbsp;&nbsp;&nbsp;: {{ salesmanName }}</div>
               <div>KENDARAAN&nbsp;&nbsp;: {{ vehicleName }}</div>
+              <div>PEKERJA&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: {{ workerNames }}</div>
             </div>
             <div>
               <div class="font-bold">
                 {{ customer?.name ?? '-' }}
               </div>
-              <div v-if="customer?.address || customer?.city">
-                {{ [customer?.address, customer?.city].filter(Boolean).join(', ') }}
+              <div v-if="customer?.city">
+                {{ customer.city }}
               </div>
-              <div>TEL : {{ customer?.phone ?? '' }}</div>
             </div>
           </div>
 
@@ -320,6 +333,12 @@ async function triggerPrint() {
               </div>
             </div>
             <div class="text-right">
+              <div
+                v-if="pageIndex === pages.length - 1 && invoiceTotal !== null"
+                class="font-bold"
+              >
+                TOTAL FAKTUR : {{ rupiah(invoiceTotal) }}
+              </div>
               <div v-if="pages.length > 1">
                 Hal. {{ pageIndex + 1 }} / {{ pages.length }}
               </div>

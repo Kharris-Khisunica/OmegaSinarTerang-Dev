@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import type { CustomerLookup, ProductLookup, SalesmanLookup, UnitLookup, VehicleLookup } from '~/composables/useSalesInvoiceLookups'
+import type { CustomerLookup, ProductLookup, SalesmanLookup, UnitLookup, VehicleLookup, WorkerLookup } from '~/composables/useSalesInvoiceLookups'
+import type { SelectOption } from '~/types/crud-form'
 
 definePageMeta({ title: 'Detail Surat Jalan', roles: ['MASTER', 'OPERATOR'] })
 
@@ -32,6 +33,7 @@ interface DeliveryOrderDetail {
   voidReasonNote: string | null
   notes: string | null
   lines: DeliveryOrderLine[]
+  workers: { workerId: string }[]
 }
 interface InvoiceRef { invoiceNumber: string }
 
@@ -39,7 +41,7 @@ const route = useRoute()
 const api = useApi()
 const { performDualGateVoid } = useDualGateVoid()
 const { format: qtyFmt } = useQty()
-const { loadCustomerMap, loadProductMap, loadUnitMap, loadSalesmanMap, loadVehicleMap } = useSalesInvoiceLookups()
+const { loadCustomerMap, loadProductMap, loadUnitMap, loadSalesmanMap, loadVehicleMap, loadWorkerMap } = useSalesInvoiceLookups()
 
 const deliveryId = route.params.id as string
 
@@ -52,6 +54,7 @@ const productMap = ref<Map<string, ProductLookup>>(new Map())
 const unitMap = ref<Map<string, UnitLookup>>(new Map())
 const salesmanMap = ref<Map<string, SalesmanLookup>>(new Map())
 const vehicleMap = ref<Map<string, VehicleLookup>>(new Map())
+const workerMap = ref<Map<string, WorkerLookup>>(new Map())
 
 async function loadDeliveryOrder() {
   const detail = await api.get<DeliveryOrderDetail>(`/delivery-orders/${deliveryId}`)
@@ -66,19 +69,21 @@ async function loadDeliveryOrder() {
 
 onMounted(async () => {
   try {
-    const [, customers, products, units, salesmen, vehicles] = await Promise.all([
+    const [, customers, products, units, salesmen, vehicles, workers] = await Promise.all([
       loadDeliveryOrder(),
       loadCustomerMap(),
       loadProductMap(),
       loadUnitMap(),
       loadSalesmanMap(),
-      loadVehicleMap()
+      loadVehicleMap(),
+      loadWorkerMap()
     ])
     customerMap.value = customers
     productMap.value = products
     unitMap.value = units
     salesmanMap.value = salesmen
     vehicleMap.value = vehicles
+    workerMap.value = workers
   } catch (err) {
     loadError.value = getErrorMessage(err, 'Gagal memuat detail surat jalan.')
   } finally {
@@ -103,6 +108,10 @@ function salesmanLabel(id: string): string {
 function vehicleLabel(id: string): string {
   return vehicleMap.value.get(id)?.name ?? '-'
 }
+const workersLabel = computed(() => {
+  const names = (deliveryOrder.value?.workers ?? []).map(w => workerMap.value.get(w.workerId)?.name ?? '-')
+  return names.length > 0 ? names.join(', ') : '-'
+})
 
 const DELIVERY_STATUS_LABEL: Record<DeliveryStatus, string> = {
   PENDING: 'Menunggu Kirim',
@@ -200,6 +209,47 @@ function openStatusModal() {
   statusOpen.value = true
 }
 
+// --- Ubah Pekerja (Hari 44) ---------------------------------------------------
+// BEBAS kunci cetak (keputusan 17 Okt 2026, pola sama status kirim) -- tanpa
+// withStepUp(), print_status tidak berubah, jejaknya di audit_logs.
+const workersOpen = ref(false)
+const workerIdsValue = ref<string[]>([])
+const workersSubmitting = ref(false)
+const workersError = ref('')
+
+const workerOptions = computed<SelectOption[]>(() => {
+  const selected = new Set(workerIdsValue.value)
+  // Pekerja nonaktif yang sudah tercatat tetap tampil supaya bisa dilepas.
+  return [...workerMap.value.values()]
+    .filter(w => w.isActive || selected.has(w.id))
+    .map(w => ({ label: `${w.code} - ${w.name}`, value: w.id }))
+})
+
+function openWorkersModal() {
+  if (!deliveryOrder.value) return
+  workerIdsValue.value = deliveryOrder.value.workers.map(w => w.workerId)
+  workersError.value = ''
+  workersOpen.value = true
+}
+
+async function submitWorkers() {
+  if (workerIdsValue.value.length === 0) {
+    workersError.value = 'Pilih minimal satu pekerja.'
+    return
+  }
+  workersError.value = ''
+  workersSubmitting.value = true
+  try {
+    await api.patch(`/delivery-orders/${deliveryId}/workers`, { workerIds: workerIdsValue.value })
+    workersOpen.value = false
+    await loadDeliveryOrder()
+  } catch (err) {
+    workersError.value = getErrorMessage(err, 'Gagal mengubah pekerja.')
+  } finally {
+    workersSubmitting.value = false
+  }
+}
+
 // DocumentActions dipasang `no-edit` -- Batal Cetak hanya bisa ber-niat VOID.
 function handleUnlockPrint(payload: { intent: 'EDIT' | 'VOID', reason: string }) {
   if (payload.intent === 'VOID') openVoidModal(payload.reason)
@@ -292,6 +342,15 @@ async function submitStatus() {
             >
               Ubah Status Kirim
             </UButton>
+            <UButton
+              v-if="deliveryOrder.postingStatus === 'POSTED'"
+              icon="i-lucide-users"
+              color="neutral"
+              variant="subtle"
+              @click="openWorkersModal()"
+            >
+              Ubah Pekerja
+            </UButton>
             <DocumentActions
               :posting-status="deliveryOrder.postingStatus"
               :print-status="deliveryOrder.printStatus"
@@ -330,6 +389,9 @@ async function submitStatus() {
             Lihat faktur asal ({{ invoiceNumber }})
           </NuxtLink>
         </div>
+        <div class="text-sm text-muted">
+          Pekerja: {{ workersLabel }}
+        </div>
         <div
           v-if="deliveryOrder.notes"
           class="text-sm"
@@ -338,9 +400,8 @@ async function submitStatus() {
         </div>
       </div>
 
-      <!-- Tanpa nilai rupiah sama sekali -- surat jalan bukan dokumen uang
-           (CLAUDE.md §1 "nota dibawa sopir untuk menagih", bukan surat
-           jalan). Dilarang panggil useRupiah()/baca harga di sini. -->
+      <!-- Baris tanpa nilai rupiah -- surat jalan bukan dokumen uang. Total
+           faktur hanya dicetak di lembar SJ (cetak.vue, Hari 44). -->
       <DataTable
         :rows="deliveryOrder.lines as unknown as Record<string, unknown>[]"
         :columns="[
@@ -408,6 +469,56 @@ async function submitStatus() {
             :loading="statusSubmitting"
             :disabled="statusSubmitting"
             @click="submitStatus"
+          >
+            Simpan
+          </UButton>
+        </div>
+      </template>
+    </UModal>
+
+    <!-- Ubah Pekerja (Hari 44) -->
+    <UModal
+      v-model:open="workersOpen"
+      title="Ubah Pekerja"
+      description="Bebas kunci cetak -- status cetak tidak berubah, perubahan tercatat di jejak audit."
+    >
+      <template #body>
+        <div class="flex flex-col gap-4">
+          <UAlert
+            v-if="workersError"
+            color="error"
+            variant="subtle"
+            icon="i-lucide-alert-triangle"
+            :description="workersError"
+          />
+          <UFormField
+            label="Pekerja"
+            required
+            hint="Boleh lebih dari satu."
+          >
+            <USelect
+              v-model="workerIdsValue"
+              :items="workerOptions"
+              multiple
+              placeholder="Pilih pekerja..."
+              class="w-full"
+            />
+          </UFormField>
+        </div>
+      </template>
+      <template #footer>
+        <div class="flex justify-end gap-2 w-full">
+          <UButton
+            color="neutral"
+            variant="ghost"
+            @click="workersOpen = false"
+          >
+            Batal
+          </UButton>
+          <UButton
+            :loading="workersSubmitting"
+            :disabled="workersSubmitting"
+            @click="submitWorkers"
           >
             Simpan
           </UButton>

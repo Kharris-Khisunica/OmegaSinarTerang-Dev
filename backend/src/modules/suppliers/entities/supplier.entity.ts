@@ -17,12 +17,6 @@ export class Supplier {
   @Column()
   name: string;
 
-  @Column({ name: 'contact_phone', nullable: true, type: 'varchar' })
-  contactPhone: string | null;
-
-  @Column({ name: 'contact_address', nullable: true, type: 'text' })
-  contactAddress: string | null;
-
   // Menggerbangi PPN masukan bersama products.is_bkp (CLAUDE.md §2.11) —
   // PPN masukan hanya dihitung kalau supplier.is_pkp DAN product.is_bkp.
   @Column({ name: 'is_pkp', default: false })

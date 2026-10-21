@@ -54,7 +54,7 @@ export class CustomersService {
 
     if (query.search) {
       qb.andWhere(
-        '(customer.code ILIKE :search OR customer.name ILIKE :search OR customer.phone ILIKE :search)',
+        '(customer.code ILIKE :search OR customer.name ILIKE :search OR customer.city ILIKE :search)',
         { search: `%${query.search}%` },
       );
     }
@@ -105,11 +105,7 @@ export class CustomersService {
     const customer = this.customersRepository.create({
       code,
       name: toUpperTrim(dto.name),
-      phone: dto.phone ?? null,
-      address: toUpperTrim(dto.address) ?? null,
-      district: toUpperTrim(dto.district) ?? null,
       city: toUpperTrim(dto.city) ?? null,
-      province: toUpperTrim(dto.province) ?? null,
       isPkp: dto.isPkp ?? false,
       arAccountId: dto.arAccountId ?? null,
       isActive: dto.isActive ?? true,
@@ -134,15 +130,7 @@ export class CustomersService {
     await this.customersRepository.update(id, {
       ...(dto.code !== undefined && { code: dto.code }),
       ...(dto.name !== undefined && { name: toUpperTrim(dto.name) }),
-      ...(dto.phone !== undefined && { phone: dto.phone }),
-      ...(dto.address !== undefined && { address: toUpperTrim(dto.address) }),
-      ...(dto.district !== undefined && {
-        district: toUpperTrim(dto.district),
-      }),
       ...(dto.city !== undefined && { city: toUpperTrim(dto.city) }),
-      ...(dto.province !== undefined && {
-        province: toUpperTrim(dto.province),
-      }),
       ...(dto.isPkp !== undefined && { isPkp: dto.isPkp }),
       ...(dto.arAccountId !== undefined && { arAccountId: dto.arAccountId }),
       ...(dto.isActive !== undefined && { isActive: dto.isActive }),

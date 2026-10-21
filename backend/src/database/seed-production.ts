@@ -83,6 +83,9 @@ seed()
     process.exit(0);
   })
   .catch((error: unknown) => {
-    console.error('Seed produksi gagal:', error instanceof Error ? error.message : error);
+    console.error(
+      'Seed produksi gagal:',
+      error instanceof Error ? error.message : error,
+    );
     process.exit(1);
   });
